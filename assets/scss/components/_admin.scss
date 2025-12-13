@@ -1,0 +1,47 @@
+// Admin-specific helpers; kept lean to avoid layout shifts.
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+}
+
+.grid.two {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+}
+
+.grid.three {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.grid.stats {
+  grid-template-columns: 1.3fr 1fr;
+  align-items: center;
+}
+
+/* Docs lists */
+.docs-list {
+  list-style: disc;
+  padding-left: 20px;
+  color: var(--text);
+}
+.docs-list li {
+  margin-bottom: 6px;
+  line-height: 1.5;
+  color: var(--text-muted, #cbd5e1);
+}
+.docs-list li strong {
+  color: var(--text);
+}
+
+.docs-block {
+  padding: 16px 18px;
+  border-radius: 14px;
+}
+.docs-block .eyebrow {
+  margin-bottom: 6px;
+}

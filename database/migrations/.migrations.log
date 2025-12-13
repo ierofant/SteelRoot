@@ -1,0 +1,14 @@
+{
+    "20250101_create_admin_and_settings": "up",
+    "20250102_create_gallery_items": "up",
+    "20250103_create_articles": "up",
+    "20250104_add_gallery_sizes": "up",
+    "20250105_create_tags": "up",
+    "20250106_add_fulltext_search": "up",
+    "20251210_add_article_meta": "up",
+    "20251210_add_article_preview": "up",
+    "20251212_add_gallery_slug": "up",
+    "20251213_create_search_index": "up",
+    "20251214_add_views_likes": "up",
+    "20251215_add_search_index_media": "up"
+}

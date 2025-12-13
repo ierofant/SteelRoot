@@ -1,0 +1,13 @@
+{
+  "entity": "faq",
+  "table": "faq_items",
+  "fields": [
+    {"name": "question", "type": "string", "required": true},
+    {"name": "answer", "type": "text"},
+    {"name": "status", "type": "enum", "values": ["draft", "published"]}
+  ],
+  "admin": {
+    "list": ["question", "status", "updated_at"],
+    "edit_form": ["question", "answer", "status"]
+  }
+}

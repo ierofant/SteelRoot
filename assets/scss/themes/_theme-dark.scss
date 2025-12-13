@@ -1,0 +1,18 @@
+@import "../tokens/colors";
+@import "../tokens/gradients";
+@import "../tokens/shadows";
+@import "../tokens/borders";
+@import "../tokens/spacing";
+@import "../tokens/typography";
+
+:root[data-theme="dark"] {
+  --bg: $color-bg-dark;
+  --bg-card: $color-card-dark;
+  --text: $color-text-dark;
+  --text-muted: $color-muted-dark;
+  --accent: $color-accent-dark;
+  --accent-2: $color-accent2-dark;
+  --border: $color-border-dark;
+  --shadow-card: $shadow-card-dark;
+  --bg-muted: $color-card-soft-dark;
+}

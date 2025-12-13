@@ -1,0 +1,26 @@
+@import "../tokens/colors";
+@import "../tokens/gradients";
+@import "../tokens/shadows";
+@import "../tokens/borders";
+@import "../tokens/spacing";
+@import "../tokens/typography";
+
+:root[data-theme="light"] {
+  --bg: $color-bg-light;
+  --bg-card: $color-card-light;
+  --bg-muted: $color-bg-muted-light;
+  --text: $color-text-light;
+  --text-muted: $color-muted-light;
+  --accent: $color-accent-light;
+  --accent-hover: $color-accent-hover-light;
+  --accent-2: $color-accent2-light;
+  --border: $color-border-light;
+  --border-soft: $color-border-soft-light;
+  --shadow-card: $shadow-card-light;
+  --shadow-popup: $shadow-popup-light;
+  --panel: $color-panel-light;
+  --card: $color-card-light;
+  --card-soft: $color-card-soft-light;
+  --danger: $color-danger-light;
+  --shadow: $shadow-strong-light;
+}

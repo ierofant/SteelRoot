@@ -1,0 +1,21 @@
+<?php
+return [
+    'welcome' => 'Welcome to SteelRoot',
+    'contact' => 'Contact us',
+    'not_found' => 'Page not found',
+    'errors.settings.title' => 'Error pages',
+    'errors.settings.subtitle' => 'Customize 403/404/500/503 content',
+    'errors.settings.back' => 'Back to template',
+    'errors.settings.saved' => 'Settings saved',
+    'errors.settings.save' => 'Save',
+    'errors.settings.cancel' => 'Cancel',
+    'errors.settings.custom_enabled' => 'Enable custom page',
+    'errors.settings.code' => 'Error :code',
+    'errors.settings.title_label' => 'Title',
+    'errors.settings.message_label' => 'Message',
+    'errors.settings.description_label' => 'Description',
+    'errors.settings.cta_text' => 'CTA text',
+    'errors.settings.cta_url' => 'CTA URL',
+    'errors.settings.show_home_button' => 'Show home button',
+    'errors.settings.icon' => 'Icon (emoji or class)',
+];

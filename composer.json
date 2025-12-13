@@ -1,0 +1,13 @@
+{
+    "name": "steelroot/framework",
+    "description": "Lightweight PHP framework for shared hosting",
+    "autoload": {
+        "psr-4": {
+            "Core\\": "core/",
+            "App\\": "app/",
+            "Modules\\": "modules/",
+            "Database\\": "database/"
+        }
+    },
+    "require": {}
+}

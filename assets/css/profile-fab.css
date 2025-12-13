@@ -1,0 +1,12 @@
+.mobile-user-fab {display:none;}
+.mobile-user-fab[hidden] {display:none !important;}
+@media (max-width: 820px) {
+    .mobile-user-fab.show {
+        display:flex; position:fixed; right:14px; bottom:14px; z-index:3000;
+        align-items:center; gap:8px;
+    }
+    .mobile-user-fab.show .user-nav-logged,
+    .mobile-user-fab.show .user-nav-guest {
+        display:flex; align-items:center; gap:8px;
+    }
+}

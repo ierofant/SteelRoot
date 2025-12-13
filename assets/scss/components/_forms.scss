@@ -1,0 +1,106 @@
+// Shared form styles; rely on theme variables only.
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field span {
+  color: var(--text-muted, #94a3b8);
+  font-size: 14px;
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 12px;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  background: radial-gradient(circle at 20% 20%, rgba(46, 16, 101, 0.35), transparent 45%),
+              radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.16), transparent 50%),
+              rgba(7, 10, 20, 0.92);
+  color: var(--text, #e5e7eb);
+  font-size: 14px;
+  box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(7, 10, 20, 0.45);
+  transition: all 0.2s ease, border-color 0.15s ease;
+  caret-color: var(--accent, #22d3ee);
+}
+
+.field input::placeholder,
+.field textarea::placeholder {
+  color: rgba(148, 163, 184, 0.8);
+}
+
+.field textarea {
+  min-height: 100px;
+}
+
+.field input:hover,
+.field textarea:hover,
+.field select:hover {
+  border-color: rgba(168, 85, 247, 0.5);
+  box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.38), 0 10px 28px rgba(14, 165, 233, 0.12), 0 0 0 1px rgba(168, 85, 247, 0.12);
+}
+
+.field input:focus,
+.field textarea:focus,
+.field select:focus {
+  outline: none;
+  border-color: rgba(167, 139, 250, 0.85);
+  box-shadow: inset 0 1px 10px rgba(0, 0, 0, 0.32), 0 0 0 3px rgba(168, 85, 247, 0.22), 0 14px 38px rgba(34, 211, 238, 0.16), 0 0 28px rgba(167, 139, 250, 0.35);
+}
+
+// Raw wrapper to upgrade legacy forms without changing DOM.
+.form-dark {
+  input,
+  select,
+  textarea {
+    width: 100%;
+    padding: 11px 13px;
+    border-radius: 12px;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+    background: radial-gradient(circle at 20% 20%, rgba(46, 16, 101, 0.35), transparent 45%),
+                radial-gradient(circle at 80% 0%, rgba(14, 165, 233, 0.16), transparent 50%),
+                rgba(7, 10, 20, 0.92);
+    color: #e5e7eb;
+    font-size: 14px;
+    box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(7, 10, 20, 0.45);
+    transition: all 0.2s ease, border-color 0.15s ease;
+    caret-color: var(--accent, #22d3ee);
+  }
+
+  input::placeholder,
+  textarea::placeholder {
+    color: rgba(148, 163, 184, 0.8);
+  }
+
+  input:hover,
+  select:hover,
+  textarea:hover {
+    border-color: rgba(168, 85, 247, 0.5);
+    box-shadow: inset 0 1px 8px rgba(0, 0, 0, 0.38), 0 10px 28px rgba(14, 165, 233, 0.12), 0 0 0 1px rgba(168, 85, 247, 0.12);
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    outline: none;
+    border-color: rgba(167, 139, 250, 0.85);
+    box-shadow: inset 0 1px 10px rgba(0, 0, 0, 0.32), 0 0 0 3px rgba(168, 85, 247, 0.22), 0 14px 38px rgba(34, 211, 238, 0.16), 0 0 28px rgba(167, 139, 250, 0.35);
+  }
+
+  .data input[type="checkbox"] {
+    width: auto;
+    box-shadow: none;
+    background: transparent;
+    border: 1px solid rgba(168, 85, 247, 0.35);
+  }
+}
+
+// Ensure options stay dark in dark theme dropdowns.
+[data-theme="dark"] select option,
+[data-theme="dark"] .form-dark select option {
+  background: var(--bg, #0b1220);
+  color: var(--text, #e5e7eb);
+}

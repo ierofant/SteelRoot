@@ -1,0 +1,21 @@
+<?php
+return [
+    'welcome' => 'Добро пожаловать в SteelRoot',
+    'contact' => 'Свяжитесь с нами',
+    'not_found' => 'Страница не найдена',
+    'errors.settings.title' => 'Страницы ошибок',
+    'errors.settings.subtitle' => 'Настройка 403/404/500/503',
+    'errors.settings.back' => 'Назад к шаблону',
+    'errors.settings.saved' => 'Настройки сохранены',
+    'errors.settings.save' => 'Сохранить',
+    'errors.settings.cancel' => 'Отмена',
+    'errors.settings.custom_enabled' => 'Включить кастомную страницу',
+    'errors.settings.code' => 'Ошибка :code',
+    'errors.settings.title_label' => 'Заголовок',
+    'errors.settings.message_label' => 'Сообщение',
+    'errors.settings.description_label' => 'Описание',
+    'errors.settings.cta_text' => 'Текст кнопки',
+    'errors.settings.cta_url' => 'Ссылка кнопки',
+    'errors.settings.show_home_button' => 'Показывать кнопку домой',
+    'errors.settings.icon' => 'Иконка (эмодзи или класс)',
+];
