@@ -79,9 +79,6 @@ public_html/
 ├── storage/ # cache, logs, tmp, uploads
 └── assets/ # scss/css/js (сборка через tools)
 
-yaml
-Copy code
-
 ---
 
 ## Для разработчиков

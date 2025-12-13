@@ -46,9 +46,6 @@ public_html/
 ├── storage/ # Runtime data (cache, logs, uploads)
 └── installer.php # One-time installer
 
-yaml
-Copy code
-
 ---
 
 ## Request Lifecycle
