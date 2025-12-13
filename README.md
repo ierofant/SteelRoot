@@ -8,16 +8,16 @@ Modular PHP CMS for shared hosting (public_html). Ships with admin panel, themes
 ## Screenshots
 
 ### Admin Dashboard
-![Dashboard](docs/screens/dashboard.png)
+![Dashboard](docs/screens/dashboard.webp)
 
 ### Modules manager
-![Modules](docs/screens/modules.png)
+![Modules](docs/screens/modules.webp)
 
 ### Forms builder
-![Forms](docs/screens/forms.png)
+![Forms](docs/screens/forms.webp)
 
 ### Homepage builder
-![Homepage](docs/screens/homepage-builder.png)
+![Homepage](docs/screens/homepage-builder.webp)
 
 ## Requirements
 - PHP 8.1+ with extensions: pdo, pdo_mysql, mbstring, json, openssl, fileinfo, gd.
