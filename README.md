@@ -5,6 +5,20 @@ Modular PHP CMS focused on clarity, security, and sane defaults.
 
 Modular PHP CMS for shared hosting (public_html). Ships with admin panel, themes, i18n (en/ru), articles, gallery, popups, pages, forms, search, and PWA support.
 
+## Screenshots
+
+### Admin Dashboard
+![Dashboard](docs/screens/dashboard.png)
+
+### Modules manager
+![Modules](docs/screens/modules.png)
+
+### Forms builder
+![Forms](docs/screens/forms.png)
+
+### Homepage builder
+![Homepage](docs/screens/homepage-builder.png)
+
 ## Requirements
 - PHP 8.1+ with extensions: pdo, pdo_mysql, mbstring, json, openssl, fileinfo, gd.
 - MySQL/MariaDB.
