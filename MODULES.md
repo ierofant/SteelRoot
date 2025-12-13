@@ -16,6 +16,8 @@ Examples:
 - Users
 - Popups
 - FAQ
+- TAGS
+- SEARCHE
 - Shop (future)
 - Forum (future)
 
@@ -89,8 +91,7 @@ Use native PHP templates
 All text via __()
 
 Language Files
-bash
-Copy code
+
 modules/Example/lang/en.php
 modules/Example/lang/ru.php
 Return associative arrays.
