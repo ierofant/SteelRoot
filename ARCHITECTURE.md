@@ -182,4 +182,4 @@ public_html/
 SteelRoot is intentionally **boring in the core** and **flexible at the edges**.
 
 If something feels complex inside `core/`, it's probably wrong.
-If something is complex, it should live in a module.
+If something is complex, it should live in a module...
