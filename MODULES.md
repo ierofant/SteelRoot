@@ -10,6 +10,7 @@ and extended in SteelRoot CMS.
 A module is a **self-contained feature package**.
 
 Examples:
+
 - Articles
 - Gallery
 - Pages
