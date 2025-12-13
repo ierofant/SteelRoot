@@ -1,6 +1,8 @@
 # SteelRoot
 Modular PHP CMS focused on clarity, security, and sane defaults.
 
+📘 Русская версия: [README.ru.md](README.ru.md)
+
 # SteelRoot CMS
 
 Modular PHP CMS for shared hosting (public_html). Ships with admin panel, themes, i18n (en/ru), articles, gallery, popups, pages, forms, search, and PWA support.
