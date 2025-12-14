@@ -37,8 +37,11 @@ class HomeController
         usort($sections, function ($a, $b) {
             return ($a['order'] ?? 0) <=> ($b['order'] ?? 0);
         });
+        $locKey = $this->container->get('lang')->current() === 'ru' ? 'ru' : 'en';
+        $metaTitle = $homeCfg['page_title_' . $locKey] ?? ($locKey === 'ru' ? 'SteelRoot' : 'SteelRoot');
+        $metaDescription = $homeCfg['page_description_' . $locKey] ?? ($locKey === 'ru' ? 'Лёгкий старт для вашего сайта.' : 'Easy start for your site.');
         $html = $this->container->get('renderer')->render('home', [
-            'title' => \__('welcome'),
+            'title' => $metaTitle,
             'home' => $homeCfg,
             'gallery' => $gallery,
             'articles' => $articles,
@@ -46,10 +49,14 @@ class HomeController
             'locale' => $this->container->get('lang')->current(),
             'galleryMode' => $homeCfg['gallery_style'] ?? $this->settings->get('gallery_open_mode', 'lightbox'),
             'meta' => [
-                'title' => \__('welcome'),
-                'description' => 'Welcome to SteelRoot starter page.',
+                'title' => $metaTitle,
+                'description' => $metaDescription,
                 'canonical' => $canonical,
-                'og' => ['title' => \__('welcome'), 'description' => 'Welcome to SteelRoot starter page.', 'url' => $canonical],
+                'og' => [
+                    'title' => $metaTitle,
+                    'description' => $metaDescription,
+                    'url' => $canonical,
+                ],
             ],
         ]);
         return new Response($html);
@@ -216,6 +223,8 @@ class HomeController
     private function homeConfig(): array
     {
         $defaults = [
+            'page_title' => ['ru' => 'SteelRoot', 'en' => 'SteelRoot'],
+            'page_description' => ['ru' => 'Лёгкий старт для вашего сайта.', 'en' => 'Easy start for your site.'],
             'hero_eyebrow' => ['ru' => 'Главная', 'en' => 'Home'],
             'hero_title' => 'SteelRoot',
             'hero_subtitle' => 'Лёгкий старт для вашего сайта.',
@@ -301,6 +310,10 @@ class HomeController
             'custom_block_cta_ru' => $settings['home_custom_block_cta_ru'] ?? $defaults['custom_block_cta']['ru'],
             'custom_block_cta_en' => $settings['home_custom_block_cta_en'] ?? $defaults['custom_block_cta']['en'],
             'custom_css' => $settings['home_custom_css'] ?? $defaults['custom_css'],
+            'page_title_ru' => $settings['home_page_title_ru'] ?? $defaults['page_title']['ru'],
+            'page_title_en' => $settings['home_page_title_en'] ?? $defaults['page_title']['en'],
+            'page_description_ru' => $settings['home_page_description_ru'] ?? $defaults['page_description']['ru'],
+            'page_description_en' => $settings['home_page_description_en'] ?? $defaults['page_description']['en'],
         ];
     }
 

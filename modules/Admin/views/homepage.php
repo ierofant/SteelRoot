@@ -14,7 +14,9 @@ ob_start();
     <?php if (!empty($saved)): ?><div class="alert success"><?= __('homepage.saved') ?></div><?php endif; ?>
     <form method="post" class="stack">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
-
+        <div class="form-actions">
+            <button type="submit" class="btn primary"><?= __('homepage.action.save') ?></button>
+        </div>
         <div class="card subtle stack">
             <p class="eyebrow"><?= __('homepage.hero.section') ?></p>
             <div class="grid two">
@@ -233,6 +235,42 @@ ob_start();
                     <input type="text" name="home_custom_block_cta_en" value="<?= htmlspecialchars($s['home_custom_block_cta_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.custom_block_cta_en') ?>">
                 </label>
             </div>
+
+            <div class="grid two">
+                <label class="field">
+                    <span><?= __('homepage.seo.og_title') ?></span>
+                    <input type="text" name="og_title" value="<?= htmlspecialchars($s['og_title'] ?? '') ?>" placeholder="<?= __('homepage.seo.og_title_placeholder') ?>">
+                </label>
+                <label class="field">
+                    <span><?= __('homepage.seo.og_description') ?></span>
+                    <input type="text" name="og_description" value="<?= htmlspecialchars($s['og_description'] ?? '') ?>" placeholder="<?= __('homepage.seo.og_description_placeholder') ?>">
+                </label>
+            </div>
+            <label class="field">
+                <span><?= __('homepage.seo.og_image') ?></span>
+                <input type="text" name="og_image" value="<?= htmlspecialchars($s['og_image'] ?? '') ?>" placeholder="https://.../og-image.png">
+            </label>
+
+            <div class="grid two">
+                <label class="field">
+                    <span><?= __('homepage.meta.title_ru') ?></span>
+                    <input type="text" name="home_page_title_ru" value="<?= htmlspecialchars($s['home_page_title_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.page_title_ru') ?>">
+                </label>
+                <label class="field">
+                    <span><?= __('homepage.meta.title_en') ?></span>
+                    <input type="text" name="home_page_title_en" value="<?= htmlspecialchars($s['home_page_title_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.page_title_en') ?>">
+                </label>
+            </div>
+            <div class="grid two">
+                <label class="field">
+                    <span><?= __('homepage.meta.description_ru') ?></span>
+                    <textarea name="home_page_description_ru" rows="2" placeholder="<?= __('homepage.defaults.page_description_ru') ?>"><?= htmlspecialchars($s['home_page_description_ru'] ?? '') ?></textarea>
+                </label>
+                <label class="field">
+                    <span><?= __('homepage.meta.description_en') ?></span>
+                    <textarea name="home_page_description_en" rows="2" placeholder="<?= __('homepage.defaults.page_description_en') ?>"><?= htmlspecialchars($s['home_page_description_en'] ?? '') ?></textarea>
+                </label>
+            </div>
         </div>
 
         <div class="card subtle stack">
@@ -250,7 +288,6 @@ ob_start();
 
         <div class="form-actions">
             <button type="submit" class="btn primary"><?= __('homepage.action.save') ?></button>
-            <a class="btn ghost" href="/"><?= __('homepage.action.to_site') ?></a>
         </div>
     </form>
 </div>

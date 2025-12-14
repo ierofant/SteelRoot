@@ -5,6 +5,8 @@ $articles = $articles ?? [];
 $sections = $sections ?? [];
 $loc = $locale ?? 'en';
 $locKey = $loc === 'ru' ? 'ru' : 'en';
+$pageTitle = $home['page_title_' . $locKey] ?? ($locKey === 'ru' ? 'SteelRoot' : 'SteelRoot');
+$pageDescription = $home['page_description_' . $locKey] ?? ($locKey === 'ru' ? 'Лёгкий старт для вашего сайта.' : 'Easy start for your site.');
 $heroEyebrow = $home['hero_eyebrow_' . $locKey] ?? $home['hero_eyebrow_ru'] ?? 'Главная';
 $statGalleryLabel = $home['stats_gallery_label_' . $locKey] ?? ($locKey === 'ru' ? 'Галерея' : 'Gallery');
 $statArticlesLabel = $home['stats_articles_label_' . $locKey] ?? ($locKey === 'ru' ? 'Статьи' : 'Articles');
@@ -229,4 +231,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <?php endif; ?>
-<?php $content = ob_get_clean(); include __DIR__ . '/layout.php'; ?>
+<?php
+$content = ob_get_clean();
+include __DIR__ . '/layout.php';
+?>
