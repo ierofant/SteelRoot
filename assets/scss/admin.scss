@@ -1,9 +1,8 @@
-@import "core/variables";
-@import "core/reset";
-@import "tokens/colors";
-@import "tokens/gradients";
-@import "tokens/shadows";
-@import "tokens/borders";
+@use "tokens";
+@use "core";
+@use "layout";
+
+@use "components/admin";
 
 :root {
   --bg: #0b1220;

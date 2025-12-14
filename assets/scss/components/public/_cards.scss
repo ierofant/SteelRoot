@@ -222,3 +222,177 @@
     transform: translateX(200%) skewX(-15deg);
   }
 }
+/* =========================
+   CARDS GRID
+========================= */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  padding: 8px;
+
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+}
+
+/* background glow */
+.cards::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  background: radial-gradient(
+    circle at 30% 40%,
+    rgba(168, 85, 247, 0.08),
+    transparent 60%
+  );
+
+  transform: scale(1.25);
+  filter: blur(40px);
+  opacity: .8;
+
+  pointer-events: none;
+  z-index: -1;
+
+  animation: bg-pulse 8s ease-in-out infinite;
+}
+
+@keyframes bg-pulse {
+  0%,100% { opacity: .6 }
+  50%     { opacity: 1 }
+}
+
+/* =========================
+   GRID ITEMS
+========================= */
+
+.cards > * {
+  position: relative;
+  will-change: transform, opacity;
+  animation: card-in .5s ease-out backwards;
+}
+
+.cards > *:nth-child(n) {
+  animation-delay: calc(var(--i, 1) * 0.05s);
+}
+
+@keyframes card-in {
+  from { opacity: 0; transform: translateY(20px) scale(.96) }
+  to   { opacity: 1; transform: none }
+}
+
+/* =========================
+   CARD / TILE — SHARED
+========================= */
+
+.cards .card,
+.cards .card-tile {
+  position: relative;
+  overflow: hidden;
+
+  padding: 20px;
+  border-radius: 16px;
+
+  background: linear-gradient(
+    145deg,
+    rgba(15,23,42,.9),
+    rgba(88,28,135,.3),
+    rgba(15,23,42,.95)
+  );
+
+  backdrop-filter: blur(10px) saturate(160%);
+  border: 1px solid rgba(168,85,247,.2);
+
+  box-shadow:
+    0 10px 32px rgba(0,0,0,.3),
+    0 0 50px rgba(168,85,247,.1);
+
+  transition:
+    transform .35s cubic-bezier(.4,0,.2,1),
+    box-shadow .35s ease,
+    border-color .35s ease;
+}
+
+/* glow overlay */
+.cards .card::before,
+.cards .card-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+
+  background: radial-gradient(
+    circle at 50% 0%,
+    rgba(167,139,250,.18),
+    transparent 60%
+  );
+
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .35s ease;
+}
+
+/* =========================
+   HOVER
+========================= */
+
+.cards .card:hover,
+.cards .card-tile:hover {
+  transform: translateY(-6px) scaleY(1.02);
+  border-color: rgba(168,85,247,.4);
+
+  box-shadow:
+    0 22px 56px rgba(0,0,0,.4),
+    0 0 90px rgba(168,85,247,.2);
+}
+
+.cards .card:hover::before,
+.cards .card-tile:hover::before {
+  opacity: 1;
+}
+
+/* =========================
+   TILE TEXT
+========================= */
+
+.cards .card-tile {
+  text-decoration: none;
+  color: #e5e7eb;
+}
+
+.cards .card-tile h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+  color: #fff;
+
+  text-shadow: 0 0 30px rgba(167,139,250,.4);
+  transition: transform .3s ease, text-shadow .3s ease;
+}
+
+.cards .card-tile:hover h3 {
+  transform: translateX(4px);
+  text-shadow: 0 0 40px rgba(167,139,250,.8);
+}
+
+/* =========================
+   VARIANTS
+========================= */
+
+.cards.dense    { gap: 12px; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)) }
+.cards.spacious { gap: 32px; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)) }
+.cards.two-col  { grid-template-columns: repeat(auto-fit,minmax(320px,1fr)) }
+.cards.three-col{ grid-template-columns: repeat(3,1fr) }
+.cards.four-col { grid-template-columns: repeat(4,1fr) }
+
+/* =========================
+   MASONRY
+========================= */
+
+.cards.masonry {
+  grid-auto-rows: 10px;
+}
+
+.cards.masonry > * {
+  grid-row-end: span var(--row-span, 20);
+}

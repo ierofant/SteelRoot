@@ -4,6 +4,7 @@ body {
   background: var(--bg, #0b1220);
   color: var(--text, #e5e7eb);
   line-height: 1.5;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 a {
@@ -13,4 +14,8 @@ a {
 
 a:hover {
   text-decoration: underline;
+}
+
+body.menu-open {
+  overflow: hidden;
 }

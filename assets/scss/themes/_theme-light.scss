@@ -1,26 +1,21 @@
-@import "../tokens/colors";
-@import "../tokens/gradients";
-@import "../tokens/shadows";
-@import "../tokens/borders";
-@import "../tokens/spacing";
-@import "../tokens/typography";
+@use "../tokens" as t;
 
 :root[data-theme="light"] {
-  --bg: $color-bg-light;
-  --bg-card: $color-card-light;
-  --bg-muted: $color-bg-muted-light;
-  --text: $color-text-light;
-  --text-muted: $color-muted-light;
-  --accent: $color-accent-light;
-  --accent-hover: $color-accent-hover-light;
-  --accent-2: $color-accent2-light;
-  --border: $color-border-light;
-  --border-soft: $color-border-soft-light;
-  --shadow-card: $shadow-card-light;
-  --shadow-popup: $shadow-popup-light;
-  --panel: $color-panel-light;
-  --card: $color-card-light;
-  --card-soft: $color-card-soft-light;
-  --danger: $color-danger-light;
-  --shadow: $shadow-strong-light;
+  --bg: t.$color-bg-light;
+  --bg-card: t.$color-card-light;
+  --bg-muted: t.$color-bg-muted-light;
+  --text: t.$color-text-light;
+  --text-muted: t.$color-muted-light;
+  --accent: t.$color-accent-light;
+  --accent-hover: t.$color-accent-hover-light;
+  --accent-2: t.$color-accent2-light;
+  --border: t.$color-border-light;
+  --border-soft: t.$color-border-soft-light;
+  --shadow-card: t.$shadow-card-light;
+  --shadow-popup: t.$shadow-popup-light;
+  --panel: t.$color-panel-light;
+  --card: t.$color-card-light;
+  --card-soft: t.$color-card-soft-light;
+  --danger: t.$color-danger-light;
+  --shadow: t.$shadow-strong-light;
 }

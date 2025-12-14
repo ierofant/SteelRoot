@@ -1,18 +1,13 @@
-@import "../tokens/colors";
-@import "../tokens/gradients";
-@import "../tokens/shadows";
-@import "../tokens/borders";
-@import "../tokens/spacing";
-@import "../tokens/typography";
+@use "../tokens" as t;
 
 :root[data-theme="dark"] {
-  --bg: $color-bg-dark;
-  --bg-card: $color-card-dark;
-  --text: $color-text-dark;
-  --text-muted: $color-muted-dark;
-  --accent: $color-accent-dark;
-  --accent-2: $color-accent2-dark;
-  --border: $color-border-dark;
-  --shadow-card: $shadow-card-dark;
-  --bg-muted: $color-card-soft-dark;
+  --bg: t.$color-bg-dark;
+  --bg-card: t.$color-card-dark;
+  --text: t.$color-text-dark;
+  --text-muted: t.$color-muted-dark;
+  --accent: t.$color-accent-dark;
+  --accent-2: t.$color-accent2-dark;
+  --border: t.$color-border-dark;
+  --shadow-card: t.$shadow-card-dark;
+  --bg-muted: t.$color-card-soft-dark;
 }

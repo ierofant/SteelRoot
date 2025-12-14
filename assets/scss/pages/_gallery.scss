@@ -1,0 +1,37 @@
+@use "../tokens" as t;
+
+.gallery-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.gallery-filter {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+
+  input,
+  select {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(t.$color-iris, 0.3);
+    background: t.$gradient-glass-dark;
+    color: var(--text, #e5e7eb);
+    min-width: 180px;
+  }
+}
+
+.gallery-pages {
+  margin-top: 18px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}

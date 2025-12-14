@@ -1,0 +1,30 @@
+@use "../../tokens" as t;
+
+.mini-cards {
+  gap: 10px;
+}
+
+.stat-card {
+  background: t.$color-ink;
+  color: #e2e8f0;
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.2);
+
+  h3 {
+    margin: 6px 0 0;
+    font-size: 24px;
+  }
+}
+
+.drag-cell {
+  cursor: grab;
+  text-align: center;
+  color: #64748b;
+  font-size: 18px;
+}
+
+tr.dragging {
+  opacity: 0.6;
+}

@@ -1,0 +1,75 @@
+@use "../tokens" as t;
+
+.tags-hero {
+  padding: 60px 0 20px;
+
+  h1 {
+    margin: 6px 0;
+    font-size: 32px;
+  }
+
+  .muted {
+    color: t.$color-muted-light;
+  }
+}
+
+.tags-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.tag-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid t.$color-border-light;
+  background: #fff;
+  color: #111827;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+    border-color: #c7d2fe;
+  }
+}
+
+.tag-bullet {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, t.$color-accent-dark, #6366f1);
+  box-shadow: 0 0 0 4px rgba(t.$color-accent-dark, 0.18);
+}
+
+.tag-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.tag-arrow {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .tag-chip {
+    background: t.$color-ink;
+    color: t.$color-text-dark;
+    border-color: t.$color-border-dark;
+  }
+
+  .tag-chip:hover {
+    border-color: #334155;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.4);
+  }
+
+  .tags-hero .muted {
+    color: t.$color-muted-dark;
+  }
+}

@@ -1,0 +1,20 @@
+@use "../../tokens" as t;
+
+.link-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.link-list a {
+  color: t.$color-ink;
+  text-decoration: none;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid t.$color-border-light;
+  background: #fff;
+
+  &:hover {
+    border-color: t.$color-ink;
+  }
+}

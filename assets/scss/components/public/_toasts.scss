@@ -1,0 +1,42 @@
+@use "sass:color";
+@use "../../tokens" as t;
+
+.toast-container {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 5000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toast {
+  min-width: 240px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: t.$gradient-aurora-dark;
+  border: 1px solid rgba(t.$color-iris, 0.25);
+  color: var(--text, #e5e7eb);
+  box-shadow: t.$shadow-neon-strong;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.toast.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.toast.toast-success {
+  border-color: rgba(t.$color-success, 0.4);
+  background: linear-gradient(135deg, rgba(t.$color-success, 0.2) 0%, rgba(t.$color-success, 0.15) 100%);
+  color: color.adjust(t.$color-success, $lightness: 45%);
+}
+
+.toast.toast-danger {
+  border-color: rgba(t.$color-danger-light, 0.4);
+  background: linear-gradient(135deg, rgba(t.$color-danger-light, 0.2) 0%, rgba(t.$color-danger-light, 0.15) 100%);
+  color: color.adjust(t.$color-danger-light, $lightness: 35%);
+}

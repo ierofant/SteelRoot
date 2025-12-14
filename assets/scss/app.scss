@@ -1,35 +1,6 @@
-@import "core/reset";
-@import "core/variables";
-@import "core/mixins";
-@import "core/base";
-
-// Theme tokens
-@import "themes/theme-light";
-@import "themes/theme-dark";
-
-// Components
-@import "components/buttons";
-@import "components/forms";
-@import "components/cards";
-@import "components/popups"; // placeholder for future extraction
-@import "components/hr";
-@import "components/errors";
-
-// Layout
-@import "layout/header";
-@import "layout/footer";
-@import "layout/sidebar";
-@import "layout/mobile";
-
-// Pages
-@import "pages/public";
-@import "pages/dashboard";
-@import "pages/settings";
-@import "pages/auth";
-
-// Bring in existing CSS to avoid regressions while migration is in progress.
-@import "../css/app-custom.css";
-
-// Component overrides
-@import "components/article-tags";
-@import "components/tags-hero";
+@use "tokens";
+@use "core";
+@use "themes";
+@use "layout";
+@use "components/public";
+@use "pages";

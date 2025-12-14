@@ -1,0 +1,50 @@
+@use "sass:color";
+@use "../../tokens" as t;
+
+.pill {
+  background: linear-gradient(135deg, rgba(t.$color-iris, 0.25) 0%, rgba(t.$color-rose, 0.2) 100%);
+  color: t.$color-iris-soft;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border: 1px solid rgba(t.$color-iris, 0.3);
+  box-shadow: 0 4px 12px rgba(t.$color-iris, 0.2);
+}
+
+.like-chip {
+  border: none;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 8px;
+  cursor: pointer;
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.like-chip.active {
+  background: rgba(t.$color-rose, 0.25);
+  color: color.adjust(t.$color-rose, $lightness: 40%);
+  border: 1px solid rgba(t.$color-rose, 0.4);
+}
+
+.like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: t.$color-ink;
+  cursor: pointer;
+}
+
+.like-btn.active {
+  border-color: t.$color-rose;
+  color: t.$color-rose;
+  background: rgba(t.$color-rose, 0.08);
+}

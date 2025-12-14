@@ -1,8 +1,13 @@
+@use "colors" as c;
+
 $gradient-card-dark: linear-gradient(145deg, rgba(15, 23, 42, 0.9) 0%, rgba(88, 28, 135, 0.35) 50%, rgba(15, 23, 42, 0.95) 100%);
 $gradient-card-glass-dark: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(12, 18, 32, 0.92));
 $gradient-card-subtle-dark: linear-gradient(145deg, rgba(17, 27, 45, 0.8) 0%, rgba(88, 28, 135, 0.15) 100%);
 $gradient-header-dark: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(88, 28, 135, 0.2) 100%);
 $gradient-sidebar-dark: linear-gradient(180deg, rgba(15, 23, 42, 0.95) 0%, rgba(11, 18, 32, 0.98) 100%);
+$gradient-aurora-dark: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(88, 28, 135, 0.4) 50%, rgba(15, 23, 42, 0.95) 100%);
+$gradient-glass-dark: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 27, 75, 0.8) 100%);
+$gradient-brand: linear-gradient(135deg, c.$color-iris 0%, c.$color-rose 100%);
 
 $gradient-card-light: linear-gradient(135deg, #ffffff 0%, #f4f6fb 100%);
 $gradient-header-light: linear-gradient(135deg, #ffffff 0%, #f4f6fb 100%);

@@ -1,6 +1,49 @@
+/* Responsive */
+@media (max-width: 1024px) {
+  .cards.three-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cards.four-col {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 // Placeholder: mobile-specific layout adjustments.
 @media (max-width: 980px) {
   .sidebar {
     display: none;
+  }
+}
+@media (max-width: 768px) {
+  .cards {
+    gap: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
+
+  .cards.three-col,
+  .cards.four-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .cards.spacious {
+    gap: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .cards,
+  .cards.two-col,
+  .cards.three-col,
+  .cards.four-col {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .cards > * {
+    animation: card-fade-in 0.4s ease-out backwards;
+  }
+
+  .cards > *:nth-child(n) {
+    animation-delay: 0s !important;
   }
 }
