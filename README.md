@@ -3,22 +3,33 @@ Modular PHP CMS focused on clarity, security, and sane defaults.
 
 📘 Русская версия: [README.ru.md](README.ru.md)
 
-# SteelRoot CMS
+## Community
 
-Modular PHP CMS for shared hosting (public_html). Ships with admin panel, themes, i18n (en/ru), articles, gallery, popups, pages, forms, search, and PWA support.
+Discussion and community support (Russian):
+https://staffstyle.ru/forum/t/root
+
+---
+
+## SteelRoot CMS
+
+Modular PHP CMS for shared hosting (`public_html`).
+Ships with an admin panel, themes, i18n (en/ru), articles, gallery, popups,
+pages, forms, search, and PWA support.
+
+---
 
 ## Screenshots
 
 ### Admin Dashboard
 ![Dashboard](docs/screens/dashboard.webp)
 
-### Modules manager
+### Modules Manager
 ![Modules](docs/screens/modules.webp)
 
-### Forms builder
+### Forms Builder
 ![Forms](docs/screens/forms.webp)
 
-### Homepage builder
+### Homepage Builder
 ![Homepage](docs/screens/homepage-builder.webp)
 
 ## Requirements
