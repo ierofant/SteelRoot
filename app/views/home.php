@@ -4,6 +4,16 @@ $gallery = $gallery ?? [];
 $articles = $articles ?? [];
 $sections = $sections ?? [];
 $loc = $locale ?? 'en';
+$locKey = $loc === 'ru' ? 'ru' : 'en';
+$heroEyebrow = $home['hero_eyebrow_' . $locKey] ?? $home['hero_eyebrow_ru'] ?? 'Главная';
+$statGalleryLabel = $home['stats_gallery_label_' . $locKey] ?? ($locKey === 'ru' ? 'Галерея' : 'Gallery');
+$statArticlesLabel = $home['stats_articles_label_' . $locKey] ?? ($locKey === 'ru' ? 'Статьи' : 'Articles');
+$galleryTitle = $home['gallery_title_' . $locKey] ?? ($locKey === 'ru' ? 'Галерея' : 'Gallery');
+$galleryCta = $home['gallery_cta_' . $locKey] ?? ($locKey === 'ru' ? 'Смотреть все →' : 'See all →');
+$articlesTitle = $home['articles_title_' . $locKey] ?? ($locKey === 'ru' ? 'Статьи' : 'Articles');
+$articlesCta = $home['articles_cta_' . $locKey] ?? ($locKey === 'ru' ? 'Все статьи →' : 'All articles →');
+$customBlocksTitle = $home['custom_blocks_title_' . $locKey] ?? ($locKey === 'ru' ? 'Кастомные блоки' : 'Custom blocks');
+$customBlockCta = $home['custom_block_cta_' . $locKey] ?? ($locKey === 'ru' ? 'Подробнее' : 'Read more');
 $layoutClass = ($home['layout_mode'] ?? 'wide') === 'boxed' ? 'layout-boxed' : '';
 $sectionPadding = (int)($home['section_padding'] ?? 80);
 ob_start();
@@ -15,7 +25,7 @@ ob_start();
 <section class="hero enhanced <?= $layoutClass ?>" style="<?= !empty($home['hero_background']) ? 'background:' . htmlspecialchars($home['hero_background']) . ';' : '' ?><?= isset($home['hero_overlay']) ? '--hero-overlay:' . max(0, min(1, (float)$home['hero_overlay'])) . ';' : '' ?><?= isset($home['hero_align']) ? '--hero-align:' . htmlspecialchars($home['hero_align']) . ';' : '' ?>">
     <div class="hero-copy">
         <?php if (!empty($home['hero_badge'])): ?><span class="pill"><?= htmlspecialchars($home['hero_badge']) ?></span><?php endif; ?>
-        <p class="eyebrow">Главная</p>
+        <p class="eyebrow"><?= htmlspecialchars($heroEyebrow) ?></p>
         <h1><?= htmlspecialchars($home['hero_title'] ?? 'SteelRoot') ?></h1>
         <p class="lead"><?= htmlspecialchars($home['hero_subtitle'] ?? '') ?></p>
         <div class="cta-row">
@@ -31,11 +41,11 @@ ob_start();
         <div class="hero-card">
             <div class="orb"></div>
             <div class="stat">
-                <span>Галерея</span>
+                <span><?= htmlspecialchars($statGalleryLabel) ?></span>
                 <strong><?= count($gallery) ?></strong>
             </div>
             <div class="stat">
-                <span>Статьи</span>
+                <span><?= htmlspecialchars($statArticlesLabel) ?></span>
                 <strong><?= count($articles) ?></strong>
             </div>
         </div>
@@ -46,8 +56,8 @@ ob_start();
     <?php if ($section['type'] === 'gallery' && $gallery): ?>
         <section class="block <?= $layoutClass ?>" style="padding-top: <?= $sectionPadding ?>px; padding-bottom: <?= $sectionPadding ?>px;">
             <div class="block-head">
-                <h2>Галерея</h2>
-                <a class="link" href="/gallery">Смотреть все →</a>
+                <h2><?= htmlspecialchars($galleryTitle) ?></h2>
+                <a class="link" href="/gallery"><?= htmlspecialchars($galleryCta) ?></a>
             </div>
             <div class="masonry">
                 <?php foreach ($gallery as $idx => $g): ?>
@@ -73,8 +83,8 @@ ob_start();
     <?php elseif ($section['type'] === 'articles' && $articles): ?>
         <section class="block <?= $layoutClass ?>" style="padding-top: <?= $sectionPadding ?>px; padding-bottom: <?= $sectionPadding ?>px;">
             <div class="block-head">
-                <h2>Статьи</h2>
-                <a class="link" href="/articles">Все статьи →</a>
+                <h2><?= htmlspecialchars($articlesTitle) ?></h2>
+                <a class="link" href="/articles"><?= htmlspecialchars($articlesCta) ?></a>
             </div>
             <div class="cards">
                 <?php foreach ($articles as $a): ?>
@@ -100,7 +110,7 @@ ob_start();
 <?php if (!empty($home['custom_blocks']) && is_array($home['custom_blocks'])): ?>
     <section class="block <?= $layoutClass ?>" style="padding-top: <?= $sectionPadding ?>px; padding-bottom: <?= $sectionPadding ?>px;">
         <div class="block-head">
-            <h2>Кастомные блоки</h2>
+            <h2><?= htmlspecialchars($customBlocksTitle) ?></h2>
         </div>
         <div class="cards">
             <?php foreach ($home['custom_blocks'] as $blk): ?>
@@ -108,7 +118,7 @@ ob_start();
                     <?php if (!empty($blk['icon'])): ?><p class="eyebrow"><?= htmlspecialchars($blk['icon']) ?></p><?php endif; ?>
                     <?php if (!empty($blk['title'])): ?><h3><?= htmlspecialchars($blk['title']) ?></h3><?php endif; ?>
                     <?php if (!empty($blk['text'])): ?><p class="muted"><?= htmlspecialchars($blk['text']) ?></p><?php endif; ?>
-                    <?php if (!empty($blk['link'])): ?><a class="btn ghost small" href="<?= htmlspecialchars($blk['link']) ?>">Подробнее</a><?php endif; ?>
+                    <?php if (!empty($blk['link'])): ?><a class="btn ghost small" href="<?= htmlspecialchars($blk['link']) ?>"><?= htmlspecialchars($customBlockCta) ?></a><?php endif; ?>
                 </div>
             <?php endforeach; ?>
         </div>

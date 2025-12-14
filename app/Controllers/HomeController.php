@@ -216,6 +216,7 @@ class HomeController
     private function homeConfig(): array
     {
         $defaults = [
+            'hero_eyebrow' => ['ru' => 'Главная', 'en' => 'Home'],
             'hero_title' => 'SteelRoot',
             'hero_subtitle' => 'Лёгкий старт для вашего сайта.',
             'hero_cta_text' => 'Связаться',
@@ -231,13 +232,21 @@ class HomeController
             'section_padding' => 80,
             'gallery_style' => 'lightbox',
             'show_stats' => true,
+            'stats_gallery' => ['ru' => 'Галерея', 'en' => 'Gallery'],
+            'stats_articles' => ['ru' => 'Статьи', 'en' => 'Articles'],
             'show_gallery' => true,
             'gallery_limit' => 6,
+            'gallery_title' => ['ru' => 'Галерея', 'en' => 'Gallery'],
+            'gallery_cta' => ['ru' => 'Смотреть все →', 'en' => 'See all →'],
             'show_articles' => true,
             'articles_limit' => 3,
+            'articles_title' => ['ru' => 'Статьи', 'en' => 'Articles'],
+            'articles_cta' => ['ru' => 'Все статьи →', 'en' => 'All articles →'],
             'order_gallery' => 1,
             'order_articles' => 2,
             'custom_blocks' => [],
+            'custom_blocks_title' => ['ru' => 'Кастомные блоки', 'en' => 'Custom blocks'],
+            'custom_block_cta' => ['ru' => 'Подробнее', 'en' => 'Read more'],
             'custom_css' => '',
         ];
         $settings = $this->settings->all();
@@ -251,6 +260,8 @@ class HomeController
             }
         }
         return [
+            'hero_eyebrow_ru' => $settings['home_hero_eyebrow_ru'] ?? $defaults['hero_eyebrow']['ru'],
+            'hero_eyebrow_en' => $settings['home_hero_eyebrow_en'] ?? $defaults['hero_eyebrow']['en'],
             'hero_title' => $settings['home_hero_title'] ?? $defaults['hero_title'],
             'hero_subtitle' => $settings['home_hero_subtitle'] ?? $defaults['hero_subtitle'],
             'hero_cta_text' => $settings['home_hero_cta_text'] ?? $defaults['hero_cta_text'],
@@ -266,13 +277,29 @@ class HomeController
             'section_padding' => (int)($settings['home_section_padding'] ?? $defaults['section_padding']),
             'gallery_style' => $settings['home_gallery_style'] ?? $defaults['gallery_style'],
             'show_stats' => ($settings['home_show_stats'] ?? '1') === '1',
+            'stats_gallery_label_ru' => $settings['home_stats_gallery_label_ru'] ?? $defaults['stats_gallery']['ru'],
+            'stats_gallery_label_en' => $settings['home_stats_gallery_label_en'] ?? $defaults['stats_gallery']['en'],
+            'stats_articles_label_ru' => $settings['home_stats_articles_label_ru'] ?? $defaults['stats_articles']['ru'],
+            'stats_articles_label_en' => $settings['home_stats_articles_label_en'] ?? $defaults['stats_articles']['en'],
             'show_gallery' => $showGallery,
             'gallery_limit' => (int)($settings['home_gallery_limit'] ?? $defaults['gallery_limit']),
+            'gallery_title_ru' => $settings['home_gallery_title_ru'] ?? $defaults['gallery_title']['ru'],
+            'gallery_title_en' => $settings['home_gallery_title_en'] ?? $defaults['gallery_title']['en'],
+            'gallery_cta_ru' => $settings['home_gallery_cta_ru'] ?? $defaults['gallery_cta']['ru'],
+            'gallery_cta_en' => $settings['home_gallery_cta_en'] ?? $defaults['gallery_cta']['en'],
             'show_articles' => $showArticles,
             'articles_limit' => (int)($settings['home_articles_limit'] ?? $defaults['articles_limit']),
+            'articles_title_ru' => $settings['home_articles_title_ru'] ?? $defaults['articles_title']['ru'],
+            'articles_title_en' => $settings['home_articles_title_en'] ?? $defaults['articles_title']['en'],
+            'articles_cta_ru' => $settings['home_articles_cta_ru'] ?? $defaults['articles_cta']['ru'],
+            'articles_cta_en' => $settings['home_articles_cta_en'] ?? $defaults['articles_cta']['en'],
             'order_gallery' => (int)($settings['home_order_gallery'] ?? $defaults['order_gallery']),
             'order_articles' => (int)($settings['home_order_articles'] ?? $defaults['order_articles']),
             'custom_blocks' => $customBlocks,
+            'custom_blocks_title_ru' => $settings['home_custom_blocks_title_ru'] ?? $defaults['custom_blocks_title']['ru'],
+            'custom_blocks_title_en' => $settings['home_custom_blocks_title_en'] ?? $defaults['custom_blocks_title']['en'],
+            'custom_block_cta_ru' => $settings['home_custom_block_cta_ru'] ?? $defaults['custom_block_cta']['ru'],
+            'custom_block_cta_en' => $settings['home_custom_block_cta_en'] ?? $defaults['custom_block_cta']['en'],
             'custom_css' => $settings['home_custom_css'] ?? $defaults['custom_css'],
         ];
     }
