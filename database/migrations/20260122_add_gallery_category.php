@@ -4,7 +4,10 @@ use Core\Database;
 return new class {
     public function up(Database $db): void
     {
-        $db->execute("ALTER TABLE gallery_items ADD COLUMN category VARCHAR(120) NULL AFTER slug");
+        $exists = $db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'gallery_items' AND COLUMN_NAME = 'category'");
+        if (!$exists) {
+            $db->execute("ALTER TABLE gallery_items ADD COLUMN category VARCHAR(120) NULL AFTER slug");
+        }
         $db->execute("CREATE INDEX IF NOT EXISTS idx_gallery_category ON gallery_items (category)");
     }
 

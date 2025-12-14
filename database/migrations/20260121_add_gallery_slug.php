@@ -2,7 +2,10 @@
 return new class {
     public function up(\Core\Database $db): void
     {
-        $db->execute("ALTER TABLE gallery_items ADD COLUMN slug VARCHAR(255) NULL AFTER id");
+        $slugExists = $db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'gallery_items' AND COLUMN_NAME = 'slug'");
+        if (!$slugExists) {
+            $db->execute("ALTER TABLE gallery_items ADD COLUMN slug VARCHAR(255) NULL AFTER id");
+        }
         // Populate slugs for existing records
         $rows = $db->fetchAll("SELECT id, title_en, title_ru FROM gallery_items WHERE slug IS NULL OR slug = ''");
         foreach ($rows as $row) {
@@ -18,7 +21,10 @@ return new class {
             }
             $db->execute("UPDATE gallery_items SET slug = ? WHERE id = ?", [$slug, $row['id']]);
         }
-        $db->execute("ALTER TABLE gallery_items ADD UNIQUE KEY gallery_slug_unique (slug)");
+        $indexExists = $db->fetch("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_NAME = 'gallery_items' AND INDEX_NAME = 'gallery_slug_unique'");
+        if (!$indexExists) {
+            $db->execute("ALTER TABLE gallery_items ADD UNIQUE KEY gallery_slug_unique (slug)");
+        }
     }
 
     public function down(\Core\Database $db): void
