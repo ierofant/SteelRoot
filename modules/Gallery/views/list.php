@@ -189,26 +189,29 @@ document.addEventListener('DOMContentLoaded', () => {
     // Likes in grid and lightbox
     document.querySelectorAll('.like-chip').forEach(btn => {
         const id = btn.dataset.id;
-        const storageKey = 'liked_gallery_' + id;
-        if (localStorage.getItem(storageKey) === '1') {
+        const storageKey = id ? 'liked_gallery_' + id : null;
+        if (storageKey && localStorage.getItem(storageKey) === '1') {
             btn.classList.add('active');
         }
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
+            const currentId = btn.dataset.id;
+            if (!currentId) return;
+            const key = 'liked_gallery_' + currentId;
             try {
                 const res = await fetch('/api/v1/like', {
                     method: 'POST',
                     headers: {'Accept':'application/json'},
-                    body: new URLSearchParams({type:'gallery', id})
+                    body: new URLSearchParams({type:'gallery', id: currentId})
                 });
                 if (!res.ok) throw new Error('bad');
                 const data = await res.json();
                 const likes = data.likes ?? parseInt(btn.dataset.likes || '0', 10);
-                document.querySelectorAll(`.like-chip[data-id="${id}"] .g-likes`).forEach(el => el.textContent = likes);
-                if (likeCount && likeBtn && likeBtn.dataset.id === id) likeCount.textContent = likes;
+                document.querySelectorAll(`.like-chip[data-id="${currentId}"] .g-likes`).forEach(el => el.textContent = likes);
+                if (likeCount && likeBtn && likeBtn.dataset.id === currentId) likeCount.textContent = likes;
                 btn.classList.add('active');
-                localStorage.setItem(storageKey, '1');
+                localStorage.setItem(key, '1');
                 if (window.showToast) {
                     window.showToast(data.already ? 'Уже лайкнули' : 'Лайк засчитан', 'success');
                 }
