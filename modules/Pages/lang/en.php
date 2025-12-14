@@ -29,6 +29,12 @@ return [
     'pages.admin.record' => 'Page #{id}',
     'pages.admin.no_title' => 'Untitled',
     'pages.admin.empty_hint' => 'Use the button above to create your first static page.',
+    'pages.admin.section.general' => 'Basic information',
+    'pages.admin.section.general_sub' => 'Identify the page slug and menu order.',
+    'pages.admin.section.content' => 'Content',
+    'pages.admin.section.content_sub' => 'Populate bilingual versions of the page body.',
+    'pages.admin.section.meta' => 'SEO & metadata',
+    'pages.admin.section.meta_sub' => 'Open Graph and search-friendly snippets.',
     'pages.admin.help.slug' => 'Lowercase letters, numbers, dashes. Example: about, privacy',
     'pages.admin.errors.slug_exists' => 'Slug already exists',
 ];

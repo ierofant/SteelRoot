@@ -648,6 +648,10 @@ return [
     'forms.embed.help.recipient' => 'Optional. Fallback to site contact email.',
     'forms.embed.help.recipient_hint' => 'If empty, uses site contact email.',
     'forms.embed.errors.slug_exists' => 'Slug already exists',
+    'forms.embed.section.heading' => 'Embeddable forms',
+    'forms.embed.section.subheading' => 'Manage reusable blocks that can be inserted on any page.',
+    'forms.embed.untitled' => 'Untitled form',
+    'forms.embed.empty_hint' => 'When you create a form it will appear as a card here with its embed code.',
 
     // Error pages settings
     'errors.settings.title' => 'Error pages',

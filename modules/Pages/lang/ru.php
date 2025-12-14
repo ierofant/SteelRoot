@@ -29,6 +29,12 @@ return [
     'pages.admin.record' => 'Страница №{id}',
     'pages.admin.no_title' => 'Без названия',
     'pages.admin.empty_hint' => 'Создайте страницу — она появится в списке.',
+    'pages.admin.section.general' => 'Общие сведения',
+    'pages.admin.section.general_sub' => 'Настройте слаг и порядок в меню.',
+    'pages.admin.section.content' => 'Контент',
+    'pages.admin.section.content_sub' => 'Добавьте версии текста на обоих языках.',
+    'pages.admin.section.meta' => 'СЕО и метаданные',
+    'pages.admin.section.meta_sub' => 'Заголовок и описание для поисковиков.',
     'pages.admin.help.slug' => 'Строчные буквы, цифры, дефисы. Пример: about, privacy',
     'pages.admin.errors.slug_exists' => 'Слаг уже существует',
 ];

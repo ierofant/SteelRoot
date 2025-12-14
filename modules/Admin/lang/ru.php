@@ -633,6 +633,10 @@ return [
     'forms.embed.help.recipient' => 'Необязательно. По умолчанию email сайта.',
     'forms.embed.help.recipient_hint' => 'Если пусто — используется контактный email сайта.',
     'forms.embed.errors.slug_exists' => 'Слаг уже существует',
+    'forms.embed.section.heading' => 'Встраиваемые формы',
+    'forms.embed.section.subheading' => 'Управляйте повторно используемыми блоками для страниц.',
+    'forms.embed.untitled' => 'Без названия',
+    'forms.embed.empty_hint' => 'Создайте форму, и она появится здесь с кодом вставки.',
 
     // Error pages settings
     'errors.settings.title' => 'Страницы ошибок',
