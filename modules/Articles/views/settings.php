@@ -33,6 +33,10 @@
                 <input type="checkbox" name="articles_show_tags" value="1" <?= !empty($settings['show_tags']) ? 'checked' : '' ?>>
                 <span><?= __('articles.settings.show_tags') ?></span>
             </label>
+            <label class="field checkbox">
+                <input type="checkbox" name="articles_description_enabled" value="1" <?= !empty($settings['description_enabled']) ? 'checked' : '' ?>>
+                <span><?= __('articles.settings.description_enabled') ?></span>
+            </label>
         </div>
         <div class="form-actions">
             <button type="submit" class="btn primary"><?= __('articles.settings.save') ?></button>

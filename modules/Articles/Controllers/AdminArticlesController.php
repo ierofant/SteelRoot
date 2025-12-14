@@ -37,6 +37,7 @@ class AdminArticlesController
             'show_likes' => true,
             'show_views' => true,
             'show_tags' => true,
+            'description_enabled' => true,
         ]);
     }
 
@@ -70,7 +71,9 @@ class AdminArticlesController
         if (!Csrf::check('articles_form', $request->body['_token'] ?? null)) {
             return new Response('Invalid CSRF', 400);
         }
-        $slug = $this->slugify($request->body['slug'] ?? $request->body['title_en'] ?? 'item');
+        $slugInput = trim($request->body['slug'] ?? '');
+        $slugSource = $slugInput !== '' ? $slugInput : ($request->body['title_en'] ?? $request->body['title_ru'] ?? 'item');
+        $slug = $this->slugify($slugSource);
         $titleEn = trim($request->body['title_en'] ?? '');
         $titleRu = trim($request->body['title_ru'] ?? '');
         if ($titleEn === '' || $titleRu === '') {
@@ -108,6 +111,16 @@ class AdminArticlesController
             $vals[] = ':preview_ru';
             $params[':preview_en'] = $request->body['preview_en'] ?? '';
             $params[':preview_ru'] = $request->body['preview_ru'] ?? '';
+        }
+        if ($this->hasColumn('description_en')) {
+            $cols[] = 'description_en';
+            $vals[] = ':description_en';
+            $params[':description_en'] = $request->body['description_en'] ?? '';
+        }
+        if ($this->hasColumn('description_ru')) {
+            $cols[] = 'description_ru';
+            $vals[] = ':description_ru';
+            $params[':description_ru'] = $request->body['description_ru'] ?? '';
         }
         if ($hasCat) {
             $cols[] = 'category';
@@ -178,6 +191,7 @@ class AdminArticlesController
             'show_likes' => 'articles_show_likes',
             'show_views' => 'articles_show_views',
             'show_tags' => 'articles_show_tags',
+            'description_enabled' => 'articles_description_enabled',
         ];
         foreach ($map as $key => $settingKey) {
             $val = !empty($request->body[$settingKey]);
@@ -192,7 +206,10 @@ class AdminArticlesController
             return new Response('Invalid CSRF', 400);
         }
         $slug = $request->params['slug'] ?? '';
-        $newSlug = $this->slugify($request->body['slug'] ?? $slug);
+        $article = $this->db->fetch("SELECT * FROM articles WHERE slug = ?", [$slug]);
+        $slugInput = trim($request->body['slug'] ?? '');
+        $slugSource = $slugInput !== '' ? $slugInput : ($request->body['title_en'] ?? $request->body['title_ru'] ?? $slug);
+        $newSlug = $this->slugify($slugSource);
         $existing = $this->db->fetch("SELECT id FROM articles WHERE slug = ? AND slug != ?", [$newSlug, $slug]);
         if ($existing) {
             return new Response('Slug already exists', 409);
@@ -232,6 +249,14 @@ class AdminArticlesController
         if ($hasImg) {
             $sets[] = 'image_url = :image_url';
             $params[':image_url'] = $imageUrl;
+        }
+        if ($this->hasColumn('description_en')) {
+            $sets[] = 'description_en = :description_en';
+            $params[':description_en'] = $request->body['description_en'] ?? '';
+        }
+        if ($this->hasColumn('description_ru')) {
+            $sets[] = 'description_ru = :description_ru';
+            $params[':description_ru'] = $request->body['description_ru'] ?? '';
         }
         $sql = "UPDATE articles SET " . implode(', ', $sets) . " WHERE slug = :current";
         $this->db->execute($sql, $params);

@@ -22,12 +22,21 @@ ob_start();
         <div class="table-wrap">
             <table class="table data">
                 <thead>
-                    <tr><th><?= __('articles.table.title_en') ?></th><th><?= __('articles.table.slug') ?></th><th><?= __('articles.table.created') ?></th><th><?= __('articles.table.actions') ?></th></tr>
+                    <tr>
+                        <th><?= __('articles.table.title_en') ?></th>
+                        <th><?= __('articles.table.preview_en') ?></th>
+                        <th><?= __('articles.table.meta_description') ?></th>
+                        <th><?= __('articles.table.slug') ?></th>
+                        <th><?= __('articles.table.created') ?></th>
+                        <th><?= __('articles.table.actions') ?></th>
+                    </tr>
                 </thead>
                 <tbody>
                     <?php foreach ($articles as $a): ?>
                         <tr>
                             <td><?= htmlspecialchars($a['title_en']) ?></td>
+                            <td><?= htmlspecialchars(mb_strimwidth($a['preview_en'] ?? '', 0, 60, '…', 'UTF-8')) ?></td>
+                            <td><?= htmlspecialchars(mb_strimwidth($a['description_en'] ?? '', 0, 60, '…', 'UTF-8')) ?></td>
                             <td><?= htmlspecialchars($a['slug']) ?></td>
                             <td><?= htmlspecialchars($a['created_at']) ?></td>
                             <td class="actions">
@@ -40,7 +49,7 @@ ob_start();
                         </tr>
                     <?php endforeach; ?>
                     <?php if (empty($articles)): ?>
-                        <tr><td colspan="4" class="muted"><?= __('articles.empty') ?></td></tr>
+                        <tr><td colspan="6" class="muted"><?= __('articles.empty') ?></td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -71,7 +80,7 @@ ob_start();
             </div>
             <label class="field">
                 <span><?= __('articles.form.slug') ?></span>
-                <input type="text" name="slug" value="<?= htmlspecialchars($article['slug'] ?? '') ?>">
+                <input type="text" name="slug" value="<?= htmlspecialchars($article['slug'] ?? '') ?>" placeholder="<?= __('articles.placeholder.slug') ?>">
             </label>
             <div class="grid two">
                 <label class="field">
@@ -81,6 +90,16 @@ ob_start();
                 <label class="field">
                     <span><?= __('articles.form.preview_ru') ?></span>
                     <textarea name="preview_ru" rows="3"><?= htmlspecialchars($article['preview_ru'] ?? '') ?></textarea>
+                </label>
+            </div>
+            <div class="grid two">
+                <label class="field">
+                    <span><?= __('articles.form.description_en') ?></span>
+                    <textarea name="description_en" rows="2"><?= htmlspecialchars($article['description_en'] ?? '') ?></textarea>
+                </label>
+                <label class="field">
+                    <span><?= __('articles.form.description_ru') ?></span>
+                    <textarea name="description_ru" rows="2"><?= htmlspecialchars($article['description_ru'] ?? '') ?></textarea>
                 </label>
             </div>
             <div class="grid two">

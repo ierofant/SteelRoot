@@ -24,6 +24,7 @@ class ArticlesController
             'show_likes' => true,
             'show_views' => true,
             'show_tags' => true,
+            'description_enabled' => true,
         ]);
     }
 
@@ -150,7 +151,27 @@ class ArticlesController
         $titleKey = $locale === 'ru' ? 'title_ru' : 'title_en';
         $bodyKey = $locale === 'ru' ? 'body_ru' : 'body_en';
         $canonical = $this->canonical($request);
-        $desc = substr(strip_tags((string)$article[$bodyKey]), 0, 150);
+        $desc = '';
+        if ($this->hasColumn('description_en')) {
+            $desc = trim($locale === 'ru' ? ($article['description_ru'] ?? '') : ($article['description_en'] ?? ''));
+            if ($desc === '') {
+                $desc = trim($locale !== 'ru' ? ($article['description_ru'] ?? '') : ($article['description_en'] ?? ''));
+            }
+        }
+        if ($desc === '') {
+            $previewKey = $locale === 'ru' ? 'preview_ru' : 'preview_en';
+            if (!empty($article[$previewKey])) {
+                $desc = $article[$previewKey];
+            } elseif ($this->hasColumn('preview_en')) {
+                $fallbackPreview = $locale === 'ru' ? ($article['preview_en'] ?? '') : ($article['preview_ru'] ?? '');
+                if (!empty($fallbackPreview)) {
+                    $desc = $fallbackPreview;
+                }
+            }
+        }
+        if ($desc === '') {
+            $desc = substr(strip_tags((string)$article[$bodyKey]), 0, 150);
+        }
         $ogImage = $this->resolveOgImage($article);
         $display = $this->moduleSettings->all('articles');
         $display = array_merge([

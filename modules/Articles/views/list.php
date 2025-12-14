@@ -2,10 +2,6 @@
 $loc = $locale ?? 'en';
 ob_start();
 ?>
-<style>
-    .author-chip {display:flex;align-items:center;gap:10px;margin-top:10px;}
-    .author-chip .avatar {width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1c1f2d,#292f4f);background-size:cover;background-position:center;display:grid;place-items:center;color:#dce4ff;font-weight:700;border:1px solid rgba(255,255,255,0.08);}
-</style>
 <section class="articles-hero">
     <div>
         <p class="eyebrow"><?= __('articles.title') ?></p>
@@ -54,12 +50,14 @@ ob_start();
             <?php if ($excerpt): ?><p class="muted"><?= htmlspecialchars($excerpt) ?></p><?php endif; ?>
             <?php if (!empty($display['show_author']) && $authorName && $authorId > 0): ?>
                 <div class="author-chip">
-                    <span class="avatar" style="<?= $authorAvatar ? "background-image:url('".htmlspecialchars($authorAvatar)."')" : '' ?>"><?= $authorAvatar ? '' : htmlspecialchars($letter) ?></span>
-                    <a href="/users/<?= $authorId ?>" class="muted"><?= htmlspecialchars($authorName) ?></a>
-                </div>
+                 <span class="avatar"
+                      style="<?= $authorAvatar ? "background-image:url('".htmlspecialchars($authorAvatar)."')" : '' ?>">
+                      <?= $authorAvatar ? '' : htmlspecialchars($letter) ?>
+                 </span>
+                <span class="muted"><?= htmlspecialchars($authorName) ?></span>
+               </div>
             <?php endif; ?>
         </a>
     <?php endforeach; ?>
 </section>
-
 <?php $content = ob_get_clean(); include APP_ROOT . '/app/views/layout.php'; ?>
