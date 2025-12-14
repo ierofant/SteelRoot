@@ -26,6 +26,9 @@ return [
     'pages.admin.empty' => 'No pages yet.',
     'pages.admin.yes' => 'Yes',
     'pages.admin.no' => 'No',
+    'pages.admin.record' => 'Page #{id}',
+    'pages.admin.no_title' => 'Untitled',
+    'pages.admin.empty_hint' => 'Use the button above to create your first static page.',
     'pages.admin.help.slug' => 'Lowercase letters, numbers, dashes. Example: about, privacy',
     'pages.admin.errors.slug_exists' => 'Slug already exists',
 ];

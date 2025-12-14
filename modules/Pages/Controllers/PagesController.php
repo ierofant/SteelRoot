@@ -42,7 +42,7 @@ class PagesController
         $contentKey = $contentKey ?? ($locale === 'ru' ? 'content_ru' : 'content_en');
         $page[$contentKey] = $this->renderEmbeds($page[$contentKey] ?? '', $request, $locale);
 
-        $html = $this->container->get('renderer')->render('pages/show', [
+        $html = $this->container->get('renderer')->render('frontend/show', [
             'title' => $title,
             'page' => $page,
             'locale' => $locale,

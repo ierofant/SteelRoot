@@ -55,9 +55,6 @@ class SettingsController
         }
         $siteUrl = trim($request->body['site_url'] ?? '');
         $contactEmail = trim($request->body['contact_email'] ?? '');
-        $ogTitle = trim($request->body['og_title'] ?? '');
-        $ogDesc = trim($request->body['og_description'] ?? '');
-        $ogImage = trim($request->body['og_image'] ?? '');
         $uploadSize = max(1, (int)($request->body['upload_max_mb'] ?? 5)) * 1024 * 1024;
         $uploadMaxW = max(100, (int)($request->body['upload_max_w'] ?? 8000));
         $uploadMaxH = max(100, (int)($request->body['upload_max_h'] ?? 8000));
@@ -102,12 +99,6 @@ class SettingsController
         $mailTemplate = $request->body['mail_template'] ?? '';
         $mailTestTo = trim($request->body['mail_test_to'] ?? '');
         $footerCopy = isset($request->body['footer_copy_enabled']) ? '1' : '0';
-        $popupEnabled = isset($request->body['popup_enabled']) ? '1' : '0';
-        $popupDelay = max(0, (int)($request->body['popup_delay'] ?? 5));
-        $popupTitle = trim($request->body['popup_title'] ?? '');
-        $popupContent = trim($request->body['popup_content'] ?? '');
-        $popupCtaText = trim($request->body['popup_cta_text'] ?? '');
-        $popupCtaUrl = trim($request->body['popup_cta_url'] ?? '');
         $breadcrumbHome = trim($request->body['breadcrumb_home'] ?? 'Home');
         $breadcrumbsEnabled = isset($request->body['breadcrumbs_enabled']) ? '1' : '0';
         $breadcrumbsCustom = trim($request->body['breadcrumbs_custom'] ?? '');
@@ -153,9 +144,6 @@ class SettingsController
             'theme_custom_url' => $customThemeUrl,
             'site_url' => $siteUrl,
             'contact_email' => $contactEmail,
-            'og_title' => $ogTitle,
-            'og_description' => $ogDesc,
-            'og_image' => $ogImage,
             'upload_max_bytes' => (string)$uploadSize,
             'upload_max_width' => (string)$uploadMaxW,
             'upload_max_height' => (string)$uploadMaxH,
@@ -181,12 +169,6 @@ class SettingsController
             'mail_from_name' => $mailFromName,
             'mail_template' => $mailTemplate,
             'footer_copy_enabled' => $footerCopy,
-            'popup_enabled' => $popupEnabled,
-            'popup_delay' => (string)$popupDelay,
-            'popup_title' => $popupTitle,
-            'popup_content' => $popupContent,
-            'popup_cta_text' => $popupCtaText,
-            'popup_cta_url' => $popupCtaUrl,
             'breadcrumb_home' => $breadcrumbHome,
             'breadcrumbs_custom' => $breadcrumbsCustom,
             'breadcrumbs_enabled' => $breadcrumbsEnabled,

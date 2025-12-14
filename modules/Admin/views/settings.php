@@ -8,65 +8,44 @@
     </div>
 
     <div class="tab-pane" data-pane="basic" style="display:block;">
-    <div class="grid two">
-        <div class="stack">
-            <h3><?= __('settings.section.basic') ?></h3>
-            <label class="field">
-                <span><?= __('settings.field.site_name') ?></span>
-                <input type="text" name="site_name" value="<?= htmlspecialchars($settings['site_name'] ?? 'SteelRoot') ?>">
-            </label>
-            <label class="field">
-                <span><?= __('settings.field.theme') ?></span>
-                <select name="theme">
-                    <option value="light" <?= (($settings['theme'] ?? 'light') === 'light') ? 'selected' : '' ?>><?= __('settings.theme.light') ?></option>
-                    <option value="dark" <?= (($settings['theme'] ?? 'light') === 'dark') ? 'selected' : '' ?>><?= __('settings.theme.dark') ?></option>
-                    <option value="custom" <?= (($settings['theme'] ?? 'light') === 'custom') ? 'selected' : '' ?>><?= __('settings.theme.custom') ?></option>
-                </select>
-            </label>
-            <label class="field">
-                <span><?= __('settings.field.theme_custom_url') ?></span>
-                <input type="text" name="theme_custom_url" value="<?= htmlspecialchars($settings['theme_custom_url'] ?? '') ?>" placeholder="<?= __('settings.placeholder.theme_custom_url') ?>">
-            </label>
-            <label class="field">
-                <span><?= __('settings.field.site_url') ?></span>
-                <input type="text" name="site_url" value="<?= htmlspecialchars($settings['site_url'] ?? '') ?>" placeholder="<?= __('settings.placeholder.site_url') ?>">
-            </label>
-            <label class="field">
-                <span><?= __('settings.field.contact_email') ?></span>
-                <input type="text" name="contact_email" value="<?= htmlspecialchars($settings['contact_email'] ?? '') ?>">
-            </label>
-            <label class="field">
-                <span><?= __('settings.field.locale_mode') ?></span>
-                <select name="locale_mode">
-                    <option value="ru" <?= (($settings['locale_mode'] ?? 'multi') === 'ru') ? 'selected' : '' ?>><?= __('settings.locale.ru') ?></option>
-                    <option value="en" <?= (($settings['locale_mode'] ?? 'multi') === 'en') ? 'selected' : '' ?>><?= __('settings.locale.en') ?></option>
-                    <option value="multi" <?= (($settings['locale_mode'] ?? 'multi') === 'multi') ? 'selected' : '' ?>><?= __('settings.locale.multi') ?></option>
-                </select>
-            </label>
-        </div>
-        <div class="stack">
-            <h3><?= __('settings.section.seo') ?></h3>
-            <label class="field">
-                <span><?= __('settings.field.og_title') ?></span>
-                <input type="text" name="og_title" value="<?= htmlspecialchars($settings['og_title'] ?? '') ?>">
-            </label>
-            <label class="field">
-                <span><?= __('settings.field.og_description') ?></span>
-                <input type="text" name="og_description" value="<?= htmlspecialchars($settings['og_description'] ?? '') ?>">
-            </label>
-            <label class="field">
-                <span><?= __('settings.field.og_image') ?></span>
-                <input type="text" name="og_image" value="<?= htmlspecialchars($settings['og_image'] ?? '') ?>">
-            </label>
-            <label class="field">
-                <span><?= __('settings.field.session_save_path') ?></span>
-                <input type="text" name="session_path" value="<?= htmlspecialchars($settings['session_path'] ?? (APP_ROOT . '/storage/tmp/sessions')) ?>">
-            </label>
-            <label class="field checkbox">
-                <input type="checkbox" name="footer_copy_enabled" value="1" <?= !empty($settings['footer_copy_enabled']) ? 'checked' : '' ?>>
-                <span><?= __('settings.field.footer_copy_enabled') ?></span>
-            </label>
-        </div>
+    <div class="stack">
+        <h3><?= __('settings.section.basic') ?></h3>
+        <label class="field">
+            <span><?= __('settings.field.site_name') ?></span>
+            <input type="text" name="site_name" value="<?= htmlspecialchars($settings['site_name'] ?? 'SteelRoot') ?>">
+        </label>
+        <label class="field">
+            <span><?= __('settings.field.theme') ?></span>
+            <select name="theme">
+                <option value="light" <?= (($settings['theme'] ?? 'light') === 'light') ? 'selected' : '' ?>><?= __('settings.theme.light') ?></option>
+                <option value="dark" <?= (($settings['theme'] ?? 'light') === 'dark') ? 'selected' : '' ?>><?= __('settings.theme.dark') ?></option>
+                <option value="custom" <?= (($settings['theme'] ?? 'light') === 'custom') ? 'selected' : '' ?>><?= __('settings.theme.custom') ?></option>
+            </select>
+        </label>
+        <label class="field">
+            <span><?= __('settings.field.theme_custom_url') ?></span>
+            <input type="text" name="theme_custom_url" value="<?= htmlspecialchars($settings['theme_custom_url'] ?? '') ?>" placeholder="<?= __('settings.placeholder.theme_custom_url') ?>">
+        </label>
+        <label class="field">
+            <span><?= __('settings.field.site_url') ?></span>
+            <input type="text" name="site_url" value <?= htmlspecialchars($settings['site_url'] ?? '') ?> placeholder="<?= __('settings.placeholder.site_url') ?>">
+        </label>
+        <label class="field">
+            <span><?= __('settings.field.contact_email') ?></span>
+            <input type="text" name="contact_email" value="<?= htmlspecialchars($settings['contact_email'] ?? '') ?>">
+        </label>
+        <label class="field">
+            <span><?= __('settings.field.locale_mode') ?></span>
+            <select name="locale_mode">
+                <option value="ru" <?= (($settings['locale_mode'] ?? 'multi') === 'ru') ? 'selected' : '' ?>><?= __('settings.locale.ru') ?></option>
+                <option value="en" <?= (($settings['locale_mode'] ?? 'multi') === 'en') ? 'selected' : '' ?>><?= __('settings.locale.en') ?></option>
+                <option value="multi" <?= (($settings['locale_mode'] ?? 'multi') === 'multi') ? 'selected' : '' ?>><?= __('settings.locale.multi') ?></option>
+            </select>
+        </label>
+        <label class="field checkbox">
+            <input type="checkbox" name="footer_copy_enabled" value="1" <?= !empty($settings['footer_copy_enabled']) ? 'checked' : '' ?>>
+            <span><?= __('settings.field.footer_copy_enabled') ?></span>
+        </label>
     </div>
 
     <div class="grid two">

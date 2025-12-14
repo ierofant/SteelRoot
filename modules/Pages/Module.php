@@ -8,6 +8,7 @@ use Core\Database;
 class Module
 {
     private string $path;
+    private static array $menuItems = [];
 
     public function __construct(string $path)
     {
@@ -33,30 +34,22 @@ class Module
                     return (new Controllers\PagesController($container))->show($req);
                 });
             }
-            // Inject menu items when requested
-            if (!empty($GLOBALS['settingsAll'])) {
-                $settingsAll = $GLOBALS['settingsAll'];
-                $menuRaw = $settingsAll['menu_schema'] ?? '';
-                $menuDecoded = $menuRaw ? json_decode($menuRaw, true) : [];
-                if (!is_array($menuDecoded)) {
-                    $menuDecoded = [];
-                }
-                $existingUrls = array_map(fn($item) => $item['url'] ?? '', $menuDecoded);
-                foreach ($db->fetchAll("SELECT slug, title_en, title_ru, show_in_menu, menu_order FROM pages WHERE visible = 1 AND show_in_menu = 1 ORDER BY menu_order ASC, id ASC") as $page) {
-                    $url = '/' . ltrim($page['slug'], '/');
-                    if (in_array($url, $existingUrls, true)) {
-                        continue;
-                    }
-                    $menuDecoded[] = [
-                        'label_en' => $page['title_en'] ?? '',
-                        'label_ru' => $page['title_ru'] ?? '',
-                        'url' => $url,
-                        'enabled' => true,
-                        'requires_admin' => false,
-                    ];
-                }
-                $GLOBALS['settingsAll']['menu_schema'] = json_encode($menuDecoded);
-            }
+            $menuRows = $db->fetchAll("
+                SELECT slug, title_en, title_ru
+                FROM pages
+                WHERE visible = 1 AND show_in_menu = 1
+                ORDER BY menu_order ASC, id ASC
+            ");
+            self::$menuItems = array_map(function ($page) {
+                $url = '/' . ltrim($page['slug'] ?? '', '/');
+                return [
+                    'label_en' => $page['title_en'] ?? '',
+                    'label_ru' => $page['title_ru'] ?? '',
+                    'url' => $url,
+                    'enabled' => true,
+                    'requires_admin' => false,
+                ];
+            }, array_filter($menuRows, fn($p) => !empty($p['slug'])));
         } catch (\Throwable $e) {
             // ignore if table not ready
         }
@@ -78,5 +71,28 @@ class Module
             $r->post('/edit/{id}', [Controllers\AdminPagesController::class, 'update']);
             $r->post('/delete/{id}', [Controllers\AdminPagesController::class, 'delete']);
         });
+    }
+
+    public static function appendMenuItems(array &$settings): void
+    {
+        if (empty(self::$menuItems)) {
+            return;
+        }
+        $menuRaw = $settings['menu_schema'] ?? '';
+        $menuDecoded = $menuRaw ? json_decode($menuRaw, true) : [];
+        if (!is_array($menuDecoded)) {
+            $menuDecoded = [];
+        }
+        $existingUrls = array_map(fn($item) => $item['url'] ?? '', $menuDecoded);
+        foreach (self::$menuItems as $item) {
+            if (!$item['url'] || in_array($item['url'], $existingUrls, true)) {
+                continue;
+            }
+            $menuDecoded[] = $item;
+            $existingUrls[] = $item['url'];
+        }
+        if ($menuDecoded) {
+            $settings['menu_schema'] = json_encode($menuDecoded, JSON_UNESCAPED_UNICODE);
+        }
     }
 }

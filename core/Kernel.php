@@ -7,6 +7,7 @@ use App\Services\RedirectService;
 use App\Services\SecurityLog;
 use Core\Search\SearchRegistry;
 use Core\Search\SearchManager;
+use Modules\Users\Services\Auth;
 
 class Kernel
 {
@@ -243,6 +244,13 @@ class Kernel
             $GLOBALS['viewTheme'] = $settings->get('theme', 'light');
             $GLOBALS['customThemeUrl'] = $settings->get('theme_custom_url', null);
             $GLOBALS['settingsAll'] = $settings->all();
+            if (class_exists(\Modules\Pages\Module::class)) {
+                try {
+                    \Modules\Pages\Module::appendMenuItems($GLOBALS['settingsAll']);
+                } catch (\Throwable $e) {
+                    Logger::log('Pages module menu merge failed: ' . $e->getMessage());
+                }
+            }
             // Глобальная блокировка IP для всего сайта
             $blockedSite = array_filter(array_map('trim', explode(',', (string)$settings->get('site_blocked_ips', ''))));
             $clientIp = $request->server['REMOTE_ADDR'] ?? '';
@@ -365,6 +373,10 @@ class Kernel
 
     private function handleMigrations(Request $request): Response
     {
+        $denial = $this->denyMigrationsForGuests();
+        if ($denial !== null) {
+            return $denial;
+        }
         $runner = $this->container->get('migrationRunner');
         $action = $request->query['up'] ?? ($request->query['down'] ?? ($request->query['status'] ?? null));
         if ($action === null) {
@@ -378,6 +390,23 @@ class Kernel
             $log = $runner->status();
         }
         return new Response(nl2br(htmlspecialchars($log)), 200);
+    }
+
+    private function denyMigrationsForGuests(): ?Response
+    {
+        if (!empty($_SESSION['admin_auth'])) {
+            return null;
+        }
+        if (class_exists(Auth::class)) {
+            try {
+                $auth = $this->container->get(Auth::class);
+                if ($auth->checkRole('admin')) {
+                    return null;
+                }
+            } catch (Throwable $e) {
+            }
+        }
+        return new Response('Forbidden', 403);
     }
 
     private function boolSetting(SettingsService $settings, string $key, bool $default): bool

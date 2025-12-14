@@ -52,13 +52,13 @@ $galleryCount = count($gallery ?? []);
                 <h3><?= htmlspecialchars($title) ?></h3>
             </a>
         <?php endforeach; ?>
-        <?php if (empty($articles)): ?>
-            <div class="empty-state">
-                <h3>Пока нет статей</h3>
-                <p class="muted">Добавьте материалы с этим тегом — они появятся здесь.</p>
-            </div>
-        <?php endif; ?>
     </div>
+    <?php if (empty($articles)): ?>
+        <div class="empty-state">
+            <h3>Пока нет статей</h3>
+            <p class="muted">Добавьте материалы с этим тегом — они появятся здесь.</p>
+        </div>
+    <?php endif; ?>
 </section>
 
 <section class="tag-section" id="gallery">

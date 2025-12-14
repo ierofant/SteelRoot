@@ -26,6 +26,9 @@ return [
     'pages.admin.empty' => 'Пока нет страниц.',
     'pages.admin.yes' => 'Да',
     'pages.admin.no' => 'Нет',
+    'pages.admin.record' => 'Страница №{id}',
+    'pages.admin.no_title' => 'Без названия',
+    'pages.admin.empty_hint' => 'Создайте страницу — она появится в списке.',
     'pages.admin.help.slug' => 'Строчные буквы, цифры, дефисы. Пример: about, privacy',
     'pages.admin.errors.slug_exists' => 'Слаг уже существует',
 ];
