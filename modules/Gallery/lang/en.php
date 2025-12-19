@@ -38,4 +38,6 @@ return [
     'gallery.settings.lightbox_likes' => 'Allow likes inside lightbox',
     'gallery.settings.save' => 'Save',
     'gallery.settings.saved' => 'Settings saved',
+    'gallery.list.subtitle' => 'Collection of images and albums.',
+    'gallery.action.view' => 'View',
 ];

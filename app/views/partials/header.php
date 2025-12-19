@@ -32,12 +32,12 @@ if ((!is_array($menuDecoded) || empty($menuDecoded)) && !$menuEnabled) {
 }
 $langSwitchEnabled = ($localeMode === 'multi');
 $currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-function buildLangUrl(string $code, string $path): string {
+$buildLangUrl = function (string $code, string $path): string {
     $qs = $_GET ?? [];
     $qs['lang'] = $code;
     $query = http_build_query($qs);
     return $path . ($query ? '?' . $query : '');
-}
+};
 ?>
 <header class="topbar">
     <div class="brand">
@@ -51,7 +51,7 @@ function buildLangUrl(string $code, string $path): string {
         <?php if ($langSwitchEnabled): ?>
             <div class="lang-switch">
                 <?php foreach ($availableLocales as $code): ?>
-                    <a class="<?= $code === $locale ? 'active' : '' ?>" href="<?= htmlspecialchars(buildLangUrl($code, $currentPath)) ?>"><?= htmlspecialchars(strtoupper($code)) ?></a>
+                    <a class="<?= $code === $locale ? 'active' : '' ?>" href="<?= htmlspecialchars($buildLangUrl($code, $currentPath)) ?>"><?= htmlspecialchars(strtoupper($code)) ?></a>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>

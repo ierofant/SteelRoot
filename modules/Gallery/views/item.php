@@ -45,7 +45,7 @@
 <?php if ($showTags && !empty($tags)): ?>
     <div class="tags">
         <?php foreach ($tags as $tag): ?>
-            <a class="pill ghost" href="/tags/<?= urlencode($tag['slug'] ?? '') ?>/gallery"><?= htmlspecialchars($tag['name'] ?? ($tag['slug'] ?? '')) ?></a>
+            <a class="pill ghost" href="/tags/<?= urlencode($tag['slug'] ?? '') ?>"><?= htmlspecialchars($tag['name'] ?? ($tag['slug'] ?? '')) ?></a>
         <?php endforeach; ?>
     </div>
 <?php endif; ?>

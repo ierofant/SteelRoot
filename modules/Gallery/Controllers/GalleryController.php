@@ -154,6 +154,9 @@ class GalleryController
         if ($itemDesc === '') {
             $itemDesc = $listDesc ?? '';
         }
+        if (!isset($listTitle)) {
+            $listTitle = $this->container->get('lang')->current() === 'ru' ? 'Галерея' : 'Gallery';
+        }
         $fallbackOg = $this->defaultOgImage();
         $ogToUse = $ogImage ?: $fallbackOg;
         $html = $this->container->get('renderer')->render(

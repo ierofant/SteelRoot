@@ -38,4 +38,6 @@ return [
     'gallery.settings.lightbox_likes' => 'Лайки в лайтбоксе',
     'gallery.settings.save' => 'Сохранить',
     'gallery.settings.saved' => 'Настройки сохранены',
+    'gallery.list.subtitle' => 'Подборка изображений и альбомов.',
+    'gallery.action.view' => 'Открыть',
 ];
