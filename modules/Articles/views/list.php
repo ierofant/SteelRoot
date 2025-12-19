@@ -15,7 +15,7 @@
             $excerpt = $loc === 'ru' ? ($article['preview_ru'] ?? '') : ($article['preview_en'] ?? '');
             $views = $article['views'] ?? null;
             $likes = $article['likes'] ?? null;
-            $bg = !empty($article['image_url']) ? "background-image:url('" . htmlspecialchars($article['image_url']) . "')" : '';
+            $bg = !empty($article['image_url']) ? "url('" . htmlspecialchars($article['image_url']) . "')" : '';
             $classes = 'article-card';
             if (!$bg) {
                 $classes .= ' no-image';
