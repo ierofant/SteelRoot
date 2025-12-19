@@ -588,6 +588,7 @@ return [
     'nav.settings' => 'Настройки',
     'nav.homepage' => 'Главная',
     'nav.template' => 'Шаблон',
+    'nav.menu' => 'Меню',
     'nav.users' => 'Пользователи',
     'nav.profile' => 'Профиль',
     'nav.files' => 'Файлы',

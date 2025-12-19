@@ -1,7 +1,6 @@
 <?php ob_start(); ?>
 <form method="post" class="card">
     <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
-    <input type="hidden" name="menu_schema" id="menu_schema" value="<?= htmlspecialchars(json_encode($menuItems ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)) ?>">
     <div class="tabs" id="settings-tabs" style="display:flex;gap:8px;margin-bottom:12px;">
         <button type="button" class="btn ghost small tab-btn active" data-tab="basic"><?= __('settings.tab.basic') ?></button>
         <button type="button" class="btn ghost small tab-btn" data-tab="infra"><?= __('settings.tab.infra') ?></button>
@@ -137,32 +136,6 @@
         </label>
     </div>
 
-    <div class="card subtle stack menu-builder form-dark">
-        <h3><?= __('settings.section.menu') ?></h3>
-        <p class="muted"><?= __('settings.menu.helper_text') ?></p>
-        <input type="hidden" name="menu_schema" id="menu-schema-input">
-        <div class="alert danger" id="menu-error" style="display:none;"></div>
-        <div class="table-wrap">
-            <table class="data" id="menu-table">
-                <thead>
-                    <tr>
-                        <th style="width:32px;">↕</th>
-                        <th><?= __('settings.menu.header.label_ru') ?></th>
-                        <th><?= __('settings.menu.header.label_en') ?></th>
-                        <th><?= __('settings.menu.header.url') ?></th>
-                        <th><?= __('settings.menu.header.enabled') ?></th>
-                        <th><?= __('settings.menu.header.admin_only') ?></th>
-                        <th></th>
-                    </tr>
-                </thead>
-                <tbody></tbody>
-            </table>
-        </div>
-        <div class="form-actions">
-            <button type="button" class="btn ghost" id="menu-add"><?= __('settings.menu.add') ?></button>
-        </div>
-    </div>
-
     </div> <!-- end basic -->
 
     <div class="tab-pane" data-pane="infra" style="display:none;">
@@ -273,132 +246,7 @@
     </div>
 </form>
 
-<template id="menu-row-template">
-    <tr draggable="true">
-        <td class="drag-cell">≡</td>
-        <td><input type="text" class="menu-ru" placeholder="<?= __('settings.placeholder.menu_label_ru') ?>" required></td>
-        <td><input type="text" class="menu-en" placeholder="<?= __('settings.placeholder.menu_label_en') ?>" required></td>
-        <td><input type="text" class="menu-url" placeholder="<?= __('settings.placeholder.menu_url') ?>" required></td>
-        <td style="text-align:center;"><input type="checkbox" class="menu-enabled" checked></td>
-        <td style="text-align:center;"><input type="checkbox" class="menu-admin"></td>
-        <td class="actions">
-            <button type="button" class="btn ghost small menu-up">↑</button>
-            <button type="button" class="btn ghost small menu-down">↓</button>
-            <button type="button" class="btn danger small menu-remove">×</button>
-        </td>
-    </tr>
-</template>
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        const data = <?= json_encode($menuItems ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
-        const tpl = document.querySelector('#menu-row-template');
-        const tbody = document.querySelector('#menu-table tbody');
-        const hidden = document.getElementById('menu-schema-input');
-        const errorBox = document.getElementById('menu-error');
-        function syncHidden() {
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            const items = rows.map(r => ({
-                label_ru: r.querySelector('.menu-ru').value.trim(),
-                label_en: r.querySelector('.menu-en').value.trim(),
-                url: r.querySelector('.menu-url').value.trim(),
-                enabled: r.querySelector('.menu-enabled').checked,
-                requires_admin: r.querySelector('.menu-admin').checked,
-            })).filter(r => r.url !== '');
-            hidden.value = JSON.stringify(items, null, 2);
-        }
-        function addRow(item = {}) {
-            const row = tpl.content.firstElementChild.cloneNode(true);
-            row.addEventListener('dragstart', handleDragStart);
-            row.addEventListener('dragover', handleDragOver);
-            row.addEventListener('drop', handleDrop);
-            row.addEventListener('dragend', handleDragEnd);
-            row.querySelector('.menu-ru').value = item.label_ru || '';
-            row.querySelector('.menu-en').value = item.label_en || '';
-            row.querySelector('.menu-url').value = item.url || '';
-            row.querySelector('.menu-enabled').checked = item.enabled !== false;
-            row.querySelector('.menu-admin').checked = !!item.requires_admin;
-            row.querySelectorAll('input').forEach(input => {
-                input.addEventListener('input', syncHidden);
-                input.addEventListener('change', syncHidden);
-            });
-            row.querySelector('.menu-remove').addEventListener('click', () => {
-                row.remove();
-                syncHidden();
-            });
-            row.querySelector('.menu-up').addEventListener('click', () => {
-                if (row.previousElementSibling) tbody.insertBefore(row, row.previousElementSibling);
-                syncHidden();
-            });
-            row.querySelector('.menu-down').addEventListener('click', () => {
-                if (row.nextElementSibling) tbody.insertBefore(row.nextElementSibling, row);
-                syncHidden();
-            });
-            tbody.appendChild(row);
-            syncHidden();
-        }
-        data.forEach(addRow);
-        document.getElementById('menu-add').addEventListener('click', () => addRow());
-        document.querySelector('form').addEventListener('submit', (e) => {
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            let hasError = false;
-            const items = rows.map(r => {
-                const entry = {
-                    label_ru: r.querySelector('.menu-ru').value.trim(),
-                    label_en: r.querySelector('.menu-en').value.trim(),
-                    url: r.querySelector('.menu-url').value.trim(),
-                    enabled: r.querySelector('.menu-enabled').checked,
-                    requires_admin: r.querySelector('.menu-admin').checked,
-                };
-                const urlField = r.querySelector('.menu-url');
-                if (!entry.url) {
-                    urlField.classList.add('error');
-                    hasError = true;
-                } else {
-                    urlField.classList.remove('error');
-                }
-                return entry;
-            });
-            if (hasError) {
-                e.preventDefault();
-                errorBox.textContent = <?= json_encode(__('settings.error.menu_url_required')) ?>;
-                errorBox.style.display = 'block';
-                return;
-            }
-            errorBox.style.display = 'none';
-            hidden.value = JSON.stringify(items, null, 2);
-        });
-    let dragSrc = null;
-    function handleDragStart(e) {
-        dragSrc = this;
-        this.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-    }
-    function handleDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        const target = this;
-        if (dragSrc && target !== dragSrc) {
-            const rect = target.getBoundingClientRect();
-            const before = (e.clientY - rect.top) < (rect.height / 2);
-            if (before) {
-                tbody.insertBefore(dragSrc, target);
-            } else {
-                tbody.insertBefore(dragSrc, target.nextSibling);
-            }
-        }
-    }
-    function handleDrop(e) {
-        e.stopPropagation();
-        return false;
-    }
-    function handleDragEnd() {
-        this.classList.remove('dragging');
-        dragSrc = null;
-        syncHidden();
-    }
-    syncHidden();
-});
-</script>
+<!-- menu builder removed; managed in Menu module -->
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const mailDriver = document.querySelector('select[name="mail_driver"]');

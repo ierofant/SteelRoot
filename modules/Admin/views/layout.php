@@ -25,6 +25,7 @@ $flash = $flash ?? null;
         <nav class="nav">
             <a href="<?= htmlspecialchars($ap) ?>"><?= __('nav.dashboard') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/settings"><?= __('nav.settings') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/menu"><?= __('nav.menu') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/homepage"><?= __('nav.homepage') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/theme"><?= __('nav.template') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/template/errors"><?= __('errors.settings.title') ?></a>

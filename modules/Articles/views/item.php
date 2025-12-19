@@ -1,4 +1,3 @@
-<?php ob_start(); ?>
 <?php
     $isRu = ($locale ?? 'en') === 'ru';
     $title = trim($isRu ? ($article['title_ru'] ?? '') : ($article['title_en'] ?? ''));
@@ -101,4 +100,3 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
-<?php $content = ob_get_clean(); include APP_ROOT . '/app/views/layout.php'; ?>

@@ -72,7 +72,17 @@ class Kernel
     private function registerServices(): void
     {
         $this->container->singleton('renderer', function () {
-            return new Renderer($this->root . '/app/views', $this->root . '/modules');
+            $metaDefaults = [
+                'title' => $this->config['app']['name'] ?? 'SteelRoot',
+                'description' => '',
+            ];
+            $db = null;
+            try {
+                $db = $this->container->get(Database::class);
+            } catch (\Throwable $e) {
+                // ignore if DB not ready
+            }
+            return new Renderer($this->root . '/app/views', $this->root . '/modules', $metaDefaults, $db);
         });
 
         $this->container->singleton('cache', function () {
@@ -264,6 +274,18 @@ class Kernel
             @session_write_close();
             @session_save_path($sessionPath);
             @session_start();
+            // Load public menu once per request
+            try {
+                if (class_exists(\Modules\Menu\Services\MenuService::class)) {
+                    $manager = $this->container->get(ModuleManager::class);
+                    if ($manager && $manager->isEnabled('menu')) {
+                        $menuService = new \Modules\Menu\Services\MenuService($this->container->get(Database::class));
+                        $GLOBALS['menuItemsPublic'] = $menuService->getPublicMenu($locale, !empty($_SESSION['admin_auth']));
+                    }
+                }
+            } catch (\Throwable $e) {
+                Logger::log('Menu load failed: ' . $e->getMessage());
+            }
             $result = $this->router->dispatch($request, $this->container);
             if ($result instanceof Response) {
                 return $result;

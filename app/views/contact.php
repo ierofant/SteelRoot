@@ -61,4 +61,12 @@ $captcha = $GLOBALS['settingsAll'] ?? [];
         </div>
     </div>
 </section>
-<?php $content = ob_get_clean(); include __DIR__ . '/layout.php'; ?>
+<?php
+$content = ob_get_clean();
+// If Renderer layout is active, just echo content (layout wraps it).
+if (isset($this) && method_exists($this, 'hasContentTemplate') && $this->hasContentTemplate()) {
+    echo $content;
+} else {
+    include __DIR__ . '/layout.php';
+}
+?>

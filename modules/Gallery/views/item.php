@@ -1,4 +1,3 @@
-<?php ob_start(); ?>
 <?php
     $tKey = $locale === 'ru' ? 'title_ru' : 'title_en';
     $dKey = $locale === 'ru' ? 'description_ru' : 'description_en';
@@ -83,4 +82,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <?php endif; ?>
-<?php $content = ob_get_clean(); include APP_ROOT . '/app/views/layout.php'; ?>

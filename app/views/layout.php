@@ -1,34 +1,37 @@
 <?php
-$meta = $meta ?? [];
 $settings = $GLOBALS['settingsAll'] ?? [];
-$title = $meta['title'] ?? ($title ?? ($settings['og_title'] ?? 'SteelRoot'));
-$description = $meta['description'] ?? ($settings['og_description'] ?? '');
-$keywords = $meta['keywords'] ?? '';
-$canonical = $meta['canonical'] ?? null;
-$og = $meta['og'] ?? [];
-if (!isset($og['title']) && !empty($settings['og_title'])) {
-    $og['title'] = $settings['og_title'];
+$meta = $meta ?? [];
+$baseTitle = $meta['title'] ?? ($title ?? null);
+if (!$baseTitle) {
+    $baseTitle = $settings['og_title'] ?? 'SteelRoot';
 }
-if (!isset($og['description']) && !empty($settings['og_description'])) {
-    $og['description'] = $settings['og_description'];
-}
-if (!isset($og['image']) && !empty($settings['og_image'])) {
-    $og['image'] = $settings['og_image'];
-}
-$tw = $meta['twitter'] ?? [];
-if (!isset($tw['card'])) {
-    $tw['card'] = 'summary_large_image';
-}
-if (!isset($tw['title'])) {
-    $tw['title'] = $og['title'] ?? $title;
-}
-if (!isset($tw['description'])) {
-    $tw['description'] = $og['description'] ?? $description;
-}
-if (!isset($tw['image']) && !empty($og['image'])) {
-    $tw['image'] = $og['image'];
-}
-$jsonld = $meta['jsonld'] ?? null;
+$baseDescription = $meta['description'] ?? ($settings['og_description'] ?? '');
+$meta = array_merge([
+    'title' => $baseTitle,
+    'description' => $baseDescription,
+    'keywords' => '',
+    'canonical' => null,
+    'og' => [],
+    'twitter' => [],
+    'jsonld' => null,
+], $meta);
+// defaults
+$primaryImage = $meta['image'] ?? null;
+$defaultImage = !empty($settings['og_image'])
+    ? $settings['og_image']
+    : (!empty($settings['theme_logo']) ? $settings['theme_logo'] : '/assets/theme/og-default.png');
+$meta['og'] = array_merge([
+    'title' => $meta['title'] ?? '',
+    'description' => $meta['description'] ?? '',
+    'image' => $primaryImage ?: $defaultImage,
+    'url' => $meta['canonical'] ?? null,
+], $meta['og']);
+$meta['twitter'] = array_merge([
+    'card' => 'summary_large_image',
+    'title' => $meta['og']['title'] ?? ($meta['title'] ?? ''),
+    'description' => $meta['og']['description'] ?? ($meta['description'] ?? ''),
+    'image' => $primaryImage ?: $meta['og']['image'] ?? $defaultImage,
+], $meta['twitter']);
 $theme = $theme ?? ($GLOBALS['viewTheme'] ?? 'light');
 $customHref = $GLOBALS['customThemeUrl'] ?? null;
 $themeHref = ($theme === 'custom' && $customHref) ? $customHref : null;
@@ -40,43 +43,60 @@ if (!empty($settings['theme_bg'])) $themeVars['--color-bg'] = $settings['theme_b
 if (!empty($settings['theme_text'])) $themeVars['--color-text'] = $settings['theme_text'];
 if (!empty($settings['theme_card'])) $themeVars['--color-card'] = $settings['theme_card'];
 if (!empty($settings['theme_radius'])) $themeVars['--radius'] = $settings['theme_radius'] . 'px';
+$currentLocale = $currentLocale ?? ($GLOBALS['currentLocale'] ?? 'en');
+$currentPathMeta = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+// canonical fallback
+if (empty($meta['canonical'])) {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    $meta['canonical'] = ($host ? $scheme . '://' . $host : '') . $currentPathMeta;
+    $meta['og']['url'] = $meta['og']['url'] ?? $meta['canonical'];
+}
+// ensure images
+if (empty($meta['og']['image'])) {
+    if (!empty($meta['image'])) {
+        $meta['og']['image'] = $meta['image'];
+    } else {
+        $meta['og']['image'] = $defaultImage;
+    }
+}
+if (empty($meta['twitter']['image'])) {
+    if (!empty($meta['image'])) {
+        $meta['twitter']['image'] = $meta['image'];
+    } else {
+        $meta['twitter']['image'] = $meta['og']['image'] ?? $defaultImage;
+    }
+}
+// enforce absolute URLs for meta images
+$hostBase = null;
+if (!empty($meta['canonical'])) {
+    $parsed = parse_url($meta['canonical']);
+    if (!empty($parsed['scheme']) && !empty($parsed['host'])) {
+        $hostBase = $parsed['scheme'] . '://' . $parsed['host'] . (isset($parsed['port']) ? ':' . $parsed['port'] : '');
+    }
+}
+if (!$hostBase) {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    if ($host) {
+        $hostBase = $scheme . '://' . $host;
+    }
+}
+if ($hostBase) {
+    foreach (['og', 'twitter'] as $k) {
+        if (!empty($meta[$k]['image']) && str_starts_with($meta[$k]['image'], '/')) {
+            $meta[$k]['image'] = $hostBase . $meta[$k]['image'];
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= htmlspecialchars($title) ?></title>
-    <?php if ($description): ?><meta name="description" content="<?= htmlspecialchars($description) ?>"><?php endif; ?>
-    <?php if ($keywords): ?><meta name="keywords" content="<?= htmlspecialchars($keywords) ?>"><?php endif; ?>
-    <?php if ($canonical): ?><link rel="canonical" href="<?= htmlspecialchars($canonical) ?>"><?php endif; ?>
-    <?php if (!empty($og['title'])): ?><meta property="og:title" content="<?= htmlspecialchars($og['title']) ?>"><?php endif; ?>
-    <?php if (!empty($og['description'])): ?><meta property="og:description" content="<?= htmlspecialchars($og['description']) ?>"><?php endif; ?>
-    <?php if (!empty($og['url'])): ?><meta property="og:url" content="<?= htmlspecialchars($og['url']) ?>"><?php endif; ?>
-    <?php if (!empty($og['image'])): ?><meta property="og:image" content="<?= htmlspecialchars($og['image']) ?>"><?php endif; ?>
-<?php if (!empty($tw)): ?>
-        <meta name="twitter:card" content="<?= htmlspecialchars($tw['card'] ?? 'summary') ?>">
-        <?php if (!empty($tw['title'])): ?><meta name="twitter:title" content="<?= htmlspecialchars($tw['title']) ?>"><?php endif; ?>
-        <?php if (!empty($tw['description'])): ?><meta name="twitter:description" content="<?= htmlspecialchars($tw['description']) ?>"><?php endif; ?>
-        <?php if (!empty($tw['image'])): ?><meta name="twitter:image" content="<?= htmlspecialchars($tw['image']) ?>"><?php endif; ?>
-    <?php endif; ?>
-    <?php if ($jsonld): ?><script type="application/ld+json"><?= $jsonld ?></script><?php endif; ?>
-    <?php if (!empty($settings['theme_favicon'])): ?>
-        <link rel="icon" href="<?= htmlspecialchars($settings['theme_favicon']) ?>">
-    <?php endif; ?>
-    <?php $v = '?v=20260122'; ?>
-    <link rel="stylesheet" href="/assets/css/app.css<?= $v ?>">
-    <?php if ($themeHref): ?>
-        <link rel="stylesheet" href="<?= htmlspecialchars($themeHref) ?><?= str_contains($themeHref, '?') ? '' : $v ?>">
-    <?php endif; ?>
-    <?php if (!empty($themeVars)): ?>
-        <style>:root {<?php foreach ($themeVars as $k=>$v): ?> <?= $k ?>: <?= htmlspecialchars($v) ?>;<?php endforeach; ?> }</style>
-    <?php endif; ?>
-</head>
+<html lang="<?= htmlspecialchars($currentLocale ?: 'en') ?>">
+<?php include APP_ROOT . '/app/views/partials/head.php'; ?>
 <body data-theme="<?= htmlspecialchars($theme) ?>">
 <?php include APP_ROOT . '/app/views/partials/header.php'; ?>
 <?php
-    $sAll = $GLOBALS['settingsAll'] ?? [];
+    $sAll = $settings;
     $bcHome = $sAll['breadcrumb_home'] ?? 'Home';
     $customTrail = null;
     $customJson = $sAll['breadcrumbs_custom'] ?? '';
@@ -108,11 +128,33 @@ if (!empty($settings['theme_radius'])) $themeVars['--radius'] = $settings['theme
     </nav>
 <?php endif; ?>
 <main>
-    <?= $content ?? '' ?>
+    <?php
+        $rendered = false;
+        if (isset($this) && method_exists($this, 'hasContentTemplate') && method_exists($this, 'renderContent') && $this->hasContentTemplate()) {
+            $this->renderContent();
+            $rendered = true;
+        }
+    ?>
+    <?php if (!$rendered): ?>
+        <?= $content ?? '' ?>
+    <?php endif; ?>
+    <?php
+        $sidebarContent = '';
+        if (isset($this) && method_exists($this, 'getSection')) {
+            $sidebarContent = $this->getSection('sidebar', '');
+        } elseif (!empty($sidebar)) {
+            $sidebarContent = $sidebar;
+        }
+    ?>
+    <?php if ($sidebarContent !== ''): ?>
+        <aside class="sidebar">
+            <?= $sidebarContent ?>
+        </aside>
+    <?php endif; ?>
 </main>
 <?php include APP_ROOT . '/app/views/partials/footer.php'; ?>
 <?php
-    $popupSettings = $GLOBALS['settingsAll'] ?? [];
+    $popupSettings = $settings;
     $popupConfig = [
         'enabled' => !empty($popupSettings['popup_enabled']),
         'delay' => (int)($popupSettings['popup_delay'] ?? 5),

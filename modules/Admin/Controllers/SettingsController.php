@@ -30,7 +30,6 @@ class SettingsController
             'title' => 'Settings',
             'settings' => $settings,
             'csrf' => Csrf::token('admin_settings'),
-            'menuItems' => $this->menuItems($settings),
             'flash' => $flash,
         ]);
         return new Response($html);
@@ -112,32 +111,6 @@ class SettingsController
         $adminIpRegex = trim($request->body['admin_ip_regex'] ?? '');
         $adminMaxAttempts = max(1, (int)($request->body['admin_max_attempts'] ?? 5));
         $adminLockMinutes = max(1, (int)($request->body['admin_lock_minutes'] ?? 5));
-        $menuSchemaRaw = $request->body['menu_schema'] ?? '';
-        if (trim($menuSchemaRaw) === '') {
-            $menuDecoded = [];
-        } else {
-            $menuDecoded = json_decode($menuSchemaRaw, true);
-            if ($menuDecoded === null && json_last_error() !== JSON_ERROR_NONE) {
-                return new Response('Invalid menu schema', 422);
-            }
-            if (!is_array($menuDecoded)) {
-                return new Response('Invalid menu schema', 422);
-            }
-        }
-        $menuNormalized = [];
-        foreach ($menuDecoded as $item) {
-            $url = trim($item['url'] ?? '');
-            if ($url === '') {
-                continue;
-            }
-            $menuNormalized[] = [
-                'label_ru' => trim($item['label_ru'] ?? ''),
-                'label_en' => trim($item['label_en'] ?? ''),
-                'url' => $url,
-                'enabled' => !empty($item['enabled']),
-                'requires_admin' => !empty($item['requires_admin']),
-            ];
-        }
         $this->settingsService->bulkSet([
             'site_name' => $siteName,
             'theme' => $theme,
@@ -176,7 +149,6 @@ class SettingsController
             'admin_ip_regex' => $adminIpRegex,
             'admin_max_attempts' => (string)$adminMaxAttempts,
             'admin_lock_minutes' => (string)$adminLockMinutes,
-            'menu_schema' => json_encode($menuNormalized, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
         ]);
         if ($mailTestTo !== '') {
             try {
@@ -196,22 +168,5 @@ class SettingsController
     private function loadSettings(): array
     {
         return $this->settingsService->all();
-    }
-
-    private function menuItems(array $settings): array
-    {
-        $raw = $settings['menu_schema'] ?? '';
-        $decoded = $raw ? json_decode($raw, true) : null;
-        if (is_array($decoded) && !empty($decoded)) {
-            return $decoded;
-        }
-        return [
-            ['label_ru' => 'Главная', 'label_en' => 'Home', 'url' => '/', 'enabled' => true, 'requires_admin' => false],
-            ['label_ru' => 'Контакты', 'label_en' => 'Contact', 'url' => '/contact', 'enabled' => true, 'requires_admin' => false],
-            ['label_ru' => 'Статьи', 'label_en' => 'Articles', 'url' => '/articles', 'enabled' => true, 'requires_admin' => false],
-            ['label_ru' => 'Галерея', 'label_en' => 'Gallery', 'url' => '/gallery', 'enabled' => true, 'requires_admin' => false],
-            ['label_ru' => 'Поиск', 'label_en' => 'Search', 'url' => '/search', 'enabled' => true, 'requires_admin' => false],
-            ['label_ru' => 'Админ', 'label_en' => 'Admin', 'url' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin'), 'enabled' => true, 'requires_admin' => true],
-        ];
     }
 }

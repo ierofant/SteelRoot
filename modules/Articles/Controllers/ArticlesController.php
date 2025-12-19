@@ -52,20 +52,25 @@ class ArticlesController
         ", [$slug]);
         $canonical = $this->canonical($request);
         $titleText = 'Tag: ' . ($tag['name'] ?? $slug);
-        $html = $this->container->get('renderer')->render('tags/show', [
-            'title' => $titleText,
-            'articles' => $articles,
-            'gallery' => $gallery,
-            'locale' => $this->container->get('lang')->current(),
-            'slug' => $slug,
-            'tagName' => $tag['name'] ?? $slug,
-            'openMode' => $this->container->get(\App\Services\SettingsService::class)->get('gallery_open_mode', 'lightbox'),
-            'meta' => [
+        $html = $this->container->get('renderer')->render(
+            'tags/show',
+            [
+                '_layout' => true,
+                'title' => $titleText,
+                'articles' => $articles,
+                'gallery' => $gallery,
+                'locale' => $this->container->get('lang')->current(),
+                'slug' => $slug,
+                'tagName' => $tag['name'] ?? $slug,
+                'openMode' => $this->container->get(\App\Services\SettingsService::class)->get('gallery_open_mode', 'lightbox'),
+            ],
+            [
                 'title' => $titleText,
                 'canonical' => $canonical,
-                'og' => ['title' => $titleText, 'url' => $canonical],
-            ],
-        ]);
+                'description' => '',
+                'image' => $this->defaultOgImage(),
+            ]
+        );
         return new Response($html);
     }
 
@@ -110,20 +115,31 @@ class ArticlesController
             'show_tags' => true,
         ], $display);
         $canonical = $this->canonical($request);
-        $html = $this->container->get('renderer')->render('articles/list', [
-            'title' => 'Articles',
-            'articles' => $articles,
-            'locale' => $this->container->get('lang')->current(),
-            'display' => $display,
-            'breadcrumbs' => [
-                ['label' => 'Articles'],
+        $currentLocale = $this->container->get('lang')->current();
+        $listTitle = $currentLocale === 'ru' ? 'Статьи' : 'Articles';
+        $listDesc = $currentLocale === 'ru'
+            ? 'Свежие материалы и новости.'
+            : 'Latest articles and updates.';
+        $html = $this->container->get('renderer')->render(
+            'articles/list',
+            [
+                '_layout' => true,
+                'title' => $listTitle,
+                'description' => $listDesc,
+                'articles' => $articles,
+                'locale' => $currentLocale,
+                'display' => $display,
+                'breadcrumbs' => [
+                    ['label' => $listTitle],
+                ],
             ],
-            'meta' => [
-                'title' => 'Articles',
+            [
+                'title' => $listTitle,
+                'description' => $listDesc,
                 'canonical' => $canonical,
-                'og' => ['title' => 'Articles', 'url' => $canonical],
-            ],
-        ]);
+                'image' => $this->defaultOgImage(),
+            ]
+        );
         $cache->set('articles_list', $html, 300);
         return new Response($html);
     }
@@ -172,7 +188,6 @@ class ArticlesController
         if ($desc === '') {
             $desc = substr(strip_tags((string)$article[$bodyKey]), 0, 150);
         }
-        $ogImage = $this->resolveOgImage($article);
         $display = $this->moduleSettings->all('articles');
         $display = array_merge([
             'show_author' => true,
@@ -181,28 +196,34 @@ class ArticlesController
             'show_views' => true,
             'show_tags' => true,
         ], $display);
-        $html = $this->container->get('renderer')->render('articles/item', [
-            'title' => $article[$titleKey] ?? '',
-            'article' => $article,
-            'locale' => $locale,
-            'tags' => $tags,
-            'display' => $display,
-            'breadcrumbs' => [
-                ['label' => 'Articles', 'url' => '/articles'],
-                ['label' => $article[$titleKey] ?? 'Article'],
+        $ogImg = $this->absoluteImage($this->resolveOgImage($article), $request);
+        if (!$ogImg) {
+            $ogImg = $this->absoluteImage($this->defaultOgImage(), $request);
+        }
+        if (!$ogImg) {
+            $ogImg = $this->absoluteImage('/assets/theme/og-default.png', $request);
+        }
+        $html = $this->container->get('renderer')->render(
+            'articles/item',
+            [
+                '_layout' => true,
+                'title' => $article[$titleKey] ?? '',
+                'article' => $article,
+                'locale' => $locale,
+                'tags' => $tags,
+                'display' => $display,
+                'breadcrumbs' => [
+                    ['label' => 'Articles', 'url' => '/articles'],
+                    ['label' => $article[$titleKey] ?? 'Article'],
+                ],
             ],
-            'meta' => [
+            [
                 'title' => $article[$titleKey] ?? '',
                 'description' => $desc,
                 'canonical' => $canonical,
-                'og' => [
-                    'title' => $article[$titleKey] ?? '',
-                    'description' => $desc,
-                    'url' => $canonical,
-                    'image' => $ogImage,
-                ],
-            ],
-        ]);
+                'image' => $ogImg,
+            ]
+        );
         return new Response($html);
     }
 
@@ -221,8 +242,52 @@ class ArticlesController
 
     private function resolveOgImage(array $article): ?string
     {
-        // Placeholder: could map to attachment or specific field later
-        return null;
+        if (!empty($article['image_url'])) {
+            return $article['image_url'];
+        }
+        return $this->defaultOgImage();
+    }
+
+    private function defaultOgImage(): ?string
+    {
+        $settings = $this->container->get(\App\Services\SettingsService::class);
+        $img = $settings->get('og_image', '');
+        if ($img) {
+            return $img;
+        }
+        $logo = $settings->get('theme_logo', '');
+        return $logo ?: null;
+    }
+
+    private function absoluteImage(?string $src, Request $request): ?string
+    {
+        if (!$src) {
+            return null;
+        }
+        $src = trim($src);
+        if ($src === '') {
+            return null;
+        }
+        if (str_starts_with($src, 'http://') || str_starts_with($src, 'https://')) {
+            return $src;
+        }
+        $scheme = (!empty($request->server['HTTPS']) && $request->server['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $request->server['HTTP_HOST'] ?? '';
+        if ($host === '') {
+            $base = $this->canonical($request);
+            $parsed = parse_url($base);
+            if (!empty($parsed['host'])) {
+                $host = $parsed['host'] . (isset($parsed['port']) ? ':' . $parsed['port'] : '');
+                $scheme = $parsed['scheme'] ?? $scheme;
+            }
+        }
+        if ($host === '') {
+            return null;
+        }
+        if (str_starts_with($src, '/')) {
+            return $scheme . '://' . $host . $src;
+        }
+        return $scheme . '://' . $host . '/' . ltrim($src, '/');
     }
 
     private function hasColumn(string $name): bool

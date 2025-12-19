@@ -62,27 +62,37 @@ class GalleryController
         $items = $this->fetchItems($tag, $category, $orderSql, $limitSql, $offsetSql);
 
         $canonical = $this->canonical($request);
-        $html = $this->container->get('renderer')->render('gallery/list', [
-            'title' => 'Gallery',
-            'items' => $items,
-            'page' => $page,
-            'total' => $total,
-            'perPage' => $perPage,
-            'locale' => $this->container->get('lang')->current(),
-            'tag' => $tag,
-            'sort' => $sort,
-            'category' => $category,
-            'openMode' => $mode,
-            'display' => $display,
-            'breadcrumbs' => [
-                ['label' => 'Gallery'],
+        $listTitle = $this->container->get('lang')->current() === 'ru' ? 'Галерея' : 'Gallery';
+        $listDesc = $this->container->get('lang')->current() === 'ru'
+            ? 'Подборка изображений и альбомов.'
+            : 'Collection of images and albums.';
+        $html = $this->container->get('renderer')->render(
+            'gallery/list',
+            [
+                '_layout' => true,
+                'title' => $listTitle,
+                'description' => $listDesc,
+                'items' => $items,
+                'page' => $page,
+                'total' => $total,
+                'perPage' => $perPage,
+                'locale' => $this->container->get('lang')->current(),
+                'tag' => $tag,
+                'sort' => $sort,
+                'category' => $category,
+                'openMode' => $mode,
+                'display' => $display,
+                'breadcrumbs' => [
+                    ['label' => $listTitle],
+                ],
             ],
-            'meta' => [
-                'title' => 'Gallery',
+            [
+                'title' => $listTitle,
+                'description' => $listDesc,
                 'canonical' => $canonical,
-                'og' => ['title' => 'Gallery', 'url' => $canonical],
-            ],
-        ]);
+                'image' => $this->defaultOgImage(),
+            ]
+        );
         return new Response($html);
     }
 
@@ -135,22 +145,38 @@ class GalleryController
                 $tags = [];
             }
         }
-        $html = $this->container->get('renderer')->render('gallery/item', [
-            'title' => 'Image',
-            'item' => $item,
-            'locale' => $this->container->get('lang')->current(),
-            'display' => $display,
-            'tags' => $tags,
-            'breadcrumbs' => [
-                ['label' => 'Gallery', 'url' => '/gallery'],
-                ['label' => $item['title_en'] ?? 'Image'],
+        $itemTitle = $this->container->get('lang')->current() === 'ru' ? ($item['title_ru'] ?? 'Image') : ($item['title_en'] ?? 'Image');
+        $itemDesc = $this->container->get('lang')->current() === 'ru' ? ($item['description_ru'] ?? '') : ($item['description_en'] ?? '');
+        if ($itemDesc === '') {
+            $altDesc = $this->container->get('lang')->current() === 'ru' ? ($item['description_en'] ?? '') : ($item['description_ru'] ?? '');
+            $itemDesc = $altDesc;
+        }
+        if ($itemDesc === '') {
+            $itemDesc = $listDesc ?? '';
+        }
+        $fallbackOg = $this->defaultOgImage();
+        $ogToUse = $ogImage ?: $fallbackOg;
+        $html = $this->container->get('renderer')->render(
+            'gallery/item',
+            [
+                '_layout' => true,
+                'title' => $itemTitle,
+                'item' => $item,
+                'locale' => $this->container->get('lang')->current(),
+                'display' => $display,
+                'tags' => $tags,
+                'breadcrumbs' => [
+                    ['label' => $listTitle, 'url' => '/gallery'],
+                    ['label' => $itemTitle ?? 'Image'],
+                ],
             ],
-            'meta' => [
-                'title' => $this->container->get('lang')->current() === 'ru' ? ($item['title_ru'] ?? 'Image') : ($item['title_en'] ?? 'Image'),
+            [
+                'title' => $itemTitle,
+                'description' => $itemDesc,
                 'canonical' => $canonical,
-                'og' => ['title' => $item['title_en'] ?? 'Image', 'url' => $canonical, 'image' => $ogImage],
-            ],
-        ]);
+                'image' => $ogToUse,
+            ]
+        );
         return new Response($html);
     }
 
@@ -168,23 +194,28 @@ class GalleryController
         $canonical = $this->canonical($request);
         $display = $this->displaySettings();
         $mode = !empty($display['enable_lightbox']) ? $this->settings->get('gallery_open_mode', 'lightbox') : 'page';
-        $html = $this->container->get('renderer')->render('gallery/list', [
-            'title' => 'Gallery tag: ' . $slug,
-            'items' => $items,
-            'page' => $page,
-            'total' => count($items),
-            'perPage' => $perPage,
-            'locale' => $this->container->get('lang')->current(),
-            'tag' => $slug,
-            'sort' => $sort,
-            'openMode' => $mode,
-            'display' => $display,
-            'meta' => [
+        $html = $this->container->get('renderer')->render(
+            'gallery/list',
+            [
+                '_layout' => true,
                 'title' => 'Gallery tag: ' . $slug,
-                'canonical' => $canonical,
-                'og' => ['title' => 'Gallery tag: ' . $slug, 'url' => $canonical],
+                'items' => $items,
+                'page' => $page,
+                'total' => count($items),
+                'perPage' => $perPage,
+                'locale' => $this->container->get('lang')->current(),
+                'tag' => $slug,
+                'sort' => $sort,
+                'openMode' => $mode,
+                'display' => $display,
             ],
-        ]);
+            [
+                'title' => 'Gallery tag: ' . $slug,
+                'description' => '',
+                'canonical' => $canonical,
+                'image' => $this->defaultOgImage(),
+            ]
+        );
         return new Response($html);
     }
 
@@ -304,5 +335,16 @@ class GalleryController
         unset($qs['page']);
         $query = http_build_query($qs);
         return $base . $uri . ($query ? '?' . $query : '');
+    }
+
+    private function defaultOgImage(): ?string
+    {
+        $settings = $this->container->get(\App\Services\SettingsService::class);
+        $img = $settings->get('og_image', '');
+        if ($img) {
+            return $img;
+        }
+        $logo = $settings->get('theme_logo', '');
+        return $logo ?: null;
     }
 }

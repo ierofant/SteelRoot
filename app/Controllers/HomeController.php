@@ -103,20 +103,23 @@ class HomeController
                 }
             }
         }
-        $html = $this->container->get('renderer')->render('contact', [
-            'title' => \__('contact'),
-            'fields' => $fields,
-            'errors' => $errors,
-            'sent' => $sent,
-            'hasFile' => $hasFile,
-            'csrf' => Csrf::token('contact_form'),
-            'meta' => [
+        $html = $this->container->get('renderer')->render(
+            'contact',
+            [
+                '_layout' => true,
+                'title' => \__('contact'),
+                'fields' => $fields,
+                'errors' => $errors,
+                'sent' => $sent,
+                'hasFile' => $hasFile,
+                'csrf' => Csrf::token('contact_form'),
+            ],
+            [
                 'title' => \__('contact'),
                 'description' => 'Contact page',
                 'canonical' => $canonical,
-                'og' => ['title' => \__('contact'), 'description' => 'Contact page', 'url' => $canonical],
-            ],
-        ]);
+            ]
+        );
         return new Response($html);
     }
 

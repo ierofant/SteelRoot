@@ -1,19 +1,33 @@
 <?php
 $settings = $GLOBALS['settingsAll'] ?? [];
-$locale = $GLOBALS['currentLocale'] ?? 'en';
+$locale = $currentLocale ?? ($GLOBALS['currentLocale'] ?? 'en');
 $localeMode = $GLOBALS['localeMode'] ?? ($settings['locale_mode'] ?? 'multi');
 $availableLocales = $GLOBALS['availableLocales'] ?? ['en','ru'];
 $adminPrefix = defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin';
-$menuRaw = $settings['menu_schema'] ?? '';
-$menuDecoded = $menuRaw ? json_decode($menuRaw, true) : null;
-if (!is_array($menuDecoded) || empty($menuDecoded)) {
+$menuDecoded = $menuItems ?? ($GLOBALS['menuItemsPublic'] ?? []);
+$modulesManager = $modules ?? ($GLOBALS['modules'] ?? null);
+$menuEnabled = false;
+if ($modulesManager && method_exists($modulesManager, 'isEnabled')) {
+    $menuEnabled = $modulesManager->isEnabled('menu');
+}
+if (!$menuEnabled) {
+    $settingsAll = $GLOBALS['settingsAll'] ?? [];
+    $rawEnabled = $settingsAll['modules_enabled'] ?? '';
+    if ($rawEnabled) {
+        $decoded = json_decode($rawEnabled, true);
+        if (is_array($decoded) && in_array('menu', array_map('strtolower', $decoded), true)) {
+            $menuEnabled = true;
+        }
+    }
+}
+if ((!is_array($menuDecoded) || empty($menuDecoded)) && !$menuEnabled) {
     $menuDecoded = [
-        ['label_ru' => 'Главная', 'label_en' => 'Home', 'url' => '/', 'enabled' => true, 'requires_admin' => false],
-        ['label_ru' => 'Контакты', 'label_en' => 'Contact', 'url' => '/contact', 'enabled' => true, 'requires_admin' => false],
-        ['label_ru' => 'Статьи', 'label_en' => 'Articles', 'url' => '/articles', 'enabled' => true, 'requires_admin' => false],
-        ['label_ru' => 'Галерея', 'label_en' => 'Gallery', 'url' => '/gallery', 'enabled' => true, 'requires_admin' => false],
-        ['label_ru' => 'Поиск', 'label_en' => 'Search', 'url' => '/search', 'enabled' => true, 'requires_admin' => false],
-        ['label_ru' => 'Админ', 'label_en' => 'Admin', 'url' => $adminPrefix, 'enabled' => true, 'requires_admin' => true],
+        ['label_ru' => 'Главная', 'label_en' => 'Home', 'url' => '/', 'enabled' => true, 'admin_only' => false],
+        ['label_ru' => 'Контакты', 'label_en' => 'Contact', 'url' => '/contact', 'enabled' => true, 'admin_only' => false],
+        ['label_ru' => 'Статьи', 'label_en' => 'Articles', 'url' => '/articles', 'enabled' => true, 'admin_only' => false],
+        ['label_ru' => 'Галерея', 'label_en' => 'Gallery', 'url' => '/gallery', 'enabled' => true, 'admin_only' => false],
+        ['label_ru' => 'Поиск', 'label_en' => 'Search', 'url' => '/search', 'enabled' => true, 'admin_only' => false],
+        ['label_ru' => 'Админ', 'label_en' => 'Admin', 'url' => $adminPrefix, 'enabled' => true, 'admin_only' => true],
     ];
 }
 $langSwitchEnabled = ($localeMode === 'multi');
@@ -47,8 +61,13 @@ function buildLangUrl(string $code, string $path): string {
         <button class="menu-close" onclick="(function(){const nav=document.querySelector('.topbar nav');nav.classList.remove('open');document.body.classList.remove('menu-open');})();">×</button>
         <?php foreach ($menuDecoded as $item): ?>
             <?php if (empty($item['enabled'])) { continue; } ?>
-            <?php if (!empty($item['requires_admin']) && empty($_SESSION['admin_auth'])) { continue; } ?>
-            <?php $label = $locale === 'ru' ? ($item['label_ru'] ?: ($item['label_en'] ?? '')) : ($item['label_en'] ?: ($item['label_ru'] ?? '')); ?>
+            <?php $adminOnly = $item['admin_only'] ?? ($item['requires_admin'] ?? false); ?>
+            <?php if (!empty($adminOnly) && empty($_SESSION['admin_auth'])) { continue; } ?>
+            <?php
+                $label = $locale === 'ru'
+                    ? ($item['label_ru'] ?? ($item['label_en'] ?? ($item['label'] ?? '')))
+                    : ($item['label_en'] ?? ($item['label_ru'] ?? ($item['label'] ?? '')));
+            ?>
             <a href="<?= htmlspecialchars($item['url']) ?>"><?= htmlspecialchars($label) ?></a>
         <?php endforeach; ?>
         <div class="nav-right">

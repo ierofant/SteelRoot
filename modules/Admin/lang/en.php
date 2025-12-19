@@ -603,6 +603,7 @@ return [
     'nav.settings' => 'Settings',
     'nav.homepage' => 'Homepage',
     'nav.template' => 'Template',
+    'nav.menu' => 'Menu',
     'nav.users' => 'Users',
     'nav.profile' => 'Profile',
     'nav.files' => 'Files',

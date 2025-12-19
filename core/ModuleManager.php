@@ -434,6 +434,9 @@ class ModuleManager
             if (!in_array('admin', $this->enabled, true)) {
                 $this->enabled[] = 'admin';
             }
+            if (!in_array('menu', $this->enabled, true)) {
+                $this->enabled[] = 'menu';
+            }
             $this->enableByDefault = false;
         }
     }
