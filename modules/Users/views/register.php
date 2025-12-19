@@ -24,6 +24,10 @@ $success = $success ?? null;
                 <input type="text" name="name" required value="<?= htmlspecialchars($name ?? '') ?>">
             </div>
             <div class="input-group">
+                <label>Username</label>
+                <input type="text" name="username" required value="<?= htmlspecialchars($username ?? '') ?>">
+            </div>
+            <div class="input-group">
                 <label>Email</label>
                 <input type="email" name="email" autocomplete="email" required value="<?= htmlspecialchars($email ?? '') ?>">
             </div>

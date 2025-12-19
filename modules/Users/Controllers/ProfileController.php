@@ -3,6 +3,7 @@ namespace Modules\Users\Controllers;
 
 use Core\Container;
 use Core\Csrf;
+use Core\ModuleSettings;
 use Core\Request;
 use Core\Response;
 use Modules\Users\Services\Auth;
@@ -15,6 +16,7 @@ class ProfileController
     private Auth $auth;
     private UserRepository $users;
     private AvatarService $avatars;
+    private ModuleSettings $moduleSettings;
 
     public function __construct(Container $container)
     {
@@ -22,6 +24,7 @@ class ProfileController
         $this->auth = $container->get(Auth::class);
         $this->users = $container->get(UserRepository::class);
         $this->avatars = $container->get(AvatarService::class);
+        $this->moduleSettings = $container->get(ModuleSettings::class);
     }
 
     public function show(Request $request): Response
@@ -37,6 +40,7 @@ class ProfileController
             'avatarToken' => Csrf::token('profile_avatar'),
             'message' => $request->query['msg'] ?? null,
             'error' => $request->query['err'] ?? null,
+            'visibilityOptions' => ['public', 'private'],
         ]);
         return new Response($html);
     }
@@ -54,6 +58,9 @@ class ProfileController
         $email = strtolower(trim($request->body['email'] ?? ''));
         $pass = (string)($request->body['password'] ?? '');
         $pass2 = (string)($request->body['password_confirm'] ?? '');
+        $usernameInput = (string)($request->body['username'] ?? '');
+        $visibility = $this->normalizeVisibility((string)($request->body['profile_visibility'] ?? 'public'));
+        $signature = $this->sanitizeSignature($request->body['signature'] ?? null);
         if ($name === '' || $email === '') {
             return $this->redirectWithError('Name and email required');
         }
@@ -63,7 +70,20 @@ class ProfileController
         if ($this->users->emailExists($email, (int)$user['id'])) {
             return $this->redirectWithError('Email already used');
         }
-        $data = ['name' => $name, 'email' => $email];
+        $username = $this->normalizeUsername($usernameInput !== '' ? $usernameInput : ($user['username'] ?? $name));
+        if ($username === '' || strlen($username) < $this->usernameMin()) {
+            return $this->redirectWithError('Username is too short or invalid');
+        }
+        if ($this->users->usernameExists($username, (int)$user['id'])) {
+            return $this->redirectWithError('Username already used');
+        }
+        $data = [
+            'name' => $name,
+            'email' => $email,
+            'username' => $username,
+            'profile_visibility' => $visibility,
+            'signature' => $signature,
+        ];
         if ($pass !== '') {
             if ($pass !== $pass2) {
                 return $this->redirectWithError('Passwords do not match');
@@ -134,14 +154,29 @@ class ProfileController
 
     public function publicProfile(Request $request): Response
     {
-        $id = (int)($request->params['id'] ?? 0);
-        $user = $id ? $this->users->find($id) : null;
+        $identifier = trim((string)($request->params['id'] ?? ''));
+        $user = $this->findByIdentifier($identifier);
         if (!$user || ($user['status'] ?? '') !== 'active') {
             return new Response('Not found', 404);
         }
+        $viewer = $this->auth->user();
+        $isOwner = $viewer && (int)$viewer['id'] === (int)$user['id'];
+        $isAdmin = $this->auth->checkRole('admin');
+        $isPrivate = ($user['profile_visibility'] ?? 'public') === 'private';
+        $restricted = $isPrivate && !$isOwner && !$isAdmin;
+        $meta = [
+            'title' => $restricted ? 'Profile is private' : ($user['name'] ?? 'User'),
+        ];
+        if ($restricted) {
+            $meta['robots'] = 'noindex,nofollow';
+        }
         $html = $this->container->get('renderer')->render('users/public_profile', [
-            'title' => $user['name'] ?? 'User',
+            'title' => $meta['title'],
             'user' => $user,
+            'restricted' => $restricted,
+            'username' => $user['username'] ?? '',
+            'meta' => $meta,
+            'canViewDetails' => !$restricted,
         ]);
         return new Response($html);
     }
@@ -149,5 +184,76 @@ class ProfileController
     private function redirectWithError(string $msg): Response
     {
         return new Response('', 302, ['Location' => '/profile?err=' . urlencode($msg)]);
+    }
+
+    private function normalizeUsername(string $value): string
+    {
+        $value = strtolower(trim($value));
+        $value = preg_replace('/\\s+/', '-', $value);
+        $value = preg_replace('/[^a-z0-9_.\\-]+/', '', $value);
+        $value = trim($value, '-_.');
+        $max = $this->usernameMax();
+        if ($max > 0 && strlen($value) > $max) {
+            $value = substr($value, 0, $max);
+        }
+        if (ctype_digit($value)) {
+            $value = 'u' . $value;
+        }
+        return $value;
+    }
+
+    private function normalizeVisibility(string $raw): string
+    {
+        return $raw === 'private' ? 'private' : 'public';
+    }
+
+    private function sanitizeSignature($value): ?string
+    {
+        $plain = trim((string)$value);
+        if ($plain === '') {
+            return null;
+        }
+        $plain = strip_tags($plain);
+        $plain = preg_replace('/\\s+/', ' ', $plain);
+        $plain = trim($plain);
+        if ($plain === '') {
+            return null;
+        }
+        if (mb_strlen($plain) > 300) {
+            $plain = mb_substr($plain, 0, 300);
+        }
+        return $plain;
+    }
+
+    private function usernameMin(): int
+    {
+        $min = (int)($this->moduleSettings->all('users')['username_min_length'] ?? 3);
+        return $min > 0 ? $min : 3;
+    }
+
+    private function usernameMax(): int
+    {
+        $settings = $this->moduleSettings->all('users');
+        $min = $this->usernameMin();
+        $max = (int)($settings['username_max_length'] ?? 32);
+        if ($max < $min) {
+            $max = $min;
+        }
+        return $max;
+    }
+
+    private function findByIdentifier(string $identifier): ?array
+    {
+        $identifier = trim($identifier);
+        if ($identifier === '') {
+            return null;
+        }
+        if (ctype_digit($identifier)) {
+            $byId = $this->users->find((int)$identifier);
+            if ($byId) {
+                return $byId;
+            }
+        }
+        return $this->users->findByUsername($identifier);
     }
 }

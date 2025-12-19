@@ -12,18 +12,21 @@ class UserRepository
         $this->db = $db;
     }
 
-    public function create(string $name, string $email, string $passwordHash, string $role, string $status, ?string $avatar = null): int
+    public function create(string $name, string $email, string $passwordHash, string $role, string $status, ?string $avatar = null, ?string $username = null, string $profileVisibility = 'public', ?string $signature = null): int
     {
         $this->db->execute("
-            INSERT INTO users (name, email, password, role, status, avatar, created_at, updated_at)
-            VALUES (:name, :email, :password, :role, :status, :avatar, NOW(), NOW())
+            INSERT INTO users (name, email, username, password, role, status, profile_visibility, avatar, signature, created_at, updated_at)
+            VALUES (:name, :email, :username, :password, :role, :status, :profile_visibility, :avatar, :signature, NOW(), NOW())
         ", [
             ':name' => $name,
             ':email' => $email,
+            ':username' => $username,
             ':password' => $passwordHash,
             ':role' => $role,
             ':status' => $status,
             ':avatar' => $avatar,
+            ':profile_visibility' => $profileVisibility,
+            ':signature' => $signature,
         ]);
         return (int)$this->db->pdo()->lastInsertId();
     }
@@ -31,6 +34,11 @@ class UserRepository
     public function findByEmail(string $email): ?array
     {
         return $this->db->fetch("SELECT * FROM users WHERE email = ?", [$email]);
+    }
+
+    public function findByUsername(string $username): ?array
+    {
+        return $this->db->fetch("SELECT * FROM users WHERE username = ?", [$username]);
     }
 
     public function find(int $id): ?array
@@ -53,7 +61,7 @@ class UserRepository
     {
         $fields = [];
         $params = [':id' => $id];
-        foreach (['name', 'email', 'role', 'status', 'avatar'] as $key) {
+        foreach (['name', 'email', 'role', 'status', 'avatar', 'username', 'profile_visibility', 'signature'] as $key) {
             if (array_key_exists($key, $data)) {
                 $fields[] = "{$key} = :{$key}";
                 $params[":{$key}"] = $data[$key];
@@ -65,6 +73,17 @@ class UserRepository
         $fields[] = "updated_at = NOW()";
         $sql = "UPDATE users SET " . implode(', ', $fields) . " WHERE id = :id";
         $this->db->execute($sql, $params);
+    }
+
+    public function usernameExists(string $username, ?int $exceptId = null): bool
+    {
+        $params = [$username];
+        $sql = "SELECT id FROM users WHERE username = ?";
+        if ($exceptId !== null) {
+            $sql .= " AND id != ?";
+            $params[] = $exceptId;
+        }
+        return (bool)$this->db->fetch($sql, $params);
     }
 
     public function setPassword(int $id, string $hash): void

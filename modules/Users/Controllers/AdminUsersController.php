@@ -47,6 +47,7 @@ class AdminUsersController
             'title' => 'Create User',
             'csrf' => Csrf::token('admin_users'),
             'error' => null,
+            'visibilityOptions' => ['public', 'private'],
         ]);
         return new Response($html);
     }
@@ -61,6 +62,9 @@ class AdminUsersController
         $role = $this->normalizeRole($request->body['role'] ?? 'user');
         $status = $this->normalizeStatus($request->body['status'] ?? 'active');
         $pass = (string)($request->body['password'] ?? '');
+        $usernameInput = (string)($request->body['username'] ?? $name);
+        $visibility = $this->normalizeVisibility((string)($request->body['profile_visibility'] ?? 'public'));
+        $signature = $this->sanitizeSignature($request->body['signature'] ?? null);
         if ($name === '' || $email === '' || $pass === '') {
             return $this->renderCreateError('All fields are required');
         }
@@ -73,7 +77,14 @@ class AdminUsersController
         if ($this->users->emailExists($email)) {
             return $this->renderCreateError('Email already exists');
         }
-        $this->users->create($name, $email, password_hash($pass, PASSWORD_DEFAULT), $role, $status);
+        $username = $this->normalizeUsername($usernameInput ?: $name);
+        if ($username === '' || strlen($username) < $this->usernameMin()) {
+            return $this->renderCreateError('Username is too short or invalid');
+        }
+        if ($this->users->usernameExists($username)) {
+            return $this->renderCreateError('Username already exists');
+        }
+        $this->users->create($name, $email, password_hash($pass, PASSWORD_DEFAULT), $role, $status, null, $username, $visibility, $signature);
         return new Response('', 302, ['Location' => $this->prefix() . '/users?msg=created']);
     }
 
@@ -157,6 +168,7 @@ class AdminUsersController
             'csrf' => Csrf::token('admin_users'),
             'error' => null,
             'message' => $request->query['msg'] ?? null,
+            'visibilityOptions' => ['public', 'private'],
         ]);
         return new Response($html);
     }
@@ -177,6 +189,9 @@ class AdminUsersController
         $status = $this->normalizeStatus($request->body['status'] ?? 'active');
         $pass = (string)($request->body['password'] ?? '');
         $pass2 = (string)($request->body['password_confirm'] ?? '');
+        $usernameInput = (string)($request->body['username'] ?? ($user['username'] ?? $user['name'] ?? ''));
+        $visibility = $this->normalizeVisibility((string)($request->body['profile_visibility'] ?? ($user['profile_visibility'] ?? 'public')));
+        $signature = $this->sanitizeSignature($request->body['signature'] ?? null);
         if ($name === '' || $email === '') {
             return $this->renderEditError($user, 'Name and email required');
         }
@@ -186,7 +201,22 @@ class AdminUsersController
         if ($this->users->emailExists($email, $id)) {
             return $this->renderEditError($user, 'Email already exists');
         }
-        $data = ['name' => $name, 'email' => $email, 'role' => $role, 'status' => $status];
+        $username = $this->normalizeUsername($usernameInput);
+        if ($username === '' || strlen($username) < $this->usernameMin()) {
+            return $this->renderEditError($user, 'Username is too short or invalid');
+        }
+        if ($this->users->usernameExists($username, $id)) {
+            return $this->renderEditError($user, 'Username already exists');
+        }
+        $data = [
+            'name' => $name,
+            'email' => $email,
+            'role' => $role,
+            'status' => $status,
+            'username' => $username,
+            'profile_visibility' => $visibility,
+            'signature' => $signature,
+        ];
         $this->users->update($id, $data);
         if ($pass !== '') {
             if ($pass !== $pass2) {
@@ -237,6 +267,7 @@ class AdminUsersController
             'title' => 'Create User',
             'csrf' => Csrf::token('admin_users'),
             'error' => $msg,
+            'visibilityOptions' => ['public', 'private'],
         ]);
         return new Response($html, 400);
     }
@@ -249,6 +280,7 @@ class AdminUsersController
             'csrf' => Csrf::token('admin_users'),
             'error' => $msg,
             'message' => null,
+            'visibilityOptions' => ['public', 'private'],
         ]);
         return new Response($html, 400);
     }
@@ -267,8 +299,65 @@ class AdminUsersController
         return in_array($status, $allowed, true) ? $status : 'active';
     }
 
+    private function normalizeVisibility(string $raw): string
+    {
+        return $raw === 'private' ? 'private' : 'public';
+    }
+
     private function prefix(): string
     {
         return $this->container->get('config')['admin_prefix'] ?? '/admin';
+    }
+
+    private function sanitizeSignature($value): ?string
+    {
+        $plain = trim((string)$value);
+        if ($plain === '') {
+            return null;
+        }
+        $plain = strip_tags($plain);
+        $plain = preg_replace('/\\s+/', ' ', $plain);
+        $plain = trim($plain);
+        if ($plain === '') {
+            return null;
+        }
+        if (mb_strlen($plain) > 300) {
+            $plain = mb_substr($plain, 0, 300);
+        }
+        return $plain;
+    }
+
+    private function normalizeUsername(string $value): string
+    {
+        $value = strtolower(trim($value));
+        $value = preg_replace('/\\s+/', '-', $value);
+        $value = preg_replace('/[^a-z0-9_.\\-]+/', '', $value);
+        $value = trim($value, '-_.');
+        $max = $this->usernameMax();
+        if ($max > 0 && strlen($value) > $max) {
+            $value = substr($value, 0, $max);
+        }
+        if (ctype_digit($value)) {
+            $value = 'u' . $value;
+        }
+        return $value;
+    }
+
+    private function usernameMin(): int
+    {
+        $settings = $this->moduleSettings->all('users');
+        $min = (int)($settings['username_min_length'] ?? 3);
+        return $min > 0 ? $min : 3;
+    }
+
+    private function usernameMax(): int
+    {
+        $settings = $this->moduleSettings->all('users');
+        $min = $this->usernameMin();
+        $max = (int)($settings['username_max_length'] ?? 32);
+        if ($max < $min) {
+            $max = $min;
+        }
+        return $max;
     }
 }

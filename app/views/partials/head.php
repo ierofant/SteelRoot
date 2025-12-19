@@ -10,6 +10,7 @@ $theme = $theme ?? ($GLOBALS['viewTheme'] ?? 'light');
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($meta['title'] ?? 'SteelRoot') ?></title>
     <meta name="description" content="<?= htmlspecialchars($meta['description'] ?? '') ?>">
+    <?php if (!empty($meta['robots'])): ?><meta name="robots" content="<?= htmlspecialchars($meta['robots']) ?>"><?php endif; ?>
     <?php if (!empty($meta['keywords'])): ?><meta name="keywords" content="<?= htmlspecialchars($meta['keywords']) ?>"><?php endif; ?>
     <link rel="canonical" href="<?= htmlspecialchars($meta['canonical'] ?? '') ?>">
     <meta property="og:title" content="<?= htmlspecialchars($meta['og']['title'] ?? $meta['title'] ?? '') ?>">

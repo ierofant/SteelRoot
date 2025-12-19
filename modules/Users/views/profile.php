@@ -6,6 +6,7 @@
     .form-field {display:flex;flex-direction:column;gap:6px;margin-bottom:12px;}
     .form-field label {font-size:13px;color:#9da7c2;}
     .form-field input {padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:#0f131f;color:#f3f5ff;}
+    .form-field textarea {padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,0.08);background:#0f131f;color:#f3f5ff;min-height:96px;}
     .btn {display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;border:none;cursor:pointer;background:linear-gradient(120deg,#4f6cff,#7c3aed);color:#fff;font-weight:600;box-shadow:0 8px 30px rgba(79,108,255,0.25);}
     .btn.ghost {background:transparent;border:1px solid rgba(255,255,255,0.15);}
     .avatar-block {display:flex;align-items:center;gap:14px;}
@@ -35,8 +36,24 @@
                     <input type="text" name="name" value="<?= htmlspecialchars($user['name'] ?? '') ?>" required>
                 </div>
                 <div class="form-field">
+                    <label>Username</label>
+                    <input type="text" name="username" value="<?= htmlspecialchars($user['username'] ?? '') ?>" required>
+                </div>
+                <div class="form-field">
                     <label>Email</label>
                     <input type="email" name="email" value="<?= htmlspecialchars($user['email'] ?? '') ?>" required>
+                </div>
+                <div class="form-field">
+                    <label>Profile visibility</label>
+                    <select name="profile_visibility">
+                        <?php foreach (($visibilityOptions ?? ['public','private']) as $opt): ?>
+                            <option value="<?= htmlspecialchars($opt) ?>"<?= ($user['profile_visibility'] ?? 'public') === $opt ? ' selected' : '' ?>><?= ucfirst($opt) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label>Signature (plain text, 300 chars max)</label>
+                    <textarea name="signature" maxlength="300" rows="3"><?= htmlspecialchars($user['signature'] ?? '') ?></textarea>
                 </div>
                 <div class="form-field">
                     <label>New password (optional)</label>

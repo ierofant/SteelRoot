@@ -22,38 +22,43 @@
             }
             $authorName = $article['author_name'] ?? '';
             $authorId = (int)($article['author_id'] ?? 0);
+            $authorUsername = $article['author_username'] ?? '';
+            $profileUrl = $authorUsername ? '/users/' . urlencode($authorUsername) : '/users/' . $authorId;
             $authorAvatar = $article['author_avatar'] ?? '';
             $letter = strtoupper(substr($authorName ?: ($itemTitle ?: 'A'), 0, 1));
         ?>
-        <a class="<?= $classes ?>" href="/articles/<?= urlencode($article['slug']) ?>" <?= $bg ? "style=\"{$bg}\"" : '' ?>>
-            <div class="card-meta">
-                <?php if (!empty($display['show_date']) && $date): ?>
-                    <span class="eyebrow"><?= htmlspecialchars($date) ?></span>
+        <article class="<?= $classes ?>" <?= $bg ? "style=\"--article-bg: {$bg}\"" : '' ?>>
+            <a class="article-card__link" href="/articles/<?= urlencode($article['slug']) ?>">
+                <div class="card-meta article-card__meta">
+                    <?php if (!empty($display['show_date']) && $date): ?>
+                        <span class="eyebrow"><?= htmlspecialchars($date) ?></span>
+                    <?php endif; ?>
+                    <?php
+                        $pieces = [];
+                    if (!empty($display['show_views']) && $views !== null) {
+                        $pieces[] = $views . '👁';
+                    }
+                    if (!empty($display['show_likes']) && $likes !== null) {
+                        $pieces[] = $likes . '❤';
+                    }
+                ?>
+                <?php if ($pieces): ?>
+                    <span class="pill"><?= htmlspecialchars(implode(' · ', $pieces)) ?></span>
                 <?php endif; ?>
-                <?php
-                    $pieces = [];
-                if (!empty($display['show_views']) && $views !== null) {
-                    $pieces[] = $views . '👁';
-                }
-                if (!empty($display['show_likes']) && $likes !== null) {
-                    $pieces[] = $likes . '❤';
-                }
-            ?>
-            <?php if ($pieces): ?>
-                <span class="pill"><?= htmlspecialchars(implode(' · ', $pieces)) ?></span>
-            <?php endif; ?>
-            </div>
-            <h3><?= htmlspecialchars($itemTitle) ?></h3>
-            <?php if ($excerpt): ?><p class="muted"><?= htmlspecialchars($excerpt) ?></p><?php endif; ?>
+                </div>
+                <h3><?= htmlspecialchars($itemTitle) ?></h3>
+                <?php if ($excerpt): ?><p class="muted"><?= htmlspecialchars($excerpt) ?></p><?php endif; ?>
+            </a>
             <?php if (!empty($display['show_author']) && $authorName && $authorId > 0): ?>
                 <div class="author-chip">
-                 <span class="avatar"
-                      style="<?= $authorAvatar ? "background-image:url('".htmlspecialchars($authorAvatar)."')" : '' ?>">
-                      <?= $authorAvatar ? '' : htmlspecialchars($letter) ?>
-                 </span>
-                <span class="muted"><?= htmlspecialchars($authorName) ?></span>
-               </div>
+                    <?php if ($authorAvatar): ?>
+                        <img class="avatar" src="<?= htmlspecialchars($authorAvatar) ?>" alt="<?= htmlspecialchars($authorName) ?>">
+                    <?php else: ?>
+                        <div class="avatar"><?= htmlspecialchars($letter) ?></div>
+                    <?php endif; ?>
+                    <a class="muted" href="<?= htmlspecialchars($profileUrl) ?>"><?= htmlspecialchars($authorName) ?></a>
+                </div>
             <?php endif; ?>
-        </a>
+        </article>
     <?php endforeach; ?>
 </section>

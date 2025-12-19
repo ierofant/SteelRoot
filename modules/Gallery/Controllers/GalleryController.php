@@ -7,6 +7,7 @@ use Core\Request;
 use Core\Response;
 use Core\ModuleSettings;
 use App\Services\SettingsService;
+use Modules\Users\Services\Auth;
 
 class GalleryController
 {
@@ -104,7 +105,7 @@ class GalleryController
         $authorSelect = '';
         if ($this->hasColumn('author_id')) {
             $authorJoin = "LEFT JOIN users u ON u.id = gi.author_id";
-            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar";
+            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, u.username AS author_username, u.profile_visibility AS author_profile_visibility, u.signature AS author_signature";
         }
         if ($slugParam) {
             $item = $this->db->fetch("
@@ -159,6 +160,11 @@ class GalleryController
         }
         $fallbackOg = $this->defaultOgImage();
         $ogToUse = $ogImage ?: $fallbackOg;
+        $authorVisibility = $item['author_profile_visibility'] ?? 'public';
+        $authorPrivate = $authorVisibility === 'private';
+        $authorBypass = $this->canBypassPrivateProfile((int)($item['author_id'] ?? 0));
+        $showSignature = !$authorPrivate || $authorBypass;
+        $authorProfileUrl = $this->profileUrl($item['author_id'] ?? null, $item['author_username'] ?? null);
         $html = $this->container->get('renderer')->render(
             'gallery/item',
             [
@@ -168,6 +174,9 @@ class GalleryController
                 'locale' => $this->container->get('lang')->current(),
                 'display' => $display,
                 'tags' => $tags,
+                'authorProfileUrl' => $authorProfileUrl,
+                'authorSignature' => $showSignature ? ($item['author_signature'] ?? '') : '',
+                'authorSignatureVisible' => $showSignature && !empty($item['author_signature']),
                 'breadcrumbs' => [
                     ['label' => $listTitle, 'url' => '/gallery'],
                     ['label' => $itemTitle ?? 'Image'],
@@ -233,7 +242,7 @@ class GalleryController
         $authorSelect = '';
         $authorJoin = '';
         if ($this->hasColumn('author_id')) {
-            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, gi.author_id";
+            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, gi.author_id, u.username AS author_username";
             $authorJoin = "LEFT JOIN users u ON u.id = gi.author_id";
         }
         try {
@@ -349,5 +358,32 @@ class GalleryController
         }
         $logo = $settings->get('theme_logo', '');
         return $logo ?: null;
+    }
+
+    private function canBypassPrivateProfile(int $ownerId): bool
+    {
+        if ($ownerId <= 0) {
+            return false;
+        }
+        try {
+            /** @var Auth $auth */
+            $auth = $this->container->get(Auth::class);
+        } catch (\Throwable $e) {
+            return false;
+        }
+        $viewer = $auth->user();
+        if (!$viewer) {
+            return false;
+        }
+        return $auth->checkRole('admin') || (int)($viewer['id'] ?? 0) === $ownerId;
+    }
+
+    private function profileUrl($id, $username): string
+    {
+        $username = trim((string)$username);
+        if ($username !== '') {
+            return '/users/' . rawurlencode($username);
+        }
+        return '/users/' . (int)$id;
     }
 }

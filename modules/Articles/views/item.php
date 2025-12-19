@@ -21,6 +21,9 @@
         'show_views' => true,
         'show_tags' => true,
     ];
+    $authorProfileUrl = $authorProfileUrl ?? (!empty($article['author_username']) ? '/users/' . urlencode($article['author_username']) : '/users/' . (int)($article['author_id'] ?? 0));
+    $authorSignatureVisible = $authorSignatureVisible ?? false;
+    $authorSignature = $authorSignature ?? '';
 ?>
 <article class="article-view">
     <header>
@@ -45,7 +48,7 @@
                 <span style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1c1f2d,#292f4f);background-size:cover;background-position:center;display:grid;place-items:center;color:#dce4ff;font-weight:700;border:1px solid rgba(255,255,255,0.08);<?= !empty($article['author_avatar']) ? "background-image:url('".htmlspecialchars($article['author_avatar'])."')" : '' ?>">
                     <?= !empty($article['author_avatar']) ? '' : htmlspecialchars(strtoupper(substr($article['author_name'],0,1))) ?>
                 </span>
-                <a class="muted" href="/users/<?= (int)$article['author_id'] ?>"><?= htmlspecialchars($article['author_name']) ?></a>
+                <a class="muted" href="<?= htmlspecialchars($authorProfileUrl) ?>"><?= htmlspecialchars($article['author_name']) ?></a>
             </div>
         <?php endif; ?>
     </header>
@@ -55,6 +58,9 @@
         </div>
     <?php endif; ?>
     <div class="article-body"><?= $bodyHtml ?></div>
+    <?php if (!empty($authorSignatureVisible) && $authorSignature !== ''): ?>
+        <div class="muted author-signature"><?= htmlspecialchars($authorSignature) ?></div>
+    <?php endif; ?>
     <?php if (!empty($display['show_tags']) && !empty($tags)): ?>
         <div class="article-tags">
             <?php foreach ($tags as $tag): ?>

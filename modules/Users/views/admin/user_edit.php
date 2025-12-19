@@ -16,6 +16,10 @@
             <input type="text" name="name" value="<?= htmlspecialchars($user['name'] ?? '') ?>" required>
         </label>
         <label class="field">
+            <span>Username</span>
+            <input type="text" name="username" value="<?= htmlspecialchars($user['username'] ?? '') ?>" required>
+        </label>
+        <label class="field">
             <span>Email</span>
             <input type="email" name="email" value="<?= htmlspecialchars($user['email'] ?? '') ?>" required>
         </label>
@@ -34,6 +38,18 @@
                     <option value="<?= $st ?>"<?= ($user['status'] ?? '') === $st ? ' selected' : '' ?>><?= ucfirst($st) ?></option>
                 <?php endforeach; ?>
             </select>
+        </label>
+        <label class="field">
+            <span>Profile visibility</span>
+            <select name="profile_visibility">
+                <?php foreach (($visibilityOptions ?? ['public','private']) as $opt): ?>
+                    <option value="<?= htmlspecialchars($opt) ?>"<?= ($user['profile_visibility'] ?? 'public') === $opt ? ' selected' : '' ?>><?= ucfirst($opt) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label class="field">
+            <span>Signature (optional, plain text)</span>
+            <textarea name="signature" maxlength="300" rows="3"><?= htmlspecialchars($user['signature'] ?? '') ?></textarea>
         </label>
         <label class="field">
             <span>New password (optional)</span>

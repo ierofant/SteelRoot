@@ -6,6 +6,7 @@ use Core\Database;
 use Core\Request;
 use Core\Response;
 use Core\ModuleSettings;
+use Modules\Users\Services\Auth;
 
 class ArticlesController
 {
@@ -84,7 +85,7 @@ class ArticlesController
         $select = "a.slug, a.title_en, a.title_ru, a.created_at";
         $join = '';
         if ($this->hasColumn('author_id')) {
-            $select .= ", a.author_id, u.name as author_name, u.avatar as author_avatar";
+            $select .= ", a.author_id, u.name as author_name, u.avatar as author_avatar, u.username as author_username, u.profile_visibility as author_profile_visibility";
             $join = "LEFT JOIN users u ON u.id = a.author_id";
         }
         if ($this->hasColumn('views')) {
@@ -148,7 +149,7 @@ class ArticlesController
     {
         $slug = $request->params['slug'] ?? '';
         $article = $this->db->fetch("
-            SELECT a.*, u.name AS author_name, u.avatar AS author_avatar
+            SELECT a.*, u.name AS author_name, u.avatar AS author_avatar, u.username AS author_username, u.profile_visibility AS author_profile_visibility, u.signature AS author_signature
             FROM articles a
             LEFT JOIN users u ON u.id = a.author_id
             WHERE a.slug = ?
@@ -203,6 +204,11 @@ class ArticlesController
         if (!$ogImg) {
             $ogImg = $this->absoluteImage('/assets/theme/og-default.png', $request);
         }
+        $authorVisibility = $article['author_profile_visibility'] ?? 'public';
+        $authorPrivate = $authorVisibility === 'private';
+        $authorBypass = $this->canBypassPrivateProfile((int)($article['author_id'] ?? 0));
+        $showSignature = !$authorPrivate || $authorBypass;
+        $authorProfileUrl = $this->profileUrl($article['author_id'] ?? null, $article['author_username'] ?? null);
         $html = $this->container->get('renderer')->render(
             'articles/item',
             [
@@ -212,6 +218,9 @@ class ArticlesController
                 'locale' => $locale,
                 'tags' => $tags,
                 'display' => $display,
+                'authorProfileUrl' => $authorProfileUrl,
+                'authorSignature' => $showSignature ? ($article['author_signature'] ?? '') : '',
+                'authorSignatureVisible' => $showSignature && !empty($article['author_signature']),
                 'breadcrumbs' => [
                     ['label' => 'Articles', 'url' => '/articles'],
                     ['label' => $article[$titleKey] ?? 'Article'],
@@ -298,5 +307,32 @@ class ArticlesController
             $cache[$name] = $row ? true : false;
         }
         return $cache[$name];
+    }
+
+    private function canBypassPrivateProfile(int $ownerId): bool
+    {
+        if ($ownerId <= 0) {
+            return false;
+        }
+        try {
+            /** @var Auth $auth */
+            $auth = $this->container->get(Auth::class);
+        } catch (\Throwable $e) {
+            return false;
+        }
+        $viewer = $auth->user();
+        if (!$viewer) {
+            return false;
+        }
+        return $auth->checkRole('admin') || (int)($viewer['id'] ?? 0) === $ownerId;
+    }
+
+    private function profileUrl($id, $username): string
+    {
+        $username = trim((string)$username);
+        if ($username !== '') {
+            return '/users/' . rawurlencode($username);
+        }
+        return '/users/' . (int)$id;
     }
 }

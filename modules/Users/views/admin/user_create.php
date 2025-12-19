@@ -15,6 +15,10 @@
             <input type="text" name="name" required>
         </label>
         <label class="field">
+            <span>Username</span>
+            <input type="text" name="username" required>
+        </label>
+        <label class="field">
             <span>Email</span>
             <input type="email" name="email" required>
         </label>
@@ -35,8 +39,20 @@
             </select>
         </label>
         <label class="field">
+            <span>Profile visibility</span>
+            <select name="profile_visibility">
+                <?php foreach (($visibilityOptions ?? ['public','private']) as $opt): ?>
+                    <option value="<?= htmlspecialchars($opt) ?>"><?= ucfirst($opt) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </label>
+        <label class="field">
             <span>Password</span>
             <input type="password" name="password" required>
+        </label>
+        <label class="field">
+            <span>Signature (optional, plain text)</span>
+            <textarea name="signature" maxlength="300" rows="3"></textarea>
         </label>
         <div class="form-actions">
             <button class="btn primary" type="submit">Save</button>

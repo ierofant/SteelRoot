@@ -68,38 +68,46 @@ class RegistrationController
         }
         $name = trim($request->body['name'] ?? '');
         $email = strtolower(trim($request->body['email'] ?? ''));
+        $usernameInput = (string)($request->body['username'] ?? $name);
         $pass = (string)($request->body['password'] ?? '');
         $pass2 = (string)($request->body['password_confirm'] ?? '');
         if ($name === '' || $email === '' || $pass === '') {
-            return $this->renderError('All fields are required');
+            return $this->renderError('All fields are required', $name, $email, $usernameInput);
         }
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return $this->renderError('Invalid email');
+            return $this->renderError('Invalid email', $name, $email, $usernameInput);
         }
         if (!$this->emailAllowed($email)) {
-            return $this->renderError('Email domain is not allowed');
+            return $this->renderError('Email domain is not allowed', $name, $email, $usernameInput);
         }
         if (!$this->usernameValid($name)) {
-            return $this->renderError('Username does not meet length rules');
+            return $this->renderError('Username does not meet length rules', $name, $email, $usernameInput);
         }
         if ($pass !== $pass2) {
-            return $this->renderError('Passwords do not match');
+            return $this->renderError('Passwords do not match', $name, $email, $usernameInput);
         }
         $passMin = (int)$this->getSetting('password_min_length', 8);
         if ($passMin < 1) {
             $passMin = 8;
         }
         if (strlen($pass) < $passMin) {
-            return $this->renderError('Password must be at least ' . $passMin . ' characters');
+            return $this->renderError('Password must be at least ' . $passMin . ' characters', $name, $email, $usernameInput);
         }
         if (!empty($this->getSetting('password_require_numbers', 0)) && !preg_match('/\\d/', $pass)) {
-            return $this->renderError('Password must contain a number');
+            return $this->renderError('Password must contain a number', $name, $email, $usernameInput);
         }
         if (!empty($this->getSetting('password_require_special', 0)) && !preg_match('/[^a-zA-Z0-9]/', $pass)) {
-            return $this->renderError('Password must contain a special character');
+            return $this->renderError('Password must contain a special character', $name, $email, $usernameInput);
         }
         if ($this->users->emailExists($email)) {
-            return $this->renderError('Email already exists');
+            return $this->renderError('Email already exists', $name, $email, $usernameInput);
+        }
+        $username = $this->normalizeUsername($usernameInput);
+        if ($username === '' || !$this->usernameValid($username) || ctype_digit($username)) {
+            return $this->renderError('Username is invalid', $name, $email, $usernameInput);
+        }
+        if ($this->users->usernameExists($username)) {
+            return $this->renderError('Username already exists', $name, $email, $usernameInput);
         }
 
         $status = 'active';
@@ -112,7 +120,7 @@ class RegistrationController
 
         $hash = password_hash($pass, PASSWORD_DEFAULT);
         $role = $this->safeRole($this->getSetting('default_role', 'user'));
-        $userId = $this->users->create($name, $email, $hash, $role, $status);
+        $userId = $this->users->create($name, $email, $hash, $role, $status, null, $username, 'public', null);
 
         if ($status === 'pending') {
             $smtp = $this->config['smtp'] ?? [];
@@ -175,13 +183,16 @@ class RegistrationController
         return new Response($html);
     }
 
-    private function renderError(string $msg): Response
+    private function renderError(string $msg, string $name = '', string $email = '', string $username = ''): Response
     {
         $html = $this->container->get('renderer')->render('users/register', [
             'title' => 'Register',
             'csrf' => Csrf::token('register'),
             'error' => $msg,
             'success' => null,
+            'name' => $name,
+            'email' => $email,
+            'username' => $username,
         ]);
         return new Response($html, 400);
     }
@@ -193,6 +204,9 @@ class RegistrationController
             'csrf' => Csrf::token('register'),
             'error' => null,
             'success' => $msg,
+            'name' => '',
+            'email' => '',
+            'username' => '',
         ]);
         return new Response($html);
     }
@@ -255,6 +269,22 @@ class RegistrationController
         }
         $len = mb_strlen($name);
         return $len >= $min && $len <= $max;
+    }
+
+    private function normalizeUsername(string $value): string
+    {
+        $value = strtolower(trim($value));
+        $value = preg_replace('/\\s+/', '-', $value);
+        $value = preg_replace('/[^a-z0-9_.\\-]+/', '', $value);
+        $value = trim($value, '-_.');
+        $max = $this->getSetting('username_max_length', 32);
+        if ((int)$max > 0 && strlen($value) > (int)$max) {
+            $value = substr($value, 0, (int)$max);
+        }
+        if (ctype_digit($value)) {
+            $value = 'u' . $value;
+        }
+        return $value;
     }
 
     private function isIpBlocked(string $ip): bool

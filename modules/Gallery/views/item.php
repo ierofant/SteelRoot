@@ -7,6 +7,9 @@
     $showViews = !empty($display['show_views']);
     $showTags = !empty($display['show_tags']);
     $tags = $tags ?? [];
+    $authorProfileUrl = $authorProfileUrl ?? (!empty($item['author_username']) ? '/users/' . urlencode($item['author_username']) : '/users/' . (int)($item['author_id'] ?? 0));
+    $authorSignatureVisible = $authorSignatureVisible ?? false;
+    $authorSignature = $authorSignature ?? '';
 ?>
 <?php if ($showTitle && !empty($item[$tKey])): ?>
     <h2><?= htmlspecialchars($item[$tKey]) ?></h2>
@@ -29,7 +32,7 @@
         <span style="<?= $avatarStyle ?>">
             <?= !empty($item['author_avatar']) ? '' : htmlspecialchars(strtoupper(substr($item['author_name'],0,1))) ?>
         </span>
-        <a class="muted" href="/users/<?= (int)$item['author_id'] ?>"><?= htmlspecialchars($item['author_name']) ?></a>
+        <a class="muted" href="<?= htmlspecialchars($authorProfileUrl) ?>"><?= htmlspecialchars($item['author_name']) ?></a>
     </div>
 <?php endif; ?>
 <div class="form-actions" style="flex-direction:row; align-items:center; gap:12px;">
@@ -41,6 +44,9 @@
 <img src="<?= htmlspecialchars($item['path_medium'] ?? $item['path']) ?>" alt="<?= htmlspecialchars($item[$tKey] ?? 'Image') ?>" style="max-width:100%;">
 <?php if ($showDescription && !empty($item[$dKey])): ?>
     <p><?= nl2br(htmlspecialchars($item[$dKey] ?? '')) ?></p>
+<?php endif; ?>
+<?php if (!empty($authorSignatureVisible) && $authorSignature !== ''): ?>
+    <div class="muted author-signature"><?= htmlspecialchars($authorSignature) ?></div>
 <?php endif; ?>
 <?php if ($showTags && !empty($tags)): ?>
     <div class="tags">
