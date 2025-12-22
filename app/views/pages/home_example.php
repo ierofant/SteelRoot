@@ -1,5 +1,6 @@
 <?php
 // Example page template rendered via Renderer with _layout = true
+$meta = $meta ?? [];
 $this->setSection('sidebar', '<div class="card">Sidebar slot example</div>');
 ?>
 <section class="hero">

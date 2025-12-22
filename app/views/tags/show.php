@@ -1,6 +1,5 @@
 <?php
 $loc = $locale ?? 'en';
-ob_start();
 $articleCount = count($articles ?? []);
 $galleryCount = count($gallery ?? []);
 ?>
@@ -230,11 +229,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <?php endif; ?>
-<?php
-$content = ob_get_clean();
-if (isset($this) && method_exists($this, 'hasContentTemplate') && $this->hasContentTemplate()) {
-    echo $content;
-} else {
-    include __DIR__ . '/../layout.php';
-}
-?>

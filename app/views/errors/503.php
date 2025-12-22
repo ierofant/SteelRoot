@@ -1,5 +1,5 @@
 <?php
-$settings = $GLOBALS['settingsAll'] ?? [];
+$settings = $settings ?? [];
 $prefix = 'error_503_';
 $enabled = !empty($settings[$prefix . 'custom_enabled']);
 $title = $enabled ? ($settings[$prefix . 'title'] ?? '') : '';
@@ -13,7 +13,6 @@ $stripScripts = function (string $html): string {
     return preg_replace('#<script\b[^>]*>(.*?)</script>#is', '', $html);
 };
 ?>
-<?php ob_start(); ?>
 <div class="error-page">
     <?php if ($enabled && ($title || $message || $description || $ctaText || $ctaUrl || $showHome)): ?>
         <?php if ($icon): ?><div class="muted"><?= htmlspecialchars($icon) ?></div><?php endif; ?>
@@ -35,9 +34,3 @@ $stripScripts = function (string $html): string {
         <p>The service is temporarily unavailable. Please try again later.</p>
     <?php endif; ?>
 </div>
-<?php
-$meta = [
-    'title' => $title ?: 'Service unavailable',
-    'description' => $message ?: 'Service unavailable',
-];
-$content = ob_get_clean(); include __DIR__ . '/../layout.php';

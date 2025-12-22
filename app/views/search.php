@@ -1,5 +1,4 @@
 <?php
-ob_start();
 $q = $query ?? '';
 $articles = $results['articles'] ?? [];
 $gallery = $results['gallery'] ?? [];
@@ -173,4 +172,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <?php endif; ?>
-<?php $content = ob_get_clean(); include __DIR__ . '/layout.php'; ?>

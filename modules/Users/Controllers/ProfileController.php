@@ -34,6 +34,7 @@ class ProfileController
             return new Response('', 302, ['Location' => '/login']);
         }
         $html = $this->container->get('renderer')->render('users/profile', [
+            '_layout' => true,
             'title' => 'Profile',
             'user' => $user,
             'csrf' => Csrf::token('profile_update'),
@@ -41,6 +42,9 @@ class ProfileController
             'message' => $request->query['msg'] ?? null,
             'error' => $request->query['err'] ?? null,
             'visibilityOptions' => ['public', 'private'],
+            'logoutToken' => Csrf::token('logout'),
+        ], [
+            'title' => 'Profile',
         ]);
         return new Response($html);
     }
@@ -121,9 +125,12 @@ class ProfileController
             return new Response('', 302, ['Location' => '/login']);
         }
         $html = $this->container->get('renderer')->render('users/avatar_editor', [
+            '_layout' => true,
             'title' => 'Edit avatar',
             'csrf' => Csrf::token('profile_avatar_crop'),
             'user' => $user,
+        ], [
+            'title' => 'Edit avatar',
         ]);
         return new Response($html);
     }
@@ -170,14 +177,18 @@ class ProfileController
         if ($restricted) {
             $meta['robots'] = 'noindex,nofollow';
         }
-        $html = $this->container->get('renderer')->render('users/public_profile', [
-            'title' => $meta['title'],
-            'user' => $user,
-            'restricted' => $restricted,
-            'username' => $user['username'] ?? '',
-            'meta' => $meta,
-            'canViewDetails' => !$restricted,
-        ]);
+        $html = $this->container->get('renderer')->render(
+            'users/public_profile',
+            [
+                '_layout' => true,
+                'title' => $meta['title'],
+                'user' => $user,
+                'restricted' => $restricted,
+                'username' => $user['username'] ?? '',
+                'canViewDetails' => !$restricted,
+            ],
+            $meta
+        );
         return new Response($html);
     }
 

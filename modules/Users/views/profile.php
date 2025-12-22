@@ -1,4 +1,3 @@
-<?php ob_start(); ?>
 <style>
     .profile-grid {display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start;}
     .panel {background:linear-gradient(145deg,#101018,#181c29);border:1px solid rgba(255,255,255,0.05);border-radius:18px;padding:18px;box-shadow:0 10px 40px rgba(0,0,0,0.35);}
@@ -70,10 +69,9 @@
                 </div>
             </form>
             <form id="logout-form" method="POST" action="/logout" style="display:none;">
-                <input type="hidden" name="_token" value="<?= htmlspecialchars(\Core\Csrf::token('logout')) ?>">
+                <input type="hidden" name="_token" value="<?= htmlspecialchars($logoutToken ?? '') ?>">
             </form>
         </div>
         <?php include __DIR__ . '/profile_avatar.php'; ?>
     </div>
 </section>
-<?php $content = ob_get_clean(); include APP_ROOT . '/app/views/layout.php'; ?>

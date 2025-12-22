@@ -18,7 +18,6 @@ $customBlocksTitle = $home['custom_blocks_title_' . $locKey] ?? ($locKey === 'ru
 $customBlockCta = $home['custom_block_cta_' . $locKey] ?? ($locKey === 'ru' ? 'Подробнее' : 'Read more');
 $layoutClass = ($home['layout_mode'] ?? 'wide') === 'boxed' ? 'layout-boxed' : '';
 $sectionPadding = (int)($home['section_padding'] ?? 80);
-ob_start();
 ?>
 <?php if (!empty($home['custom_css'])): ?>
     <style><?= $home['custom_css'] ?></style>
@@ -231,7 +230,3 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 <?php endif; ?>
-<?php
-$content = ob_get_clean();
-include __DIR__ . '/layout.php';
-?>

@@ -1,4 +1,3 @@
-<?php ob_start(); ?>
 <style>
     .avatar-editor-shell {max-width:900px;margin:20px auto;padding:20px;}
     .editor-card {background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);backdrop-filter:blur(16px);border-radius:22px;padding:18px;box-shadow:0 18px 50px rgba(0,0,0,0.45);}
@@ -53,4 +52,3 @@
     <input type="hidden" name="crop_scale" id="crop_scale">
 </form>
 <script src="/modules/Users/assets/js/avatar-cropper.js"></script>
-<?php $content = ob_get_clean(); include APP_ROOT . '/app/views/layout.php'; ?>

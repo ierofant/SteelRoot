@@ -24,7 +24,11 @@ class ErrorHandler
     {
         http_response_code(500);
         try {
-            echo $this->renderer->render('errors/500', ['error' => $e]);
+            echo $this->renderer->render(
+                'errors/500',
+                ['_layout' => true, 'error' => $e],
+                ['title' => 'Server error', 'description' => 'Internal server error']
+            );
         } catch (Throwable $t) {
             echo 'Server error';
         }

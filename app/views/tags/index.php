@@ -1,4 +1,3 @@
-<?php ob_start(); ?>
 <section class="tags-hero">
     <div>
         <p class="eyebrow">Навигация</p>
@@ -20,8 +19,3 @@
         <p class="muted">Теги отсутствуют.</p>
     <?php endif; ?>
 </section>
-
-<?php
-$content = ob_get_clean();
-include __DIR__ . '/../layout.php';
-?>

@@ -1,9 +1,9 @@
 <?php
 $meta = $meta ?? [];
-$settings = $settings ?? ($GLOBALS['settingsAll'] ?? []);
+$settings = $settings ?? [];
 $themeVars = $themeVars ?? [];
 $themeHref = $themeHref ?? null;
-$theme = $theme ?? ($GLOBALS['viewTheme'] ?? 'light');
+$theme = $theme ?? 'light';
 ?>
 <head>
     <meta charset="UTF-8">

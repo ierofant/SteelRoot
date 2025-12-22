@@ -94,6 +94,16 @@
                 </div>
             </div>
             <div class="card soft stack docs-block">
+                <p class="eyebrow"><?= __('docs.dev.section.templates.title') ?></p>
+                <ul class="docs-list">
+                    <li><?= __('docs.dev.section.templates.structure') ?></li>
+                    <li><?= __('docs.dev.section.templates.layout') ?></li>
+                    <li><?= __('docs.dev.section.templates.variables') ?></li>
+                    <li><?= __('docs.dev.section.templates.assets') ?></li>
+                    <li><?= __('docs.dev.section.templates.upload') ?></li>
+                </ul>
+            </div>
+            <div class="card soft stack docs-block">
                 <p class="eyebrow"><?= __('docs.dev.section.practices.title') ?></p>
                 <ul class="docs-list">
                     <li><?= __('docs.dev.section.practices.theme') ?></li>

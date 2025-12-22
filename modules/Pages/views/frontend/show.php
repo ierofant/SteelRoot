@@ -1,6 +1,5 @@
-<?php ob_start(); ?>
 <?php
-    $locale = $locale ?? ($GLOBALS['currentLocale'] ?? 'en');
+    $locale = $locale ?? ($currentLocale ?? 'en');
     $titleKey = $locale === 'ru' ? 'title_ru' : 'title_en';
     $contentKey = $locale === 'ru' ? 'content_ru' : 'content_en';
     $title = $page[$titleKey] ?? '';
@@ -13,6 +12,3 @@
         <?= $contentSafe ?>
     </div>
 </article>
-<?php
-$content = ob_get_clean();
-include APP_ROOT . '/app/views/layout.php';

@@ -1,4 +1,3 @@
-<?php ob_start(); ?>
 <section class="faq-hero">
     <div class="faq-hero__heading">
         <p class="eyebrow">Knowledge Base</p>
@@ -23,7 +22,3 @@
         <p class="muted">Нет опубликованных вопросов.</p>
     <?php endif; ?>
 </section>
-<?php
-$content = ob_get_clean();
-include APP_ROOT . '/app/views/layout.php';
-?>

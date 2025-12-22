@@ -41,6 +41,7 @@ class HomeController
         $metaTitle = $homeCfg['page_title_' . $locKey] ?? ($locKey === 'ru' ? 'SteelRoot' : 'SteelRoot');
         $metaDescription = $homeCfg['page_description_' . $locKey] ?? ($locKey === 'ru' ? 'Лёгкий старт для вашего сайта.' : 'Easy start for your site.');
         $html = $this->container->get('renderer')->render('home', [
+            '_layout' => true,
             'title' => $metaTitle,
             'home' => $homeCfg,
             'gallery' => $gallery,
@@ -48,15 +49,14 @@ class HomeController
             'sections' => $sections,
             'locale' => $this->container->get('lang')->current(),
             'galleryMode' => $homeCfg['gallery_style'] ?? $this->settings->get('gallery_open_mode', 'lightbox'),
-            'meta' => [
+        ], [
+            'title' => $metaTitle,
+            'description' => $metaDescription,
+            'canonical' => $canonical,
+            'og' => [
                 'title' => $metaTitle,
                 'description' => $metaDescription,
-                'canonical' => $canonical,
-                'og' => [
-                    'title' => $metaTitle,
-                    'description' => $metaDescription,
-                    'url' => $canonical,
-                ],
+                'url' => $canonical,
             ],
         ]);
         return new Response($html);

@@ -1,18 +1,16 @@
 <?php
-$settings = $GLOBALS['settingsAll'] ?? [];
-$locale = $currentLocale ?? ($GLOBALS['currentLocale'] ?? 'en');
-$localeMode = $GLOBALS['localeMode'] ?? ($settings['locale_mode'] ?? 'multi');
-$availableLocales = $GLOBALS['availableLocales'] ?? ['en','ru'];
-$adminPrefix = defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin';
-$menuDecoded = $menuItems ?? ($GLOBALS['menuItemsPublic'] ?? []);
-$modulesManager = $modules ?? ($GLOBALS['modules'] ?? null);
-$menuEnabled = false;
-if ($modulesManager && method_exists($modulesManager, 'isEnabled')) {
-    $menuEnabled = $modulesManager->isEnabled('menu');
-}
+$settings = $settings ?? [];
+$locale = $currentLocale ?? 'en';
+$localeMode = $localeMode ?? ($settings['locale_mode'] ?? 'multi');
+$availableLocales = $availableLocales ?? ['en', 'ru'];
+$adminPrefix = $adminPrefix ?? (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin');
+$menuDecoded = $menuItems ?? [];
+$menuEnabled = !empty($menuEnabled);
+$isAdmin = !empty($isAdmin);
+$queryParams = $queryParams ?? [];
+$currentPath = $requestPath ?? '/';
 if (!$menuEnabled) {
-    $settingsAll = $GLOBALS['settingsAll'] ?? [];
-    $rawEnabled = $settingsAll['modules_enabled'] ?? '';
+    $rawEnabled = $settings['modules_enabled'] ?? '';
     if ($rawEnabled) {
         $decoded = json_decode($rawEnabled, true);
         if (is_array($decoded) && in_array('menu', array_map('strtolower', $decoded), true)) {
@@ -31,9 +29,8 @@ if ((!is_array($menuDecoded) || empty($menuDecoded)) && !$menuEnabled) {
     ];
 }
 $langSwitchEnabled = ($localeMode === 'multi');
-$currentPath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-$buildLangUrl = function (string $code, string $path): string {
-    $qs = $_GET ?? [];
+$buildLangUrl = function (string $code, string $path, array $queryParams): string {
+    $qs = $queryParams;
     $qs['lang'] = $code;
     $query = http_build_query($qs);
     return $path . ($query ? '?' . $query : '');
@@ -51,7 +48,7 @@ $buildLangUrl = function (string $code, string $path): string {
         <?php if ($langSwitchEnabled): ?>
             <div class="lang-switch">
                 <?php foreach ($availableLocales as $code): ?>
-                    <a class="<?= $code === $locale ? 'active' : '' ?>" href="<?= htmlspecialchars($buildLangUrl($code, $currentPath)) ?>"><?= htmlspecialchars(strtoupper($code)) ?></a>
+                    <a class="<?= $code === $locale ? 'active' : '' ?>" href="<?= htmlspecialchars($buildLangUrl($code, $currentPath, $queryParams)) ?>"><?= htmlspecialchars(strtoupper($code)) ?></a>
                 <?php endforeach; ?>
             </div>
         <?php endif; ?>
@@ -59,17 +56,10 @@ $buildLangUrl = function (string $code, string $path): string {
     </div>
     <nav class="main-nav">
         <button class="menu-close" onclick="(function(){const nav=document.querySelector('.topbar nav');nav.classList.remove('open');document.body.classList.remove('menu-open');})();">×</button>
-        <?php foreach ($menuDecoded as $item): ?>
-            <?php if (empty($item['enabled'])) { continue; } ?>
-            <?php $adminOnly = $item['admin_only'] ?? ($item['requires_admin'] ?? false); ?>
-            <?php if (!empty($adminOnly) && empty($_SESSION['admin_auth'])) { continue; } ?>
-            <?php
-                $label = $locale === 'ru'
-                    ? ($item['label_ru'] ?? ($item['label_en'] ?? ($item['label'] ?? '')))
-                    : ($item['label_en'] ?? ($item['label_ru'] ?? ($item['label'] ?? '')));
-            ?>
-            <a href="<?= htmlspecialchars($item['url']) ?>"><?= htmlspecialchars($label) ?></a>
-        <?php endforeach; ?>
+        <?php
+            $menuItems = $menuDecoded;
+            include APP_ROOT . '/app/views/partials/menu.php';
+        ?>
         <div class="nav-right">
             <?php if (class_exists(\Core\Slot::class)) { \Core\Slot::render('user-nav'); } ?>
         </div>

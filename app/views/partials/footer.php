@@ -1,6 +1,6 @@
 <?php
-$s = $GLOBALS['settingsAll'] ?? [];
-$loc = $GLOBALS['currentLocale'] ?? 'en';
+$s = $settings ?? [];
+$loc = $currentLocale ?? 'en';
 $site = $s['site_name'] ?? 'SteelRoot';
 $defaults = [
     'en' => [
@@ -42,25 +42,7 @@ $c1 = $col(1); $c2 = $col(2); $c3 = $col(3);
     <?php endif; ?>
 </footer>
 <?php
-    $modulesManager = $modules ?? ($GLOBALS['modules'] ?? null);
-    $usersEnabled = false;
-    $slug = 'users';
-    if ($modulesManager && method_exists($modulesManager, 'isEnabled')) {
-        $usersEnabled = $modulesManager->isEnabled($slug);
-    }
-    if (!$usersEnabled) {
-        $settingsAll = $GLOBALS['settingsAll'] ?? [];
-        $rawEnabled = $settingsAll['modules_enabled'] ?? '';
-        if ($rawEnabled) {
-            $decoded = json_decode($rawEnabled, true);
-            if (is_array($decoded)) {
-                $lower = array_map('strtolower', $decoded);
-                if (in_array($slug, $lower, true)) {
-                    $usersEnabled = true;
-                }
-            }
-        }
-    }
+$usersEnabled = !empty($usersEnabled);
 ?>
 <?php if ($usersEnabled): ?>
     <link rel="stylesheet" href="/assets/css/profile-fab.css">
@@ -69,18 +51,17 @@ $c1 = $col(1); $c2 = $col(2); $c3 = $col(3);
     <script src="/assets/js/profile-panel.js"></script>
 <?php endif; ?>
 <?php
-// Popups module: cookie popup auto loader via settingsAll (popups_cookie_*)
-$sAll = $GLOBALS['settingsAll'] ?? [];
-$cookieEnabled = ($sAll['popups_cookie_enabled'] ?? '0') === '1';
+// Popups module: cookie popup auto loader via settings (popups_cookie_*)
+$cookieEnabled = ($s['popups_cookie_enabled'] ?? '0') === '1';
 if ($cookieEnabled): ?>
     <div
         data-cookie-popup="1"
         data-cookie-enabled="1"
-        data-cookie-text="<?= htmlspecialchars($sAll['popups_cookie_text'] ?? '') ?>"
-        data-cookie-button="<?= htmlspecialchars($sAll['popups_cookie_button'] ?? '') ?>"
-        data-cookie-position="<?= htmlspecialchars($sAll['popups_cookie_position'] ?? 'bottom-right') ?>"
-        data-cookie-store="<?= htmlspecialchars($sAll['popups_cookie_store'] ?? 'local') ?>"
-        data-cookie-key="<?= htmlspecialchars($sAll['popups_cookie_key'] ?? 'cookie_policy_accepted') ?>"
+        data-cookie-text="<?= htmlspecialchars($s['popups_cookie_text'] ?? '') ?>"
+        data-cookie-button="<?= htmlspecialchars($s['popups_cookie_button'] ?? '') ?>"
+        data-cookie-position="<?= htmlspecialchars($s['popups_cookie_position'] ?? 'bottom-right') ?>"
+        data-cookie-store="<?= htmlspecialchars($s['popups_cookie_store'] ?? 'local') ?>"
+        data-cookie-key="<?= htmlspecialchars($s['popups_cookie_key'] ?? 'cookie_policy_accepted') ?>"
     ></div>
     <script src="/assets/js/popup_cookie.js"></script>
 <?php endif; ?>

@@ -1,6 +1,6 @@
 <?php
-ob_start();
-$captcha = $GLOBALS['settingsAll'] ?? [];
+$settings = $settings ?? [];
+$captcha = $settings;
 ?>
 <section class="contact-hero">
     <div>
@@ -53,20 +53,11 @@ $captcha = $GLOBALS['settingsAll'] ?? [];
         <p class="muted">Заполните форму или напишите напрямую.</p>
         <div class="info-line">
             <span>Почта</span>
-            <strong><?= htmlspecialchars($GLOBALS['settingsAll']['contact_email'] ?? 'hello@example.com') ?></strong>
+            <strong><?= htmlspecialchars($settings['contact_email'] ?? 'hello@example.com') ?></strong>
         </div>
         <div class="info-line">
             <span>Сайт</span>
-            <strong><?= htmlspecialchars($GLOBALS['settingsAll']['site_url'] ?? 'https://example.com') ?></strong>
+            <strong><?= htmlspecialchars($settings['site_url'] ?? 'https://example.com') ?></strong>
         </div>
     </div>
 </section>
-<?php
-$content = ob_get_clean();
-// If Renderer layout is active, just echo content (layout wraps it).
-if (isset($this) && method_exists($this, 'hasContentTemplate') && $this->hasContentTemplate()) {
-    echo $content;
-} else {
-    include __DIR__ . '/layout.php';
-}
-?>

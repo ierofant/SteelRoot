@@ -1,94 +1,21 @@
 <?php
-$settings = $GLOBALS['settingsAll'] ?? [];
+$settings = $settings ?? [];
 $meta = $meta ?? [];
-$baseTitle = $meta['title'] ?? ($title ?? null);
-if (!$baseTitle) {
-    $baseTitle = $settings['og_title'] ?? 'SteelRoot';
-}
-$baseDescription = $meta['description'] ?? ($settings['og_description'] ?? '');
-$meta = array_merge([
-    'title' => $baseTitle,
-    'description' => $baseDescription,
-    'keywords' => '',
-    'canonical' => null,
-    'og' => [],
-    'twitter' => [],
-    'jsonld' => null,
-], $meta);
-// defaults
-$primaryImage = $meta['image'] ?? null;
-$defaultImage = !empty($settings['og_image'])
-    ? $settings['og_image']
-    : (!empty($settings['theme_logo']) ? $settings['theme_logo'] : '/assets/theme/og-default.png');
-$meta['og'] = array_merge([
-    'title' => $meta['title'] ?? '',
-    'description' => $meta['description'] ?? '',
-    'image' => $primaryImage ?: $defaultImage,
-    'url' => $meta['canonical'] ?? null,
-], $meta['og']);
-$meta['twitter'] = array_merge([
-    'card' => 'summary_large_image',
-    'title' => $meta['og']['title'] ?? ($meta['title'] ?? ''),
-    'description' => $meta['og']['description'] ?? ($meta['description'] ?? ''),
-    'image' => $primaryImage ?: $meta['og']['image'] ?? $defaultImage,
-], $meta['twitter']);
-$theme = $theme ?? ($GLOBALS['viewTheme'] ?? 'light');
-$customHref = $GLOBALS['customThemeUrl'] ?? null;
+$theme = $theme ?? 'light';
+$customHref = $themeCustomUrl ?? null;
 $themeHref = ($theme === 'custom' && $customHref) ? $customHref : null;
-$themeVars = [];
-if (!empty($settings['theme_primary'])) $themeVars['--color-primary'] = $settings['theme_primary'];
-if (!empty($settings['theme_secondary'])) $themeVars['--color-secondary'] = $settings['theme_secondary'];
-if (!empty($settings['theme_accent'])) $themeVars['--color-accent'] = $settings['theme_accent'];
-if (!empty($settings['theme_bg'])) $themeVars['--color-bg'] = $settings['theme_bg'];
-if (!empty($settings['theme_text'])) $themeVars['--color-text'] = $settings['theme_text'];
-if (!empty($settings['theme_card'])) $themeVars['--color-card'] = $settings['theme_card'];
-if (!empty($settings['theme_radius'])) $themeVars['--radius'] = $settings['theme_radius'] . 'px';
-$currentLocale = $currentLocale ?? ($GLOBALS['currentLocale'] ?? 'en');
-$currentPathMeta = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-// canonical fallback
-if (empty($meta['canonical'])) {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    $meta['canonical'] = ($host ? $scheme . '://' . $host : '') . $currentPathMeta;
-    $meta['og']['url'] = $meta['og']['url'] ?? $meta['canonical'];
+$themeVars = $themeVars ?? [];
+if (empty($themeVars)) {
+    if (!empty($settings['theme_primary'])) $themeVars['--color-primary'] = $settings['theme_primary'];
+    if (!empty($settings['theme_secondary'])) $themeVars['--color-secondary'] = $settings['theme_secondary'];
+    if (!empty($settings['theme_accent'])) $themeVars['--color-accent'] = $settings['theme_accent'];
+    if (!empty($settings['theme_bg'])) $themeVars['--color-bg'] = $settings['theme_bg'];
+    if (!empty($settings['theme_text'])) $themeVars['--color-text'] = $settings['theme_text'];
+    if (!empty($settings['theme_card'])) $themeVars['--color-card'] = $settings['theme_card'];
+    if (!empty($settings['theme_radius'])) $themeVars['--radius'] = $settings['theme_radius'] . 'px';
 }
-// ensure images
-if (empty($meta['og']['image'])) {
-    if (!empty($meta['image'])) {
-        $meta['og']['image'] = $meta['image'];
-    } else {
-        $meta['og']['image'] = $defaultImage;
-    }
-}
-if (empty($meta['twitter']['image'])) {
-    if (!empty($meta['image'])) {
-        $meta['twitter']['image'] = $meta['image'];
-    } else {
-        $meta['twitter']['image'] = $meta['og']['image'] ?? $defaultImage;
-    }
-}
-// enforce absolute URLs for meta images
-$hostBase = null;
-if (!empty($meta['canonical'])) {
-    $parsed = parse_url($meta['canonical']);
-    if (!empty($parsed['scheme']) && !empty($parsed['host'])) {
-        $hostBase = $parsed['scheme'] . '://' . $parsed['host'] . (isset($parsed['port']) ? ':' . $parsed['port'] : '');
-    }
-}
-if (!$hostBase) {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? '';
-    if ($host) {
-        $hostBase = $scheme . '://' . $host;
-    }
-}
-if ($hostBase) {
-    foreach (['og', 'twitter'] as $k) {
-        if (!empty($meta[$k]['image']) && str_starts_with($meta[$k]['image'], '/')) {
-            $meta[$k]['image'] = $hostBase . $meta[$k]['image'];
-        }
-    }
-}
+$currentLocale = $currentLocale ?? 'en';
+$requestPath = $requestPath ?? '/';
 ?>
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($currentLocale ?: 'en') ?>">
@@ -103,9 +30,8 @@ if ($hostBase) {
     if ($customJson) {
         $decoded = json_decode($customJson, true);
         if (is_array($decoded)) {
-            $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
             foreach ($decoded as $entry) {
-                if (!empty($entry['path']) && $entry['path'] === $path && !empty($entry['trail']) && is_array($entry['trail'])) {
+                if (!empty($entry['path']) && $entry['path'] === $requestPath && !empty($entry['trail']) && is_array($entry['trail'])) {
                     $customTrail = $entry['trail'];
                     break;
                 }
@@ -128,15 +54,8 @@ if ($hostBase) {
     </nav>
 <?php endif; ?>
 <main>
-    <?php
-        $rendered = false;
-        if (isset($this) && method_exists($this, 'hasContentTemplate') && method_exists($this, 'renderContent') && $this->hasContentTemplate()) {
-            $this->renderContent();
-            $rendered = true;
-        }
-    ?>
-    <?php if (!$rendered): ?>
-        <?= $content ?? '' ?>
+    <?php if (isset($this) && method_exists($this, 'hasContentTemplate') && method_exists($this, 'renderContent') && $this->hasContentTemplate()): ?>
+        <?php $this->renderContent(); ?>
     <?php endif; ?>
     <?php
         $sidebarContent = '';

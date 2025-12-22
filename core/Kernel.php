@@ -286,6 +286,55 @@ class Kernel
             } catch (\Throwable $e) {
                 Logger::log('Menu load failed: ' . $e->getMessage());
             }
+            $baseUrl = rtrim((string)($this->config['app']['url'] ?? ''), '/');
+            if ($baseUrl === '') {
+                $scheme = (!empty($request->server['HTTPS']) && $request->server['HTTPS'] !== 'off') ? 'https' : 'http';
+                $host = $request->server['HTTP_HOST'] ?? 'localhost';
+                $baseUrl = $scheme . '://' . $host;
+            }
+            $menuEnabled = false;
+            $usersEnabled = false;
+            try {
+                $manager = $this->container->get(ModuleManager::class);
+                if ($manager) {
+                    $menuEnabled = $manager->isEnabled('menu');
+                    $usersEnabled = $manager->isEnabled('users');
+                }
+            } catch (\Throwable $e) {
+                Logger::log('Module check failed: ' . $e->getMessage());
+            }
+            $themeName = $settings->get('theme', 'light');
+            $templateKey = 'template_active_' . $themeName;
+            $templateName = trim((string)$settings->get($templateKey, ''));
+            $templatePath = null;
+            if ($templateName !== '' && $templateName !== 'default') {
+                $candidate = $this->root . '/resources/views/templates/' . $templateName;
+                if (is_dir($candidate)) {
+                    $templatePath = $candidate;
+                } else {
+                    $templateName = '';
+                }
+            }
+            $this->config->set('app.template', $templateName !== '' ? $templateName : 'default');
+            $this->container->get('renderer')->share([
+                'settings' => $settings->all(),
+                'theme' => $themeName,
+                'themeCustomUrl' => $settings->get('theme_custom_url', null),
+                'currentLocale' => $locale,
+                'availableLocales' => $availableLocales,
+                'localeMode' => $localeMode,
+                'adminPrefix' => defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin',
+                'menuItems' => $GLOBALS['menuItemsPublic'] ?? [],
+                'menuEnabled' => $menuEnabled,
+                'usersEnabled' => $usersEnabled,
+                'isAdmin' => !empty($_SESSION['admin_auth']),
+                'requestPath' => $request->path ?? '/',
+                'queryParams' => $request->query ?? [],
+                'baseUrl' => $baseUrl,
+                'cspNonce' => null,
+                'templateName' => $templateName !== '' ? $templateName : 'default',
+                'templatePath' => $templatePath,
+            ]);
             $result = $this->router->dispatch($request, $this->container);
             if ($result instanceof Response) {
                 return $result;
@@ -301,12 +350,26 @@ class Kernel
                 if ($request->isJson()) {
                     return Response::json(['error' => 'db_not_configured', 'message' => $msg], 500);
                 }
-                return new Response($this->container->get('renderer')->render('errors/500', ['error' => new \Exception($msg)]), 500);
+                return new Response(
+                    $this->container->get('renderer')->render(
+                        'errors/500',
+                        ['_layout' => true, 'error' => new \Exception($msg)],
+                        ['title' => 'Server error', 'description' => 'Internal server error']
+                    ),
+                    500
+                );
             }
             if ($request->isJson()) {
                 return Response::json(['error' => 'server_error'], 500);
             }
-            return new Response($this->container->get('renderer')->render('errors/500', ['error' => $e]), 500);
+            return new Response(
+                $this->container->get('renderer')->render(
+                    'errors/500',
+                    ['_layout' => true, 'error' => $e],
+                    ['title' => 'Server error', 'description' => 'Internal server error']
+                ),
+                500
+            );
         }
     }
 
@@ -316,7 +379,10 @@ class Kernel
         if ($request->isJson()) {
             return Response::json(['error' => $status === 404 ? 'not_found' : 'server_error'], $status);
         }
-        return new Response($this->container->get('renderer')->render($view), $status);
+        $meta = $status === 404
+            ? ['title' => '404 Not Found', 'description' => 'Page not found']
+            : ['title' => 'Server error', 'description' => 'Internal server error'];
+        return new Response($this->container->get('renderer')->render($view, ['_layout' => true], $meta), $status);
     }
 
     private function sitemap(Request $request): Response

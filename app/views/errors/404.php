@@ -1,5 +1,5 @@
 <?php
-$settings = $GLOBALS['settingsAll'] ?? [];
+$settings = $settings ?? [];
 $prefix = 'error_404_';
 
 $enabled = !empty($settings[$prefix . 'custom_enabled']);
@@ -16,7 +16,6 @@ function stripScripts(string $html): string {
     return preg_replace('#<script\b[^>]*>(.*?)</script>#is', '', $html);
 }
 ?>
-<?php ob_start(); ?>
 <div class="error-page">
     <?php if ($enabled && ($title || $message || $description || $ctaText || $ctaUrl || $showHome)): ?>
         <?php if ($icon): ?><div class="muted"><?= htmlspecialchars($icon) ?></div><?php endif; ?>
@@ -38,9 +37,3 @@ function stripScripts(string $html): string {
         <p>The page you requested could not be found.</p>
     <?php endif; ?>
 </div>
-<?php
-$meta = [
-    'title' => $title ?: '404 Not Found',
-    'description' => $message ?: 'Page not found',
-];
-$content = ob_get_clean(); include __DIR__ . '/../layout.php';

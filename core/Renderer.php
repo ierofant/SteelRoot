@@ -4,7 +4,9 @@ namespace Core;
 use RuntimeException;
 use Core\Meta\MetaResolver;
 
-// Simple explicit renderer: resolves PHP templates, optional layout/sections, no magic.
+/**
+ * Explicit PHP renderer with layout, sections, and resolved meta.
+ */
 class Renderer
 {
     private string $appViews;
@@ -12,6 +14,7 @@ class Renderer
     private array $namespaces = [];
     private array $sections = [];
     private array $metaDefaults = [];
+    private array $sharedData = [];
     private ?Database $db;
     private ?string $currentTemplate = null;
     private array $currentData = [];
@@ -25,6 +28,11 @@ class Renderer
         $this->db = $db;
     }
 
+    public function share(array $data): void
+    {
+        $this->sharedData = $data;
+    }
+
     public function addPath(string $namespace, string $path): void
     {
         $key = ltrim($namespace, '@');
@@ -33,9 +41,7 @@ class Renderer
 
     public function render(string $view, array $data = [], array $meta = []): string
     {
-        if (!array_key_exists('cspNonce', $data)) {
-            $data['cspNonce'] = null;
-        }
+        $data = array_merge($this->sharedData, $data);
         $useLayout = array_key_exists('_layout', $data) ? (bool)$data['_layout'] : false;
         $layoutName = $data['_layout_file'] ?? 'layout';
         unset($data['_layout'], $data['_layout_file']);
@@ -51,7 +57,7 @@ class Renderer
         $this->sections = [];
         $this->currentTemplate = $this->resolve($view);
         $this->currentData = $data;
-        $this->currentMeta = $this->resolveMeta($meta, $data['meta'] ?? []);
+        $this->currentMeta = $this->resolveMeta($meta);
         $layout = $this->resolve($layoutName);
 
         extract($data, EXTR_SKIP);
@@ -86,74 +92,90 @@ class Renderer
         return (bool)$this->currentTemplate;
     }
 
-    public function menuItems(string $locale = 'en'): array
+    private function resolveMeta(array $contentMeta): array
     {
-        $items = $GLOBALS['menuItemsPublic'] ?? [];
-        if (!empty($items)) {
-            return $items;
-        }
-        // Fallback to legacy settings-based schema
-        $settingsAll = $GLOBALS['settingsAll'] ?? [];
-        $raw = $settingsAll['menu_schema'] ?? '';
-        $decoded = $raw ? json_decode($raw, true) : null;
-        if (is_array($decoded) && !empty($decoded)) {
-            $mapped = [];
-            foreach ($decoded as $row) {
-                $url = $row['url'] ?? '';
-                if ($url === '') {
-                    continue;
-                }
-                $mapped[] = [
-                    'url' => $url,
-                    'enabled' => !empty($row['enabled']),
-                    'admin_only' => !empty($row['requires_admin'] ?? $row['admin_only'] ?? false),
-                    'label' => $locale === 'ru' ? ($row['label_ru'] ?? '') : ($row['label_en'] ?? ''),
-                    'label_ru' => $row['label_ru'] ?? '',
-                    'label_en' => $row['label_en'] ?? '',
-                    'title' => $locale === 'ru' ? ($row['title_ru'] ?? '') : ($row['title_en'] ?? ''),
-                    'description' => $locale === 'ru' ? ($row['description_ru'] ?? '') : ($row['description_en'] ?? ''),
-                    'canonical_url' => $row['canonical_url'] ?? '',
-                    'image_url' => $row['image_url'] ?? '',
-                ];
-            }
-            if (!empty($mapped)) {
-                return $mapped;
-            }
-        }
-        // Hard defaults
-        $adminPrefix = defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin';
-        return [
-            ['url' => '/', 'enabled' => true, 'admin_only' => false, 'label' => $locale === 'ru' ? 'Главная' : 'Home', 'label_ru' => 'Главная', 'label_en' => 'Home', 'title' => '', 'description' => '', 'canonical_url' => null, 'image_url' => null],
-            ['url' => '/contact', 'enabled' => true, 'admin_only' => false, 'label' => $locale === 'ru' ? 'Контакты' : 'Contact', 'label_ru' => 'Контакты', 'label_en' => 'Contact', 'title' => '', 'description' => '', 'canonical_url' => null, 'image_url' => null],
-            ['url' => '/articles', 'enabled' => true, 'admin_only' => false, 'label' => $locale === 'ru' ? 'Статьи' : 'Articles', 'label_ru' => 'Статьи', 'label_en' => 'Articles', 'title' => '', 'description' => '', 'canonical_url' => null, 'image_url' => null],
-            ['url' => '/gallery', 'enabled' => true, 'admin_only' => false, 'label' => $locale === 'ru' ? 'Галерея' : 'Gallery', 'label_ru' => 'Галерея', 'label_en' => 'Gallery', 'title' => '', 'description' => '', 'canonical_url' => null, 'image_url' => null],
-            ['url' => '/search', 'enabled' => true, 'admin_only' => false, 'label' => $locale === 'ru' ? 'Поиск' : 'Search', 'label_ru' => 'Поиск', 'label_en' => 'Search', 'title' => '', 'description' => '', 'canonical_url' => null, 'image_url' => null],
-            ['url' => $adminPrefix, 'enabled' => true, 'admin_only' => true, 'label' => $locale === 'ru' ? 'Админ' : 'Admin', 'label_ru' => 'Админ', 'label_en' => 'Admin', 'title' => '', 'description' => '', 'canonical_url' => null, 'image_url' => null],
-        ];
-    }
-
-    private function resolveMeta(array $contentMeta, array $dataMeta): array
-    {
+        $settings = $this->sharedData['settings'] ?? [];
+        $baseUrl = $this->sharedData['baseUrl'] ?? null;
+        $requestPath = $this->sharedData['requestPath'] ?? '/';
         $base = [
             'title' => $this->metaDefaults['title'] ?? 'SteelRoot',
             'description' => $this->metaDefaults['description'] ?? '',
             'canonical' => $this->metaDefaults['canonical'] ?? null,
             'image' => $this->metaDefaults['image'] ?? null,
         ];
-        $content = array_merge($dataMeta, $contentMeta);
         $menu = $this->menuMetaCandidate();
-        return MetaResolver::resolve($base, $content, $menu);
+        $resolved = MetaResolver::resolve($base, $contentMeta, $menu);
+
+        $meta = [
+            'title' => $resolved['title'] ?? $base['title'],
+            'description' => $resolved['description'] ?? $base['description'],
+            'canonical' => $resolved['canonical'] ?? null,
+            'image' => $resolved['image'] ?? null,
+            'keywords' => $contentMeta['keywords'] ?? '',
+            'robots' => $contentMeta['robots'] ?? null,
+            'jsonld' => $contentMeta['jsonld'] ?? null,
+            'og' => $contentMeta['og'] ?? [],
+            'twitter' => $contentMeta['twitter'] ?? [],
+        ];
+
+        if (empty($meta['canonical']) && $baseUrl) {
+            $meta['canonical'] = rtrim($baseUrl, '/') . $requestPath;
+        }
+
+        $defaultImage = $meta['image'];
+        if (!$defaultImage) {
+            if (!empty($settings['og_image'])) {
+                $defaultImage = $settings['og_image'];
+            } elseif (!empty($settings['theme_logo'])) {
+                $defaultImage = $settings['theme_logo'];
+            } else {
+                $defaultImage = '/assets/theme/og-default.png';
+            }
+        }
+        $meta['image'] = $meta['image'] ?: $defaultImage;
+
+        $meta['og'] = array_merge([
+            'title' => $meta['title'] ?? '',
+            'description' => $meta['description'] ?? '',
+            'image' => $meta['image'],
+            'url' => $meta['canonical'] ?? null,
+        ], $meta['og']);
+        $meta['twitter'] = array_merge([
+            'card' => 'summary_large_image',
+            'title' => $meta['og']['title'] ?? ($meta['title'] ?? ''),
+            'description' => $meta['og']['description'] ?? ($meta['description'] ?? ''),
+            'image' => $meta['image'],
+        ], $meta['twitter']);
+
+        if ($baseUrl) {
+            $baseUrl = rtrim($baseUrl, '/');
+            foreach (['image', 'og', 'twitter'] as $key) {
+                if ($key === 'image') {
+                    if (!empty($meta['image']) && str_starts_with($meta['image'], '/')) {
+                        $meta['image'] = $baseUrl . $meta['image'];
+                    }
+                    continue;
+                }
+                if (!empty($meta[$key]['image']) && str_starts_with($meta[$key]['image'], '/')) {
+                    $meta[$key]['image'] = $baseUrl . $meta[$key]['image'];
+                }
+            }
+        }
+
+        return $meta;
     }
 
     private function menuMetaCandidate(): array
     {
-        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-        $locale = $this->currentData['locale'] ?? ($this->currentData['currentLocale'] ?? 'en');
-        foreach ($this->menuItems($locale) as $item) {
+        $path = $this->sharedData['requestPath'] ?? '/';
+        $locale = $this->sharedData['currentLocale'] ?? 'en';
+        $items = $this->sharedData['menuItems'] ?? [];
+        $isAdmin = !empty($this->sharedData['isAdmin']);
+        foreach ($items as $item) {
             if (empty($item['enabled'])) {
                 continue;
             }
-            if (!empty($item['admin_only']) && empty($_SESSION['admin_auth'])) {
+            if (!empty($item['admin_only']) && !$isAdmin) {
                 continue;
             }
             if (($item['url'] ?? '') === $path) {
@@ -171,7 +193,12 @@ class Renderer
     private function resolve(string $view): string
     {
         $view = trim($view, '/');
-        $paths = [$this->appViews . '/' . $view . '.php'];
+        $paths = [];
+        $templatePath = $this->sharedData['templatePath'] ?? null;
+        if ($templatePath) {
+            $paths[] = rtrim($templatePath, '/') . '/' . $view . '.php';
+        }
+        $paths[] = $this->appViews . '/' . $view . '.php';
 
         if (str_starts_with($view, '@')) {
             [$ns, $rest] = explode('/', substr($view, 1), 2) + [1 => ''];

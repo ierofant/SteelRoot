@@ -99,18 +99,26 @@ class SearchController
                 }
             }
         }
-        $html = $this->container->get('renderer')->render('search', [
-            'title' => 'Search',
-            'query' => $q,
-            'results' => $results,
-            'galleryMode' => $settings->get('gallery_open_mode', 'lightbox'),
-            'selectedSources' => $selectedSources ?: array_keys(array_filter([
-                'articles' => $includeArticles,
-                'gallery' => $includeGallery,
-                'tags' => $includeTags,
-            ])),
-            'meta' => ['title' => 'Search', 'canonical' => $this->canonical($request)],
-        ]);
+        $html = $this->container->get('renderer')->render(
+            'search',
+            [
+                '_layout' => true,
+                'title' => 'Search',
+                'query' => $q,
+                'results' => $results,
+                'locale' => $this->container->get('lang')->current(),
+                'galleryMode' => $settings->get('gallery_open_mode', 'lightbox'),
+                'selectedSources' => $selectedSources ?: array_keys(array_filter([
+                    'articles' => $includeArticles,
+                    'gallery' => $includeGallery,
+                    'tags' => $includeTags,
+                ])),
+            ],
+            [
+                'title' => 'Search',
+                'canonical' => $this->canonical($request),
+            ]
+        );
         return new Response($html);
     }
 
