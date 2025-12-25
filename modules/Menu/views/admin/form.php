@@ -52,6 +52,17 @@
                 <input type="text" name="image_url" value="<?= htmlspecialchars($item['image_url'] ?? '') ?>" placeholder="https://example.com/og.jpg">
             </label>
         </div>
+        <label class="field">
+            <span><?= __('menu.field.parent') ?></span>
+            <select name="parent_id">
+                <option value=""><?= __('menu.field.parent_none') ?></option>
+                <?php foreach (($parentOptions ?? []) as $parent): ?>
+                    <option value="<?= (int)$parent['id'] ?>" <?= !empty($item['parent_id']) && (int)$item['parent_id'] === (int)$parent['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars(($parent['label_ru'] ?? '') . ' / ' . ($parent['label_en'] ?? '')) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </label>
         <div class="grid two">
             <label class="field">
                 <span><?= __('menu.field.image_upload') ?></span>

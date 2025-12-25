@@ -14,22 +14,49 @@ class MenuService
 
     public function getPublicMenu(string $locale, bool $isAdmin): array
     {
+        return $this->getTree($locale, $isAdmin);
+    }
+
+    public function getTree(string $locale, bool $isAdmin): array
+    {
         if (!$this->ensureReady()) {
-            return $this->seedMapped($locale, $isAdmin);
+            return $this->seedTree($locale, $isAdmin);
         }
         $this->ensureSeeded();
         $rows = $this->db->fetchAll(
             "SELECT * FROM settings_menu WHERE enabled = 1 ORDER BY position ASC, id ASC"
         );
-        $items = [];
+        $itemsById = [];
+        $childrenByParent = [];
         foreach ($rows as $row) {
-            $adminOnly = (int)($row['admin_only'] ?? 0) === 1;
-            if ($adminOnly && !$isAdmin) {
+            $mapped = $this->mapRow($row, $locale);
+            if (!empty($mapped['admin_only']) && !$isAdmin) {
                 continue;
             }
-            $items[] = $this->mapRow($row, $locale);
+            $mapped['children'] = [];
+            $itemsById[$mapped['id']] = $mapped;
+            if (!empty($mapped['parent_id']) && (int)$mapped['depth'] === 1) {
+                $childrenByParent[$mapped['parent_id']][] = $mapped['id'];
+            }
         }
-        return $items;
+        $tree = [];
+        foreach ($itemsById as $id => $item) {
+            if (empty($item['parent_id']) && (int)$item['depth'] === 0) {
+                $tree[$id] = $item;
+            }
+        }
+        foreach ($childrenByParent as $parentId => $childIds) {
+            if (!isset($tree[$parentId])) {
+                continue;
+            }
+            foreach ($childIds as $childId) {
+                if (!isset($itemsById[$childId])) {
+                    continue;
+                }
+                $tree[$parentId]['children'][] = $itemsById[$childId];
+            }
+        }
+        return array_values($tree);
     }
 
     public function all(): array
@@ -56,6 +83,8 @@ class MenuService
         }
         $payload = [
             ':position' => (int)($data['position'] ?? 0),
+            ':parent_id' => !empty($data['parent_id']) ? (int)$data['parent_id'] : null,
+            ':depth' => (int)($data['depth'] ?? 0),
             ':url' => trim($data['url'] ?? ''),
             ':enabled' => !empty($data['enabled']) ? 1 : 0,
             ':admin_only' => !empty($data['admin_only']) ? 1 : 0,
@@ -70,8 +99,8 @@ class MenuService
         ];
         if ($id === null) {
             $this->db->execute("
-                INSERT INTO settings_menu (position, url, enabled, admin_only, label_ru, label_en, title_ru, title_en, description_ru, description_en, canonical_url, image_url)
-                VALUES (:position, :url, :enabled, :admin_only, :label_ru, :label_en, :title_ru, :title_en, :description_ru, :description_en, :canonical_url, :image_url)
+                INSERT INTO settings_menu (position, parent_id, depth, url, enabled, admin_only, label_ru, label_en, title_ru, title_en, description_ru, description_en, canonical_url, image_url)
+                VALUES (:position, :parent_id, :depth, :url, :enabled, :admin_only, :label_ru, :label_en, :title_ru, :title_en, :description_ru, :description_en, :canonical_url, :image_url)
             ", $payload);
             return (int)$this->db->pdo()->lastInsertId();
         }
@@ -79,6 +108,8 @@ class MenuService
         $this->db->execute("
             UPDATE settings_menu
             SET position = :position,
+                parent_id = :parent_id,
+                depth = :depth,
                 url = :url,
                 enabled = :enabled,
                 admin_only = :admin_only,
@@ -111,6 +142,15 @@ class MenuService
         $this->db->execute("UPDATE settings_menu SET enabled = IF(enabled=1,0,1) WHERE id = ?", [$id]);
     }
 
+    public function hasChildren(int $id): bool
+    {
+        if (!$this->ensureReady()) {
+            return false;
+        }
+        $row = $this->db->fetch("SELECT COUNT(*) AS cnt FROM settings_menu WHERE parent_id = ?", [$id]);
+        return (int)($row['cnt'] ?? 0) > 0;
+    }
+
     public function reorder(array $positions): void
     {
         if (!$this->ensureReady()) {
@@ -141,6 +181,8 @@ class MenuService
             'position' => (int)($row['position'] ?? 0),
             'canonical_url' => $row['canonical_url'] ?? '',
             'image_url' => $row['image_url'] ?? '',
+            'parent_id' => !empty($row['parent_id']) ? (int)$row['parent_id'] : null,
+            'depth' => (int)($row['depth'] ?? 0),
         ];
     }
 
@@ -244,7 +286,19 @@ class MenuService
                 'label_en' => $row['label_en'] ?? '',
                 'title' => $locale === 'ru' ? ($row['title_ru'] ?? '') : ($row['title_en'] ?? ''),
                 'description' => $locale === 'ru' ? ($row['description_ru'] ?? '') : ($row['description_en'] ?? ''),
+                'parent_id' => null,
+                'depth' => 0,
             ];
+        }
+        return $items;
+    }
+
+    private function seedTree(string $locale, bool $isAdmin): array
+    {
+        $items = [];
+        foreach ($this->seedMapped($locale, $isAdmin) as $item) {
+            $item['children'] = [];
+            $items[] = $item;
         }
         return $items;
     }
@@ -254,6 +308,8 @@ class MenuService
         $this->db->execute("
             CREATE TABLE IF NOT EXISTS settings_menu (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                parent_id INT NULL DEFAULT NULL,
+                depth TINYINT(1) NOT NULL DEFAULT 0,
                 position INT NOT NULL DEFAULT 0,
                 url VARCHAR(512) NOT NULL,
                 enabled TINYINT(1) NOT NULL DEFAULT 1,
@@ -266,6 +322,7 @@ class MenuService
                 description_en TEXT NULL,
                 canonical_url VARCHAR(1024) NULL,
                 image_url VARCHAR(1024) NULL,
+                INDEX idx_parent_id (parent_id),
                 INDEX idx_position (position),
                 INDEX idx_enabled (enabled),
                 INDEX idx_admin_only (admin_only),
@@ -277,17 +334,25 @@ class MenuService
     private function ensureColumns(): void
     {
         $cols = [
+            'parent_id' => "ADD COLUMN parent_id INT NULL DEFAULT NULL AFTER id",
+            'depth' => "ADD COLUMN depth TINYINT(1) NOT NULL DEFAULT 0 AFTER parent_id",
             'canonical_url' => "ADD COLUMN canonical_url VARCHAR(1024) NULL AFTER description_en",
             'image_url' => "ADD COLUMN image_url VARCHAR(1024) NULL AFTER canonical_url",
         ];
         foreach ($cols as $name => $ddl) {
             $exists = $this->db->fetch(
-                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'settings_menu' AND COLUMN_NAME = ?",
+                "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'settings_menu' AND COLUMN_NAME = ? AND TABLE_SCHEMA = DATABASE()",
                 [$name]
             );
             if (!$exists) {
                 $this->db->execute("ALTER TABLE settings_menu {$ddl}");
             }
+        }
+        $idx = $this->db->fetch(
+            "SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_NAME = 'settings_menu' AND INDEX_NAME = 'idx_parent_id' AND TABLE_SCHEMA = DATABASE()"
+        );
+        if (!$idx) {
+            $this->db->execute("ALTER TABLE settings_menu ADD INDEX idx_parent_id (parent_id)");
         }
     }
 }

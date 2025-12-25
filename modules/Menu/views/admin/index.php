@@ -19,6 +19,7 @@
                         <th>#</th>
                         <th><?= __('menu.field.label_ru') ?></th>
                         <th><?= __('menu.field.label_en') ?></th>
+                        <th><?= __('menu.field.parent') ?></th>
                         <th>URL</th>
                         <th><?= __('menu.field.enabled') ?></th>
                         <th><?= __('menu.field.admin_only') ?></th>
@@ -28,13 +29,20 @@
                 </thead>
                 <tbody>
                     <?php if (empty($items)): ?>
-                        <tr><td colspan="8" class="muted"><?= __('menu.admin.empty') ?></td></tr>
+                        <tr><td colspan="9" class="muted"><?= __('menu.admin.empty') ?></td></tr>
                     <?php endif; ?>
                     <?php foreach ($items as $row): ?>
                         <tr>
                             <td><?= (int)$row['id'] ?></td>
                             <td><?= htmlspecialchars($row['label_ru']) ?></td>
                             <td><?= htmlspecialchars($row['label_en']) ?></td>
+                            <td>
+                                <?php if (!empty($row['parent_id'])): ?>
+                                    <?= htmlspecialchars($parentMap[(int)$row['parent_id']] ?? '—') ?>
+                                <?php else: ?>
+                                    —
+                                <?php endif; ?>
+                            </td>
                             <td><code><?= htmlspecialchars($row['url']) ?></code></td>
                             <td><?= !empty($row['enabled']) ? '✔' : '—' ?></td>
                             <td><?= !empty($row['admin_only']) ? '✔' : '—' ?></td>

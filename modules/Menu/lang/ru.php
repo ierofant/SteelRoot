@@ -26,5 +26,7 @@ return [
     'menu.field.image_url' => 'URL изображения (og/twitter)',
     'menu.field.image_upload' => 'Загрузка OG-изображения',
     'menu.field.image_preview' => 'Текущее изображение',
+    'menu.field.parent' => 'Родительский пункт',
+    'menu.field.parent_none' => 'Без родителя (верхний уровень)',
     'menu.preview.default' => 'Изображение темы по умолчанию',
 ];

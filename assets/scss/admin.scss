@@ -367,6 +367,28 @@ a {
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
+body[data-theme="dark"] .field select {
+  background: #12172E;
+  color: #ffffff;
+  border-color: #362736;
+}
+
+body[data-theme="dark"] .field select:focus {
+  border-color: #6a1b9a;
+  box-shadow:
+    inset 0 2px 8px rgba(0, 0, 0, 0.3),
+    0 0 0 3px rgba(106, 27, 154, 0.2);
+}
+
+body[data-theme="dark"] .field select option {
+  background-color: #101B2D;
+  color: #ffffff;
+}
+
+body[data-theme="dark"] .field select option:hover {
+  background-color: #6a1b9a;
+}
+
 .field textarea {
   min-height: 100px;
 }

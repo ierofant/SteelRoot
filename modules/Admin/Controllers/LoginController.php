@@ -44,9 +44,6 @@ class LoginController
         if (!Csrf::check('admin_login', $request->body['_token'] ?? null)) {
             return new Response('Invalid CSRF', 400);
         }
-        if ($this->isLocked()) {
-            return new Response('Too many attempts, please wait', 429);
-        }
         /** @var CaptchaService $captcha */
         $captcha = $this->container->get(\App\Services\CaptchaService::class);
         $cfg = $captcha->config();
@@ -55,20 +52,32 @@ class LoginController
                 return new Response('Captcha failed', 400);
             }
         }
-        $user = $request->body['user'] ?? '';
-        $pass = $request->body['pass'] ?? '';
-        $record = $this->db->fetch("SELECT * FROM admin_users WHERE username = ?", [$user]);
-        if ($record && password_verify($pass, $record['password'])) {
+        $username = trim((string)($request->body['user'] ?? $request->body['username'] ?? ''));
+        $plainPassword = (string)($request->body['pass'] ?? $request->body['password'] ?? '');
+        $ip = $request->server['REMOTE_ADDR'] ?? '';
+        $ua = $request->headers['user-agent'] ?? ($request->server['HTTP_USER_AGENT'] ?? '');
+        $record = $this->db->fetch("SELECT * FROM admin_users WHERE username = ?", [$username]);
+        $passwordHash = trim($record['password'] ?? '');
+        if ($record && $passwordHash !== '' && \password_verify($plainPassword, $passwordHash)) {
             $_SESSION['admin_auth'] = true;
             $_SESSION['admin_user'] = $record['username'];
-            unset($_SESSION['admin_lock']);
+            $this->clearAdminAttempts($ip, $username);
             $prefix = $this->container->get('config')['admin_prefix'] ?? '/admin';
-            SecurityLog::log('login_success', ['user' => $user]);
+            SecurityLog::log('login_success', ['user' => $username]);
             return new Response('', 302, ['Location' => $prefix]);
         }
-        $this->failAttempt();
-        Logger::log("Admin login failed for user={$user}");
-        SecurityLog::log('login_fail', ['user' => $user]);
+        $this->logAdminAttempt($ip, $username, $ua);
+        if ($this->isRateLimited($ip, $username)) {
+            $html = $this->container->get('renderer')->render('admin/login', [
+                'title' => 'Admin Login',
+                'error' => 'Too many attempts, please wait',
+                'csrf' => Csrf::token('admin_login'),
+                'captcha' => $captcha->config(),
+            ]);
+            return new Response($html, 429);
+        }
+        Logger::log("Admin login failed for user={$username}");
+        SecurityLog::log('login_fail', ['user' => $username]);
         $html = $this->container->get('renderer')->render('admin/login', [
             'title' => 'Admin Login',
             'error' => 'Invalid credentials',
@@ -88,27 +97,76 @@ class LoginController
         return new Response('', 302, ['Location' => $prefix . '/login']);
     }
 
-    private function failAttempt(): void
+    private function isRateLimited(string $ip, string $user): bool
     {
-        $lock = $_SESSION['admin_lock'] ?? ['count' => 0, 'time' => time()];
-        if (time() - $lock['time'] > $this->lockSeconds) {
-            $lock = ['count' => 0, 'time' => time()];
+        if ($ip === '' || $user === '') {
+            return false;
         }
-        $lock['count']++;
-        $lock['time'] = time();
-        $_SESSION['admin_lock'] = $lock;
+        $since = date('Y-m-d H:i:s', time() - $this->lockSeconds);
+        $pattern = $this->adminUaPrefix($user) . '%';
+        try {
+            $row = $this->db->fetch(
+                "SELECT COUNT(*) AS cnt FROM login_logs WHERE user_id IS NULL AND ip = ? AND ua LIKE ? AND created_at >= ?",
+                [$ip, $pattern, $since]
+            );
+            return (int)($row['cnt'] ?? 0) >= $this->maxAttempts;
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
-    private function isLocked(): bool
+    private function logAdminAttempt(string $ip, string $user, string $ua): void
     {
-        $lock = $_SESSION['admin_lock'] ?? null;
-        if (!$lock) {
-            return false;
+        if ($ip === '' || $user === '') {
+            return;
         }
-        if (time() - $lock['time'] > $this->lockSeconds) {
-            unset($_SESSION['admin_lock']);
-            return false;
+        $uaValue = $this->buildAdminUa($user, $ua);
+        try {
+            $this->db->execute(
+                "INSERT INTO login_logs (user_id, ip, ua, created_at) VALUES (?, ?, ?, NOW())",
+                [null, $ip, $uaValue]
+            );
+        } catch (\Throwable $e) {
+            return;
         }
-        return $lock['count'] >= $this->maxAttempts;
+    }
+
+    private function clearAdminAttempts(string $ip, string $user): void
+    {
+        if ($ip === '' || $user === '') {
+            return;
+        }
+        $pattern = $this->adminUaPrefix($user) . '%';
+        try {
+            $this->db->execute(
+                "DELETE FROM login_logs WHERE user_id IS NULL AND ip = ? AND ua LIKE ?",
+                [$ip, $pattern]
+            );
+        } catch (\Throwable $e) {
+            return;
+        }
+    }
+
+    private function adminUaPrefix(string $user): string
+    {
+        $norm = strtolower(trim($user));
+        if ($norm === '') {
+            $norm = 'unknown';
+        }
+        return 'admin:' . $norm . '|';
+    }
+
+    private function buildAdminUa(string $user, string $ua): string
+    {
+        $prefix = $this->adminUaPrefix($user);
+        $tail = trim((string)$ua);
+        if ($tail === '') {
+            return $prefix;
+        }
+        $value = $prefix . $tail;
+        if (strlen($value) > 255) {
+            return substr($value, 0, 255);
+        }
+        return $value;
     }
 }

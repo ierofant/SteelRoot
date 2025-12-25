@@ -5,6 +5,8 @@ return new class {
         $db->execute("
             CREATE TABLE IF NOT EXISTS settings_menu (
                 id INT AUTO_INCREMENT PRIMARY KEY,
+                parent_id INT NULL DEFAULT NULL,
+                depth TINYINT(1) NOT NULL DEFAULT 0,
                 position INT NOT NULL DEFAULT 0,
                 url VARCHAR(512) NOT NULL,
                 enabled TINYINT(1) NOT NULL DEFAULT 1,
@@ -17,6 +19,7 @@ return new class {
                 description_en TEXT NULL,
                 canonical_url VARCHAR(1024) NULL,
                 image_url VARCHAR(1024) NULL,
+                INDEX idx_parent_id (parent_id),
                 INDEX idx_position (position),
                 INDEX idx_enabled (enabled),
                 INDEX idx_admin_only (admin_only),

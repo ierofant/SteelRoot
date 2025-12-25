@@ -26,5 +26,7 @@ return [
     'menu.field.image_url' => 'Image URL (og/twitter)',
     'menu.field.image_upload' => 'OG Image upload',
     'menu.field.image_preview' => 'Current image',
+    'menu.field.parent' => 'Parent item',
+    'menu.field.parent_none' => 'No parent (top level)',
     'menu.preview.default' => 'Default theme image',
 ];

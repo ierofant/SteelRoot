@@ -62,6 +62,7 @@ public_html/
 - Articles: list/detail, tags, previews, meta; admin CRUD, module settings.
 - Gallery: masonry list, lightbox, likes/views, tags; admin upload/edit/delete, module settings, sitemap provider.
 - Pages: static pages with admin CRUD, menu integration, sitemap; embeds handled in content.
+- Menu: configurable RU/EN labels, SEO meta, OG image; supports one-level dropdowns (parent/child).
 - Embeddable forms: admin tab `/admin/forms/embeds`, JSON-defined fields, localized success, embed via `{{ form:slug }}`; CSRF/rate-limit/spam protections reused from contact form.
 - Users: auth/registration/profile with avatars; admin user management; registration settings `/admin/users/settings` (enable/disable, email verification, default role, username/password rules, domain allow/deny, IP/CIDR blocks, rate limit, optional auto-login).
 - Error pages: admin `/admin/template/errors` per-code (403/404/500/503) custom content (title/message/description/CTA/icon/home button) with safe rendering.

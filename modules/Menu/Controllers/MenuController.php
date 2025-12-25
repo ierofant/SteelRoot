@@ -24,10 +24,15 @@ class MenuController
     public function index(Request $request): Response
     {
         $items = $this->menu->all();
+        $parentMap = [];
+        foreach ($items as $row) {
+            $parentMap[(int)$row['id']] = trim(($row['label_ru'] ?? '') . ' / ' . ($row['label_en'] ?? ''));
+        }
         $flash = $request->query['msg'] ?? null;
         $csrf = Csrf::token('menu_admin');
         $content = $this->render('admin/index', [
             'items' => $items,
+            'parentMap' => $parentMap,
             'csrf' => $csrf,
             'flash' => $flash,
             'adminPrefix' => $this->adminPrefix,
@@ -44,7 +49,10 @@ class MenuController
                 'enabled' => 1,
                 'admin_only' => 0,
                 'position' => 0,
+                'parent_id' => null,
+                'depth' => 0,
             ],
+            'parentOptions' => $this->getParentOptions(null),
             'action' => $this->adminPrefix . '/menu/create',
             'title' => __('menu.create'),
             'adminPrefix' => $this->adminPrefix,
@@ -63,6 +71,7 @@ class MenuController
         $content = $this->render('admin/form', [
             'csrf' => $csrf,
             'item' => $item,
+            'parentOptions' => $this->getParentOptions($id),
             'action' => $this->adminPrefix . '/menu/edit/' . $id,
             'title' => __('menu.edit'),
             'adminPrefix' => $this->adminPrefix,
@@ -133,6 +142,31 @@ class MenuController
             'canonical_url' => trim($request->body['canonical_url'] ?? ''),
             'image_url' => trim($request->body['image_url'] ?? ''),
         ];
+        $parentId = (int)($request->body['parent_id'] ?? 0);
+        $parentId = $parentId > 0 ? $parentId : null;
+        if ($parentId !== null) {
+            if ($id !== null && $parentId === $id) {
+                return new Response('Invalid parent', 422);
+            }
+            $parent = $this->menu->find($parentId);
+            if (!$parent) {
+                return new Response('Invalid parent', 422);
+            }
+            if (!empty($parent['parent_id']) || (int)($parent['depth'] ?? 0) !== 0) {
+                return new Response('Invalid parent', 422);
+            }
+            if ($id !== null && $this->menu->hasChildren($id)) {
+                return new Response('Item has children', 422);
+            }
+            $data['parent_id'] = $parentId;
+            $data['depth'] = 1;
+            if (!empty($parent['admin_only'])) {
+                $data['admin_only'] = 1;
+            }
+        } else {
+            $data['parent_id'] = null;
+            $data['depth'] = 0;
+        }
         if ($data['label_ru'] === '' || $data['label_en'] === '') {
             return new Response('Labels required', 422);
         }
@@ -180,6 +214,24 @@ class MenuController
         ob_start();
         include APP_ROOT . '/modules/Admin/views/layout.php';
         return ob_get_clean();
+    }
+
+    private function getParentOptions(?int $excludeId): array
+    {
+        $items = $this->menu->all();
+        $options = [];
+        foreach ($items as $row) {
+            $id = (int)$row['id'];
+            if ($excludeId !== null && $id === $excludeId) {
+                continue;
+            }
+            $depth = (int)($row['depth'] ?? 0);
+            if ($depth !== 0 || !empty($row['parent_id'])) {
+                continue;
+            }
+            $options[] = $row;
+        }
+        return $options;
     }
 
     private function handleUpload(Request $request): array
