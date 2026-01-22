@@ -12,8 +12,9 @@ class Request
     public array $files;
     public array $headers;
     public array $params = [];
+    public array $attrs = [];
 
-    public function __construct(string $method, string $path, array $query, array $body, array $server, array $cookies, array $files, array $headers, array $params = [])
+    public function __construct(string $method, string $path, array $query, array $body, array $server, array $cookies, array $files, array $headers, array $params = [], array $attrs = [])
     {
         $this->method = strtoupper($method);
         $this->path = $path ?: '/';
@@ -24,6 +25,7 @@ class Request
         $this->files = $files;
         $this->headers = $headers;
         $this->params = $params;
+        $this->attrs = $attrs;
     }
 
     public static function fromGlobals(): self

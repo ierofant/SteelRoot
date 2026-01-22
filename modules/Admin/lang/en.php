@@ -590,6 +590,22 @@ return [
     'docs.dev.section.api.hooks' => 'Cache clear and sitemap rebuild endpoints are available.',
     'docs.dev.section.api.cache' => 'Clear cache after schema or settings changes that affect output.',
     'docs.dev.section.api.csrf' => 'All admin forms require CSRF tokens; reuse built-in helpers.',
+    'docs.dev.section.api_module.title' => 'API Module: Administration and Integration',
+    'docs.dev.section.api_module.overview' => 'The API module provides a protected, stateless API surface under /api/v1 owned by modules/Api. It is an integration layer, not a separate application.',
+    'docs.dev.section.api_module.architecture' => 'Kernel /api/v1 routes remain unchanged. Enabling the API module does not alter existing behavior. Bearer auth applies only to module-registered routes.',
+    'docs.dev.section.api_module.auth' => 'Authentication: Authorization: Bearer <API_TOKEN>. No sessions, no cookies, no CSRF. Tokens are stored as SHA-256 hashes; raw tokens are shown once on create/rotate.',
+    'docs.dev.section.api_module.endpoints' => 'Module endpoints: public GET /api/v1/ping, GET /api/v1/openapi.json; authenticated GET /api/v1/me; admin scope required: GET/POST /api/v1/api-keys, POST /api/v1/api-keys/{id}/disable, POST /api/v1/api-keys/{id}/rotate.',
+    'docs.dev.section.api_module.admin' => 'Administration: enable the Api module in Admin → Modules and run its migrations to create api_keys. Use admin-scoped tokens to manage keys.',
+    'docs.dev.section.api_module.security' => 'Scopes are enforced per-route via ApiSecurity attributes. Revocation is done via disable or rotate; rotate invalidates previous tokens.',
+    'docs.dev.section.api_module.examples' => <<<'TXT'
+<pre><code>curl -sS -H "Accept: application/json" &lt;BASE_URL&gt;/api/v1/ping
+
+curl -sS -H "Accept: application/json" -H "Authorization: Bearer &lt;API_TOKEN&gt;" &lt;BASE_URL&gt;/api/v1/me
+
+curl -sS -X POST -H "Accept: application/json" -H "Authorization: Bearer &lt;API_TOKEN&gt;" -H "Content-Type: application/json" \
+  -d '{"name":"integration","scopes":["admin"],"enabled":true}' \
+  &lt;BASE_URL&gt;/api/v1/api-keys</code></pre>
+TXT,
     'docs.dev.section.templates.title' => 'Templates',
     'docs.dev.section.templates.structure' => 'Create /resources/views/templates/{name}/ with layout.php and optional partials/ and assets/.',
     'docs.dev.section.templates.layout' => 'layout.php must include partials via __DIR__ and call $this->renderContent(); sections via $this->getSection().',

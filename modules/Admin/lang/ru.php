@@ -575,6 +575,22 @@ return [
     'docs.dev.section.api.hooks' => 'Есть очистка кеша и пересборка sitemap.',
     'docs.dev.section.api.cache' => 'Очищайте кеш после изменений схемы или настроек, влияющих на вывод.',
     'docs.dev.section.api.csrf' => 'Все формы админки требуют CSRF; используйте встроенные токены.',
+    'docs.dev.section.api_module.title' => 'API-модуль: администрирование и интеграция',
+    'docs.dev.section.api_module.overview' => 'API-модуль предоставляет защищенную stateless API-поверхность под /api/v1, принадлежащую modules/Api. Это интеграционный слой, а не отдельное приложение.',
+    'docs.dev.section.api_module.architecture' => 'Kernel /api/v1 маршруты остаются без изменений. Включение API-модуля не меняет существующее поведение. Bearer-аутентификация применяется только к маршрутам, зарегистрированным модулем.',
+    'docs.dev.section.api_module.auth' => 'Аутентификация: Authorization: Bearer <API_TOKEN>. Нет сессий, нет cookie, нет CSRF. Токены хранятся как SHA-256 хеши; исходный токен показывается один раз при создании/ротации.',
+    'docs.dev.section.api_module.endpoints' => 'Эндпоинты модуля: публичные GET /api/v1/ping, GET /api/v1/openapi.json; с авторизацией GET /api/v1/me; требуется scope admin: GET/POST /api/v1/api-keys, POST /api/v1/api-keys/{id}/disable, POST /api/v1/api-keys/{id}/rotate.',
+    'docs.dev.section.api_module.admin' => 'Администрирование: включите модуль Api в Админ → Модули и выполните миграции для создания api_keys. Для управления ключами используйте токены со scope admin.',
+    'docs.dev.section.api_module.security' => 'Проверка scopes выполняется по атрибутам ApiSecurity. Отзыв — через disable или rotate; rotate инвалидирует предыдущие токены.',
+    'docs.dev.section.api_module.examples' => <<<'TXT'
+<pre><code>curl -sS -H "Accept: application/json" &lt;BASE_URL&gt;/api/v1/ping
+
+curl -sS -H "Accept: application/json" -H "Authorization: Bearer &lt;API_TOKEN&gt;" &lt;BASE_URL&gt;/api/v1/me
+
+curl -sS -X POST -H "Accept: application/json" -H "Authorization: Bearer &lt;API_TOKEN&gt;" -H "Content-Type: application/json" \
+  -d '{"name":"integration","scopes":["admin"],"enabled":true}' \
+  &lt;BASE_URL&gt;/api/v1/api-keys</code></pre>
+TXT,
     'docs.dev.section.templates.title' => 'Шаблоны',
     'docs.dev.section.templates.structure' => 'Создайте /resources/views/templates/{name}/ с layout.php и опциональными partials/ и assets/.',
     'docs.dev.section.templates.layout' => 'layout.php должен подключать partials через __DIR__ и вызывать $this->renderContent(); секции через $this->getSection().',

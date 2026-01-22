@@ -94,6 +94,18 @@
                 </div>
             </div>
             <div class="card soft stack docs-block">
+                <p class="eyebrow"><?= __('docs.dev.section.api_module.title') ?></p>
+                <ul class="docs-list">
+                    <li><?= __('docs.dev.section.api_module.overview') ?></li>
+                    <li><?= __('docs.dev.section.api_module.architecture') ?></li>
+                    <li><?= __('docs.dev.section.api_module.auth') ?></li>
+                    <li><?= __('docs.dev.section.api_module.endpoints') ?></li>
+                    <li><?= __('docs.dev.section.api_module.admin') ?></li>
+                    <li><?= __('docs.dev.section.api_module.security') ?></li>
+                </ul>
+                <?= __('docs.dev.section.api_module.examples') ?>
+            </div>
+            <div class="card soft stack docs-block">
                 <p class="eyebrow"><?= __('docs.dev.section.templates.title') ?></p>
                 <ul class="docs-list">
                     <li><?= __('docs.dev.section.templates.structure') ?></li>
