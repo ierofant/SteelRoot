@@ -46,3 +46,9 @@ start.sh
 status.sh
 stop.sh
 new/
+
+# Premium modules (not for public repo)
+modules/Shop/
+STEELSHOP_FEATURES.md
+STEELSHOP_INSTALL.md
+steelshop.zip

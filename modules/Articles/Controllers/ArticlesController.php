@@ -6,6 +6,9 @@ use Core\Database;
 use Core\Request;
 use Core\Response;
 use Core\ModuleSettings;
+use Core\Meta\JsonLdRenderer;
+use Core\Meta\CommonSchemas;
+use Modules\Articles\Providers\ArticleSchemaProvider;
 use Modules\Users\Services\Auth;
 
 class ArticlesController
@@ -209,6 +212,23 @@ class ArticlesController
         $authorBypass = $this->canBypassPrivateProfile((int)($article['author_id'] ?? 0));
         $showSignature = !$authorPrivate || $authorBypass;
         $authorProfileUrl = $this->profileUrl($article['author_id'] ?? null, $article['author_username'] ?? null);
+
+        // Generate JSON-LD structured data
+        $cfg = include APP_ROOT . '/app/config/app.php';
+        $baseUrl = rtrim($cfg['url'] ?? '', '/');
+        $schemaProvider = new ArticleSchemaProvider($baseUrl);
+        $articleSchema = $schemaProvider->getSchema($article);
+
+        $settings = $this->container->get(\App\Services\SettingsService::class)->getAll();
+        $orgSchema = CommonSchemas::organization([
+            'name' => $settings['site_title'] ?? 'SteelRoot',
+            'url' => $baseUrl,
+            'logo' => $baseUrl . '/assets/theme/logo.png'
+        ]);
+
+        $mergedSchema = JsonLdRenderer::merge($articleSchema, $orgSchema);
+        $jsonLd = JsonLdRenderer::render($mergedSchema);
+
         $html = $this->container->get('renderer')->render(
             'articles/item',
             [
@@ -231,6 +251,7 @@ class ArticlesController
                 'description' => $desc,
                 'canonical' => $canonical,
                 'image' => $ogImg,
+                'jsonld' => $jsonLd,
             ]
         );
         return new Response($html);

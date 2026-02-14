@@ -39,6 +39,10 @@ public_html/
 ├── .htaccess
 │
 ├── core/ # Framework kernel
+│   ├── Container.php
+│   ├── Router.php
+│   ├── Database.php
+│   └── Meta/ # JSON-LD & meta infrastructure
 ├── app/ # App-level controllers & views
 ├── modules/ # Feature modules
 ├── database/ # Migrations & runner
@@ -146,6 +150,25 @@ public_html/
 
 ---
 
+### Meta & Structured Data
+
+`core/Meta/`
+
+- **MetaResolver**: merges meta tags with priority (Content > Menu > Defaults)
+- **JsonLdRenderer**: renders Schema.org JSON-LD structured data
+  - XSS-safe JSON encoding
+  - Merges multiple schemas via `@graph`
+  - Outputs `<script type="application/ld+json">`
+- **CommonSchemas**: reusable Schema.org templates
+  - Organization
+  - WebSite
+  - BreadcrumbList
+
+Modules can create schema providers (e.g., `ArticleSchemaProvider`) to generate
+structured data for their content types.
+
+---
+
 ## Security Model
 
 - No direct PHP access (prefilter + .htaccess)
@@ -174,6 +197,16 @@ public_html/
   - Core
   - Other modules (soft-dependency)
 - All optional functionality lives outside core
+
+### SEO Extensions
+
+Modules can extend SEO capabilities:
+
+- **Sitemap providers**: add URLs to sitemap.xml
+- **Meta providers**: custom meta tags per page
+- **Schema providers**: generate JSON-LD structured data
+  - Example: `ArticleSchemaProvider` for Schema.org Article
+  - Uses `JsonLdRenderer::merge()` for multi-schema output
 
 ---
 

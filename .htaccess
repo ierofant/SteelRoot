@@ -1,3 +1,6 @@
+Options -Indexes
+Options -MultiViews
+
 RewriteRule ^core/ - [F,L]
 RewriteRule ^app/ - [F,L]
 RewriteRule ^docs/ - [F,L]
@@ -6,9 +9,12 @@ RewriteRule ^database/ - [F,L]
 RewriteRule ^storage/ - [F,L]
 RewriteRule ^tools/ - [F,L]
 RewriteRule ^vendor/ - [F,L]
-Options -Indexes
 
 RewriteEngine On
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^ prefilter.php [L]
+
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^ prefilter.php [L]
+

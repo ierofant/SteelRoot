@@ -38,6 +38,7 @@ modules/Example/
 ├── migrations/
 ├── Controllers/
 ├── Services/
+├── Providers/ # Schema providers for JSON-LD (optional)
 ├── views/
 ├── lang/
 ├── assets/
@@ -130,6 +131,19 @@ Should respect theme tokens
 
 No hardcoded colors
 
+Schema Providers (Optional)
+Modules can generate JSON-LD structured data for SEO:
+
+Create Provider class in `Providers/`
+
+Generate Schema.org markup (Article, Product, ImageObject, etc.)
+
+Use `JsonLdRenderer::merge()` to combine with Organization schema
+
+Pass to layout via `meta['jsonld']`
+
+Example: `modules/Articles/Providers/ArticleSchemaProvider.php`
+
 Auto-CRUD (Optional)
 Modules may define schema.json to generate:
 
@@ -174,6 +188,27 @@ unified tag system (tags + taggables)
 
 unified search integration
 
+Articles provides:
+
+Schema.org Article structured data via JSON-LD
+
+`ArticleSchemaProvider` in `Providers/`
+
+Auto-generates headline, dates, description, image
+
 Users integrates as author provider
 
 Popups works independently of content modules
+
+SEO Integration
+Modules can extend SEO via:
+
+Sitemap provider (add URLs to sitemap.xml)
+
+Search provider (content indexed in search)
+
+Schema provider (JSON-LD structured data)
+
+Meta resolver (custom meta tags)
+
+See `core/Meta/` for infrastructure.

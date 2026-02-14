@@ -3,11 +3,6 @@ Modular PHP CMS focused on clarity, security, and sane defaults.
 
 📘 Русская версия: [README.ru.md](README.ru.md)
 
-## Community
-
-Discussion and community support (Russian):
-https://staffstyle.ru/forum/t/root
-
 ---
 
 ## SteelRoot CMS
@@ -50,7 +45,7 @@ Config files `app/config/app.php` and `app/config/database.php` are generated; e
 ```
 public_html/
   index.php / prefilter.php / .htaccess
-  core/        # kernel, router, DI, renderer, lang, cache
+  core/        # kernel, router, DI, renderer, lang, cache, Meta (JSON-LD)
   app/         # controllers, services, views, lang, config
   modules/     # Admin, Articles, Gallery, Popups, Pages, Users, Search
   database/    # migrations/, seeds/, MigrationRunner.php
@@ -59,7 +54,7 @@ public_html/
 ```
 
 ## Features (current)
-- Articles: list/detail, tags, previews, meta; admin CRUD, module settings.
+- Articles: list/detail, tags, previews, meta; admin CRUD, module settings; **JSON-LD structured data** (Schema.org Article + Organization).
 - Gallery: masonry list, lightbox, likes/views, tags; admin upload/edit/delete, module settings, sitemap provider.
 - Pages: static pages with admin CRUD, menu integration, sitemap; embeds handled in content.
 - Menu: configurable RU/EN labels, SEO meta, OG image; supports one-level dropdowns (parent/child).
@@ -70,6 +65,7 @@ public_html/
 - Redirects: `/admin/redirects` with cache; handled before 404.
 - Search: full-text articles/gallery with source filters; autocomplete tags; API v1.
 - PWA: admin-managed manifest/SW version/cache list; runtime cache with versioning.
+- **SEO & Structured Data**: JSON-LD infrastructure (`core/Meta`); auto-generated Schema.org markup for articles; extensible for other modules; Google Rich Results compatible.
 - Themes: light/dark via tokens/variables; no inline colors.
 - i18n: lang files per app/module; helper `__()`.
 - Cache: file cache; sitemap cached 10 min.
@@ -80,6 +76,7 @@ public_html/
 - Router supports middleware/groups; 404 handled by Kernel error views.
 - Run migrations via `/migrate?up|down|status` (web) or `database/MigrationRunner.php`.
 - SCSS build: `bash tools/build_sass.sh` (uses sass or npx sass).
+- JSON-LD: see docs for adding structured data to modules (create Schema Providers, use `JsonLdRenderer`).
 - Avoid committing generated configs (`app/config/app.php`, `database.php`), uploads, cache, tmp; see `.gitignore`.
 
 ## Deployment notes

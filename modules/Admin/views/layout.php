@@ -42,6 +42,11 @@ $flash = $flash ?? null;
             <a href="<?= htmlspecialchars($ap) ?>/gallery/upload"><?= __('nav.gallery_upload') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/pages"><?= __('nav.pages') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/articles"><?= __('nav.articles') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/shop/products">Shop Products</a>
+            <a href="<?= htmlspecialchars($ap) ?>/shop/categories">Shop Categories</a>
+            <a href="<?= htmlspecialchars($ap) ?>/shop/attributes">Shop Attributes</a>
+            <a href="<?= htmlspecialchars($ap) ?>/shop/coupons">Shop Coupons</a>
+            <a href="<?= htmlspecialchars($ap) ?>/shop/settings">Shop Settings</a>
             <a href="<?= htmlspecialchars($ap) ?>/pwa"><?= __('nav.pwa') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/cache"><?= __('nav.cache') ?></a>
         </nav>
