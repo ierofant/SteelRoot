@@ -48,4 +48,14 @@ class Request
         $contentType = $this->headers['content-type'] ?? '';
         return str_contains($accept, 'application/json') || str_contains($contentType, 'application/json');
     }
+
+    public function isPost(): bool
+    {
+        return $this->method === 'POST';
+    }
+
+    public function isGet(): bool
+    {
+        return $this->method === 'GET';
+    }
 }
