@@ -251,7 +251,7 @@ class Kernel
 
         try {
             $settings = $this->container->get(SettingsService::class);
-            $GLOBALS['viewTheme'] = $settings->get('theme', 'light');
+            $GLOBALS['viewTheme'] = $settings->get('theme', 'dark');
             $GLOBALS['customThemeUrl'] = $settings->get('theme_custom_url', null);
             $GLOBALS['settingsAll'] = $settings->all();
             if (class_exists(\Modules\Pages\Module::class)) {

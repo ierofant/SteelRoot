@@ -55,6 +55,11 @@ class Database
         return $row === false ? null : $row;
     }
 
+    public function fetchOne(string $sql, array $params = []): ?array
+    {
+        return $this->fetch($sql, $params);
+    }
+
     public function fetchAll(string $sql, array $params = []): array
     {
         $stmt = $this->query($sql, $params);

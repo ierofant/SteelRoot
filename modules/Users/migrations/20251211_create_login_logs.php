@@ -2,6 +2,8 @@
 return new class {
     public function up(\Core\Database $db): void
     {
+        // Table already created in core migration 20250101_create_admin_and_settings.php
+        // Just ensure it exists (IF NOT EXISTS for module reinstallation)
         $db->execute("
             CREATE TABLE IF NOT EXISTS login_logs (
                 id INT AUTO_INCREMENT PRIMARY KEY,

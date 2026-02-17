@@ -44,7 +44,7 @@ class SettingsController
         if ($siteName === '' || strlen($siteName) > 255) {
             return new Response('Invalid site name', 422);
         }
-        $theme = $request->body['theme'] ?? 'light';
+        $theme = $request->body['theme'] ?? 'dark';
         $customThemeUrl = trim($request->body['theme_custom_url'] ?? '');
         if (!in_array($theme, ['light','dark','custom'], true)) {
             return new Response('Invalid theme', 422);

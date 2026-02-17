@@ -18,13 +18,8 @@ return new class {
                 INDEX idx_email (email)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
-        $count = $db->fetch("SELECT COUNT(*) as c FROM users");
-        if ((int)($count['c'] ?? 0) === 0) {
-            $db->execute("
-                INSERT INTO users (name, email, password, role, status, created_at, updated_at)
-                VALUES ('Admin', 'admin@example.com', :pass, 'admin', 'active', NOW(), NOW())
-            ", [':pass' => password_hash('admin123', PASSWORD_DEFAULT)]);
-        }
+        // Table already created in core migration 20250101_create_admin_and_settings.php
+        // Just ensure it exists (IF NOT EXISTS above) and skip seed (admin created via installer)
     }
 
     public function down(\Core\Database $db): void

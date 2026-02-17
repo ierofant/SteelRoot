@@ -27,7 +27,7 @@
         </label>
         <label class="field">
             <span><?= __('settings.field.site_url') ?></span>
-            <input type="text" name="site_url" value <?= htmlspecialchars($settings['site_url'] ?? '') ?> placeholder="<?= __('settings.placeholder.site_url') ?>">
+            <input type="text" name="site_url" value="<?= htmlspecialchars($settings['site_url'] ?? '') ?>" placeholder="<?= __('settings.placeholder.site_url') ?>">
         </label>
         <label class="field">
             <span><?= __('settings.field.contact_email') ?></span>
