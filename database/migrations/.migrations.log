@@ -19,5 +19,6 @@
     "20260123_create_redirects": "up",
     "20260216_add_article_meta_columns": "up",
     "20260305_create_article_categories": "up",
-    "20260305_create_gallery_categories": "up"
+    "20260305_create_gallery_categories": "up",
+    "0": "20260305_add_regexp_to_redirects"
 }

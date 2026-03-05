@@ -1,22 +1,18 @@
 <?php
-// Standalone installer for SteelRoot framework (shared hosting friendly).
 declare(strict_types=1);
-
 session_start();
 
 const INSTALL_LOG = __DIR__ . '/storage/logs/install.log';
-const APP_ROOT = __DIR__;
+const APP_ROOT    = __DIR__;
 
-// ---------------------------------------------------------------------
-// Utilities
-// ---------------------------------------------------------------------
-function log_step(string $message): void
+// ─── Utilities ───────────────────────────────────────────────────────────────
+
+function ilog(string $msg): void
 {
     if (!is_dir(dirname(INSTALL_LOG))) {
         @mkdir(dirname(INSTALL_LOG), 0775, true);
     }
-    $ts = date('Y-m-d H:i:s');
-    @file_put_contents(INSTALL_LOG, "[{$ts}] {$message}\n", FILE_APPEND);
+    @file_put_contents(INSTALL_LOG, '[' . date('Y-m-d H:i:s') . '] ' . $msg . "\n", FILE_APPEND);
 }
 
 function esc(string $v): string
@@ -32,419 +28,622 @@ function csrf_token(): string
     return $_SESSION['installer_csrf'];
 }
 
-function status_icon(bool $ok): string
-{
-    return $ok ? '<span style="color:green;">&#10003;</span>' : '<span style="color:red;">&#10007;</span>';
-}
+// ─── Self-delete ─────────────────────────────────────────────────────────────
 
-function mask(string $value): string
-{
-    return str_repeat('*', max(4, strlen($value)));
-}
-
-// Handle deletion request early
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
-    if (!hash_equals(csrf_token(), $_POST['csrf'] ?? '')) {
-        die('Invalid CSRF token');
-    }
+    if (!hash_equals(csrf_token(), $_POST['csrf'] ?? '')) { die('Invalid CSRF'); }
     @unlink(__FILE__);
-    exit('installer.php удалён.');
+    header('Location: ' . (trim($_POST['admin_prefix'] ?? '/admin')));
+    exit;
 }
 
-// ---------------------------------------------------------------------
-// Checks
-// ---------------------------------------------------------------------
+// ─── Requirements ────────────────────────────────────────────────────────────
+
 $requirements = [
-    'PHP >= 8.0' => version_compare(PHP_VERSION, '8.0.0', '>='),
-    'extension: PDO' => extension_loaded('pdo'),
-    'extension: pdo_mysql' => extension_loaded('pdo_mysql'),
-    'extension: mbstring' => extension_loaded('mbstring'),
-    'extension: json' => extension_loaded('json'),
-    'extension: openssl' => extension_loaded('openssl'),
-    'extension: fileinfo' => extension_loaded('fileinfo'),
-    'extension: gd' => extension_loaded('gd'),
+    'PHP >= 8.1'          => version_compare(PHP_VERSION, '8.1.0', '>='),
+    'PDO'                 => extension_loaded('pdo'),
+    'pdo_mysql'           => extension_loaded('pdo_mysql'),
+    'mbstring'            => extension_loaded('mbstring'),
+    'json'                => extension_loaded('json'),
+    'openssl'             => extension_loaded('openssl'),
+    'fileinfo'            => extension_loaded('fileinfo'),
+    'gd'                  => extension_loaded('gd'),
 ];
 
-// Ensure storage subdirs exist before checking writability
-@mkdir(APP_ROOT . '/storage', 0775, true);
-@mkdir(APP_ROOT . '/storage/cache', 0775, true);
-@mkdir(APP_ROOT . '/storage/logs', 0775, true);
-@mkdir(APP_ROOT . '/storage/uploads', 0775, true);
-@mkdir(APP_ROOT . '/storage/uploads/gallery', 0775, true);
-@mkdir(APP_ROOT . '/storage/uploads/articles', 0775, true);
-@mkdir(APP_ROOT . '/storage/uploads/users', 0775, true);
-@mkdir(APP_ROOT . '/storage/tmp', 0775, true);
-@mkdir(APP_ROOT . '/storage/tmp/user_tokens', 0775, true);
-
-$paths = [
-    'storage/' => is_writable(APP_ROOT . '/storage'),
-    'storage/cache/' => is_writable(APP_ROOT . '/storage/cache'),
-    'storage/logs/' => is_writable(APP_ROOT . '/storage/logs'),
-    'storage/uploads/' => is_writable(APP_ROOT . '/storage/uploads'),
-    'storage/uploads/gallery/' => is_writable(APP_ROOT . '/storage/uploads/gallery'),
-    'storage/uploads/articles/' => is_writable(APP_ROOT . '/storage/uploads/articles'),
-    'storage/uploads/users/' => is_writable(APP_ROOT . '/storage/uploads/users'),
-    'storage/tmp/' => is_writable(APP_ROOT . '/storage/tmp'),
-    'storage/tmp/user_tokens/' => is_writable(APP_ROOT . '/storage/tmp/user_tokens'),
+$storageDirs = [
+    'storage/cache',
+    'storage/logs',
+    'storage/uploads',
+    'storage/uploads/gallery',
+    'storage/uploads/gallery/categories',
+    'storage/uploads/articles',
+    'storage/uploads/articles/categories',
+    'storage/uploads/users',
+    'storage/uploads/menu',
+    'storage/tmp',
+    'storage/tmp/user_tokens',
+    'storage/tmp/sessions',
 ];
+foreach ($storageDirs as $d) {
+    @mkdir(APP_ROOT . '/' . $d, 0775, true);
+}
 
-$envOk = !in_array(false, $requirements, true) && !in_array(false, $paths, true);
+$paths = [];
+foreach ($storageDirs as $d) {
+    $paths[$d] = is_writable(APP_ROOT . '/' . $d);
+}
 
+$envOk  = !in_array(false, $requirements, true) && !in_array(false, $paths, true);
 $errors = [];
 $success = false;
-$runLog = [];
-$testStatus = null;
+$runLog  = [];
 
-// ---------------------------------------------------------------------
-// Handle POST (installation)
-// ---------------------------------------------------------------------
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['install','test'], true)) {
+// ─── Module catalogue ────────────────────────────────────────────────────────
+// slug => [label, description, always, migrations[]]
+
+$moduleCatalogue = [
+    'Admin'     => ['Admin Panel',   'Dashboard, settings, security, file manager, redirects',  true,  []],
+    'Articles'  => ['Articles',      'Blog/news with categories, tags, author, JSON-LD',         true,  []],
+    'Gallery'   => ['Gallery',       'Image gallery with categories, subfolders, lightbox',      true,  []],
+    'Pages'     => ['Pages',         'Static pages with menu integration and sitemap',            true,  [
+        APP_ROOT . '/modules/Pages/migrations/create_pages_table.php',
+    ]],
+    'Menu'      => ['Menu',          'Navigation with RU/EN labels, SEO meta, OG images',        true,  [
+        APP_ROOT . '/modules/Menu/migrations/20251220_create_menu_table.php',
+        APP_ROOT . '/modules/Menu/migrations/20260115_add_menu_parent_fields.php',
+    ]],
+    'Search'    => ['Search',        'Full-text search across articles and gallery',              true,  []],
+    'Templates' => ['Templates',     'Custom theme upload and selection',                         true,  []],
+    'Popups'    => ['Popups',        'Cookie consent and adult content warnings (built into layout)', true, []],
+    'Users'     => ['Users',         'Registration, profiles, avatars, roles, login logs',       false, [
+        APP_ROOT . '/modules/Users/migrations/20251211_create_users_table.php',
+        APP_ROOT . '/modules/Users/migrations/20251211_create_login_logs.php',
+        APP_ROOT . '/modules/Users/migrations/20251211_add_author_to_articles.php',
+        APP_ROOT . '/modules/Users/migrations/20251211_add_author_to_gallery_items.php',
+        APP_ROOT . '/modules/Users/migrations/20260224_add_username_signature_visibility.php',
+    ]],
+    'FAQ'       => ['FAQ',           'FAQ section with admin CRUD',                              false, [
+        APP_ROOT . '/modules/FAQ/migrations/001_create_faq_items.php',
+        APP_ROOT . '/modules/FAQ/migrations/002_seed_faq_items.php',
+    ]],
+    'Api'       => ['API',           'REST API keys for external integrations',                  false, [
+        APP_ROOT . '/modules/Api/migrations/001_create_api_keys.php',
+    ]],
+];
+
+// ─── Handle POST ─────────────────────────────────────────────────────────────
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['install', 'test'], true)) {
+
     if (!hash_equals(csrf_token(), $_POST['csrf'] ?? '')) {
-        $errors[] = 'Неверный CSRF токен.';
+        $errors[] = 'Invalid CSRF token.';
     }
 
-    $dbHost = trim($_POST['db_host'] ?? '');
-    $dbPort = (int)($_POST['db_port'] ?? 3306);
-    $dbUser = trim($_POST['db_user'] ?? '');
-    $dbPass = (string)($_POST['db_pass'] ?? '');
-    $dbName = trim($_POST['db_name'] ?? '');
-    $siteName = trim($_POST['site_name'] ?? 'SteelRoot');
-    $siteUrl = trim($_POST['site_url'] ?? 'http://localhost');
-    $adminSecret = trim($_POST['admin_secret'] ?? '');
-    $lang = trim($_POST['lang'] ?? 'en');
-    $adminUser = trim($_POST['admin_user'] ?? 'admin');
-    $adminPass = (string)($_POST['admin_pass'] ?? '');
+    $dbHost      = trim($_POST['db_host'] ?? 'localhost');
+    $dbPort      = (int)($_POST['db_port'] ?? 3306);
+    $dbUser      = trim($_POST['db_user'] ?? '');
+    $dbPass      = (string)($_POST['db_pass'] ?? '');
+    $dbName      = trim($_POST['db_name'] ?? '');
+    $siteName    = trim($_POST['site_name'] ?? 'SteelRoot');
+    $siteUrl     = rtrim(trim($_POST['site_url'] ?? 'http://localhost'), '/');
+    $adminSecret = preg_replace('/[^a-z0-9\-_]/i', '', trim($_POST['admin_secret'] ?? ''));
+    $locale      = in_array($_POST['locale'] ?? 'en', ['en', 'ru'], true) ? $_POST['locale'] : 'en';
+    $localeMode  = in_array($_POST['locale_mode'] ?? 'multi', ['en', 'ru', 'multi'], true) ? $_POST['locale_mode'] : 'multi';
+    $adminUser   = trim($_POST['admin_user'] ?? 'admin');
+    $adminPass   = (string)($_POST['admin_pass'] ?? '');
 
-    if ($dbHost === '' || $dbUser === '' || $dbName === '') {
-        $errors[] = 'Заполните хост, пользователя и имя базы данных.';
-    }
-    if ($_POST['action'] === 'install') {
-        if ($adminUser === '' || $adminPass === '') {
-            $errors[] = 'Задайте учётные данные администратора.';
+    $selectedModules = array_keys(array_filter($moduleCatalogue, fn($m) => $m[2])); // always-on
+    foreach ($moduleCatalogue as $slug => $meta) {
+        if (!$meta[2] && !empty($_POST['module_' . strtolower($slug)])) {
+            $selectedModules[] = $slug;
         }
     }
-    if (!in_array($lang, ['en', 'ru'], true)) {
-        $errors[] = 'Неверный язык (en|ru).';
+
+    if ($dbHost === '' || $dbUser === '' || $dbName === '') {
+        $errors[] = 'Fill in DB host, user and database name.';
+    }
+    if (($_POST['action'] ?? '') === 'install' && ($adminUser === '' || $adminPass === '')) {
+        $errors[] = 'Admin username and password are required.';
+    }
+    if (($_POST['action'] ?? '') === 'install' && strlen($adminPass) < 8) {
+        $errors[] = 'Admin password must be at least 8 characters.';
     }
     if (!$envOk) {
-        $errors[] = 'Исправьте ошибки окружения перед установкой.';
+        $errors[] = 'Fix environment issues before installing.';
     }
 
-    // DB connection test
+    // DB connection
+    $pdo = null;
     if (empty($errors)) {
         $dsn = sprintf('mysql:host=%s;port=%d;dbname=%s;charset=utf8mb4', $dbHost, $dbPort, $dbName);
         try {
             $pdo = new PDO($dsn, $dbUser, $dbPass, [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_PERSISTENT => false,
+                PDO::ATTR_PERSISTENT         => false,
             ]);
-            $testStatus = 'Подключение к БД: успешно';
-            $runLog[] = 'Подключение к БД: успешно';
-            log_step("DB connection OK host={$dbHost} db={$dbName} user={$dbUser}");
+            $runLog[] = ['ok', 'Database connection successful'];
+            ilog("DB OK host={$dbHost} db={$dbName}");
         } catch (Throwable $e) {
-            $msg = 'Не удалось подключиться к базе данных. Проверьте параметры.';
-            $errors[] = $msg;
-            $testStatus = $msg;
-            log_step('DB connection failed: ' . $e->getMessage());
+            $errors[] = 'Cannot connect to database: ' . $e->getMessage();
+            ilog('DB failed: ' . $e->getMessage());
         }
     }
 
     if (($_POST['action'] ?? '') === 'test') {
-        // Only testing connection, do not proceed further
-    }
+        // stop here for test
+    } elseif (empty($errors)) {
 
-    // Write configs
-    if (empty($errors) && ($_POST['action'] ?? '') === 'install') {
-        $dbConfig = "<?php\nreturn [\n    'driver' => 'mysql',\n    'host' => '" . addslashes($dbHost) . "',\n    'port' => {$dbPort},\n    'user' => '" . addslashes($dbUser) . "',\n    'pass' => '" . addslashes($dbPass) . "',\n    'name' => '" . addslashes($dbName) . "',\n    'charset' => 'utf8mb4',\n];\n";
-        $prefix = $adminSecret !== '' ? '/admin-' . addslashes($adminSecret) : '/admin';
-        $appConfig = "<?php\nreturn [\n    'name' => '" . addslashes($siteName) . "',\n    'env' => 'production',\n    'debug' => false,\n    'default_language' => '" . addslashes($lang) . "',\n    'timezone' => 'UTC',\n    'url' => '" . addslashes($siteUrl) . "',\n    'locale' => '" . addslashes($lang) . "',\n    'fallback_locale' => '" . addslashes($lang) . "',\n    'admin_secret' => '" . addslashes($adminSecret) . "',\n    'admin_prefix' => '" . $prefix . "',\n];\n";
-        if (!is_dir(APP_ROOT . '/app/config')) {
-            @mkdir(APP_ROOT . '/app/config', 0775, true);
+        // Write configs
+        $prefix    = $adminSecret !== '' ? '/admin-' . $adminSecret : '/admin';
+        $dbCfg     = "<?php\nreturn [\n    'driver'  => 'mysql',\n    'host'    => '" . addslashes($dbHost) . "',\n    'port'    => {$dbPort},\n    'user'    => '" . addslashes($dbUser) . "',\n    'pass'    => '" . addslashes($dbPass) . "',\n    'name'    => '" . addslashes($dbName) . "',\n    'charset' => 'utf8mb4',\n];\n";
+        $appCfg    = "<?php\nreturn [\n    'name'             => '" . addslashes($siteName) . "',\n    'env'              => 'production',\n    'debug'            => false,\n    'url'              => '" . addslashes($siteUrl) . "',\n    'locale'           => '" . $locale . "',\n    'default_language' => '" . $locale . "',\n    'fallback_locale'  => '" . $locale . "',\n    'timezone'         => 'UTC',\n    'admin_secret'     => '" . addslashes($adminSecret) . "',\n    'admin_prefix'     => '" . $prefix . "',\n];\n";
+
+        @mkdir(APP_ROOT . '/app/config', 0775, true);
+        if (@file_put_contents(APP_ROOT . '/app/config/database.php', $dbCfg) === false) {
+            $errors[] = 'Cannot write app/config/database.php — check permissions.';
         }
-        if (@file_put_contents(APP_ROOT . '/app/config/database.php', $dbConfig) === false) {
-            $errors[] = 'Не удалось записать app/config/database.php';
-        }
-        if (@file_put_contents(APP_ROOT . '/app/config/app.php', $appConfig) === false) {
-            $errors[] = 'Не удалось записать app/config/app.php';
+        if (@file_put_contents(APP_ROOT . '/app/config/app.php', $appCfg) === false) {
+            $errors[] = 'Cannot write app/config/app.php — check permissions.';
         }
         if (empty($errors)) {
-            $runLog[] = 'Конфигурация сохранена';
-            log_step('Config files written');
+            $runLog[] = ['ok', 'Config files written'];
+            ilog('Configs written prefix=' . $prefix);
         }
-    }
 
-    // Stop further actions if this was only a test
-    if (($_POST['action'] ?? '') === 'test') {
-        // nothing more
-    }
-
-    // Load Database wrapper (standalone use)
-    if (empty($errors) && ($_POST['action'] ?? '') === 'install') {
-        try {
-            if (file_exists(APP_ROOT . '/core/Database.php')) {
-                require_once APP_ROOT . '/core/Database.php';
-            }
-            if (!class_exists('\\Core\\Database')) {
-                class InstallerDatabase
-                {
-                    private PDO $pdo;
-                    public function __construct(array $config)
-                    {
-                        $dsn = sprintf(
-                            '%s:host=%s;port=%d;dbname=%s;charset=%s',
-                            $config['driver'] ?? 'mysql',
-                            $config['host'] ?? 'localhost',
-                            $config['port'] ?? 3306,
-                            $config['name'] ?? '',
-                            $config['charset'] ?? 'utf8mb4'
-                        );
-                        $this->pdo = new PDO($dsn, $config['user'] ?? '', $config['pass'] ?? '', [
-                            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                            PDO::ATTR_PERSISTENT => false,
-                        ]);
+        // DB wrapper shim
+        if (empty($errors)) {
+            try {
+                if (file_exists(APP_ROOT . '/core/Database.php')) {
+                    require_once APP_ROOT . '/core/Database.php';
+                }
+                if (!class_exists('\\Core\\Database')) {
+                    class InstallerDb {
+                        private PDO $pdo;
+                        public function __construct(array $c) {
+                            $this->pdo = new PDO(
+                                sprintf('%s:host=%s;port=%d;dbname=%s;charset=%s', $c['driver'] ?? 'mysql', $c['host'], $c['port'] ?? 3306, $c['name'], $c['charset'] ?? 'utf8mb4'),
+                                $c['user'], $c['pass'],
+                                [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]
+                            );
+                        }
+                        public function pdo(): PDO { return $this->pdo; }
+                        public function execute(string $sql, array $p = []): int { $s = $this->pdo->prepare($sql); $s->execute($p); return $s->rowCount(); }
+                        public function fetch(string $sql, array $p = []): ?array { $s = $this->pdo->prepare($sql); $s->execute($p); $r = $s->fetch(); return $r ?: null; }
+                        public function fetchAll(string $sql, array $p = []): array { $s = $this->pdo->prepare($sql); $s->execute($p); return $s->fetchAll(); }
                     }
-                    public function pdo(): PDO { return $this->pdo; }
-                    public function query(string $sql, array $params = []) { $s = $this->pdo->prepare($sql); $s->execute($params); return $s; }
-                    public function fetch(string $sql, array $params = []): ?array { $r = $this->query($sql, $params)->fetch(); return $r === false ? null : $r; }
-                    public function fetchAll(string $sql, array $params = []): array { return $this->query($sql, $params)->fetchAll(); }
-                    public function execute(string $sql, array $params = []): int { return $this->query($sql, $params)->rowCount(); }
-                    public function transaction(callable $fn) { $this->pdo->beginTransaction(); try { $res = $fn($this); $this->pdo->commit(); return $res; } catch (Throwable $e) { $this->pdo->rollBack(); throw $e; } }
+                    class_alias(InstallerDb::class, 'Core\\Database');
                 }
-                class_alias(InstallerDatabase::class, 'Core\\Database');
-            }
-            $db = new \Core\Database([
-                'driver' => 'mysql',
-                'host' => $dbHost,
-                'port' => $dbPort,
-                'user' => $dbUser,
-                'pass' => $dbPass,
-                'name' => $dbName,
-                'charset' => 'utf8mb4',
-            ]);
-        } catch (Throwable $e) {
-            $errors[] = 'Не удалось инициализировать слой БД.';
-            log_step('Database wrapper init failed: ' . $e->getMessage());
-        }
-    }
-
-    // Run migrations
-    if (empty($errors) && ($_POST['action'] ?? '') === 'install') {
-        $migrationDir = APP_ROOT . '/database/migrations';
-        $files = glob($migrationDir . '/*.php') ?: [];
-        sort($files);
-        foreach ($files as $file) {
-            $name = basename($file);
-            try {
-                $migration = include $file;
-                if (is_object($migration) && method_exists($migration, 'up')) {
-                    $migration->up($db);
-                    $runLog[] = "Миграция {$name}: OK";
-                    log_step("Migration {$name} applied");
-                }
+                $db = new \Core\Database(['driver'=>'mysql','host'=>$dbHost,'port'=>$dbPort,'user'=>$dbUser,'pass'=>$dbPass,'name'=>$dbName,'charset'=>'utf8mb4']);
             } catch (Throwable $e) {
-                $errors[] = "Ошибка миграции {$name}.";
-                log_step("Migration {$name} failed: " . $e->getMessage());
-                break;
+                $errors[] = 'DB wrapper init failed: ' . $e->getMessage();
             }
         }
-        // Run module migrations for built-in modules that need base tables
-        $moduleMigrations = [
-            APP_ROOT . '/modules/Pages/migrations/create_pages_table.php',
-        ];
-        foreach ($moduleMigrations as $file) {
-            if (!file_exists($file)) {
-                continue;
-            }
-            $name = basename($file);
-            try {
-                $migration = include $file;
-                if (is_object($migration) && method_exists($migration, 'up')) {
-                    $migration->up($db);
-                    $runLog[] = "Миграция {$name}: OK";
-                    log_step("Module migration {$name} applied");
-                }
-            } catch (Throwable $e) {
-                $errors[] = "Ошибка миграции {$name}.";
-                log_step("Module migration {$name} failed: " . $e->getMessage());
-                break;
-            }
-        }
-    }
 
-    // Create admin user
-    if (empty($errors) && ($_POST['action'] ?? '') === 'install') {
-        try {
-            $hash = password_hash($adminPass, PASSWORD_DEFAULT);
+        // Core migrations
+        if (empty($errors)) {
+            $migFiles = glob(APP_ROOT . '/database/migrations/*.php') ?: [];
+            sort($migFiles);
+            $logFile  = APP_ROOT . '/database/migrations/.migrations.log';
+            $applied  = is_file($logFile) ? (json_decode(file_get_contents($logFile), true) ?? []) : [];
+            foreach ($migFiles as $file) {
+                $name = pathinfo($file, PATHINFO_FILENAME);
+                try {
+                    $mig = include $file;
+                    if (is_object($mig) && method_exists($mig, 'up')) {
+                        $mig->up($db);
+                        if (!in_array($name, $applied, true)) { $applied[] = $name; }
+                        $runLog[] = ['ok', 'Migration: ' . $name];
+                        ilog("Core migration OK: $name");
+                    }
+                } catch (Throwable $e) {
+                    $errors[] = "Migration failed: $name";
+                    ilog("Migration failed $name: " . $e->getMessage());
+                    break;
+                }
+            }
+            @file_put_contents($logFile, json_encode($applied, JSON_PRETTY_PRINT));
+        }
+
+        // Module migrations
+        if (empty($errors)) {
+            // Ensure migrations_log table
             $db->execute("
-                INSERT INTO admin_users (username, password, created_at)
-                VALUES (:u, :p, NOW())
-                ON DUPLICATE KEY UPDATE password = VALUES(password)
-            ", [':u' => $adminUser, ':p' => $hash]);
-            $runLog[] = 'Админ-пользователь создан/обновлён';
-            log_step("Admin user created: {$adminUser}");
-        } catch (Throwable $e) {
-            $errors[] = 'Не удалось создать администратора (проверьте таблицу admin_users).';
-            log_step('Admin user creation failed: ' . $e->getMessage());
-        }
-    }
+                CREATE TABLE IF NOT EXISTS migrations_log (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    module VARCHAR(191) NOT NULL,
+                    migration VARCHAR(191) NOT NULL,
+                    applied_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY module_migration_unique (module, migration),
+                    INDEX module_idx (module)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+            ");
 
-    // Ensure .htaccess
-    if (empty($errors) && ($_POST['action'] ?? '') === 'install') {
-        $ht = APP_ROOT . '/.htaccess';
-        if (!file_exists($ht)) {
-            $content = "RewriteEngine On\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule ^ prefilter.php [L]\n\n# Secure internal dirs\nRewriteRule ^core/ - [F,L]\nRewriteRule ^app/ - [F,L]\nRewriteRule ^modules/ - [F,L]\nRewriteRule ^database/ - [F,L]\nRewriteRule ^storage/ - [F,L]\nRewriteRule ^vendor/ - [F,L]\nOptions -Indexes\n";
-            if (@file_put_contents($ht, $content) === false) {
-                $errors[] = 'Не удалось создать .htaccess.';
-            } else {
-                $runLog[] = '.htaccess создан';
-                log_step('.htaccess created');
+            foreach ($selectedModules as $slug) {
+                $migs = $moduleCatalogue[$slug][3] ?? [];
+                foreach ($migs as $file) {
+                    if (!file_exists($file)) { continue; }
+                    $name = pathinfo($file, PATHINFO_FILENAME);
+                    $already = $db->fetch("SELECT id FROM migrations_log WHERE module = ? AND migration = ?", [$slug, $name]);
+                    if ($already) { continue; }
+                    try {
+                        $mig = include $file;
+                        if (is_object($mig) && method_exists($mig, 'up')) {
+                            $mig->up($db);
+                            $db->execute("INSERT IGNORE INTO migrations_log (module, migration) VALUES (?, ?)", [$slug, $name]);
+                            $runLog[] = ['ok', "Module migration [{$slug}]: $name"];
+                            ilog("Module migration OK $slug/$name");
+                        }
+                    } catch (Throwable $e) {
+                        $errors[] = "Module migration failed [{$slug}] $name";
+                        ilog("Module migration failed $slug/$name: " . $e->getMessage());
+                        break 2;
+                    }
+                }
             }
         }
-    }
 
-    if (empty($errors) && ($_POST['action'] ?? '') === 'install') {
-        $success = true;
-        $runLog[] = 'Установка завершена';
-        log_step('Installation completed successfully');
-    }
+        // Admin user
+        if (empty($errors)) {
+            try {
+                $hash = password_hash($adminPass, PASSWORD_DEFAULT);
+                $db->execute(
+                    "INSERT INTO admin_users (username, password, created_at) VALUES (?, ?, NOW())
+                     ON DUPLICATE KEY UPDATE password = VALUES(password)",
+                    [$adminUser, $hash]
+                );
+                $runLog[] = ['ok', "Admin user «{$adminUser}» created"];
+                ilog("Admin user created: $adminUser");
+            } catch (Throwable $e) {
+                $errors[] = 'Failed to create admin user: ' . $e->getMessage();
+                ilog('Admin user failed: ' . $e->getMessage());
+            }
+        }
 
+        // Seed settings
+        if (empty($errors)) {
+            $enabledJson = json_encode(array_values($selectedModules), JSON_UNESCAPED_SLASHES);
+            $seeds = [
+                ['name' => 'site_name',        'value' => $siteName],
+                ['name' => 'site_url',         'value' => $siteUrl],
+                ['name' => 'locale',           'value' => $locale],
+                ['name' => 'locale_mode',      'value' => $localeMode],
+                ['name' => 'modules_enabled',  'value' => $enabledJson],
+            ];
+            foreach ($seeds as $s) {
+                $db->execute(
+                    "INSERT INTO settings (name, value) VALUES (?, ?) ON DUPLICATE KEY UPDATE value = VALUES(value)",
+                    [$s['name'], $s['value']]
+                );
+            }
+            $runLog[] = ['ok', 'Settings seeded (locale_mode=' . $localeMode . ')'];
+            $runLog[] = ['ok', 'Modules enabled: ' . implode(', ', $selectedModules)];
+            ilog('Settings seeded, modules: ' . $enabledJson);
+        }
+
+        // .htaccess
+        if (empty($errors) && !file_exists(APP_ROOT . '/.htaccess')) {
+            $ht = "Options -Indexes\nOptions -MultiViews\n\nRewriteRule ^core/ - [F,L]\nRewriteRule ^app/ - [F,L]\nRewriteRule ^docs/ - [F,L]\nRewriteRule ^modules/ - [F,L]\nRewriteRule ^database/ - [F,L]\nRewriteRule ^storage/ - [F,L]\nRewriteRule ^vendor/ - [F,L]\nRewriteRule ^tools/ - [F,L]\n\nRewriteEngine On\nRewriteCond %{REQUEST_URI} ^/api/\nRewriteRule ^ prefilter.php [L]\n\nRewriteCond %{REQUEST_FILENAME} !-f\nRewriteCond %{REQUEST_FILENAME} !-d\nRewriteRule ^ prefilter.php [L]\n";
+            if (@file_put_contents(APP_ROOT . '/.htaccess', $ht) !== false) {
+                $runLog[] = ['ok', '.htaccess created'];
+                ilog('.htaccess created');
+            }
+        }
+
+        if (empty($errors)) {
+            $success     = true;
+            $adminPrefix = $prefix;
+            $runLog[]    = ['ok', 'Installation complete!'];
+            ilog('Installation complete');
+        }
+    }
 }
 
-// ---------------------------------------------------------------------
-// HTML Output
-// ---------------------------------------------------------------------
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function statusBadge(bool $ok): string
+{
+    return $ok
+        ? '<span class="badge ok">✓</span>'
+        : '<span class="badge fail">✗</span>';
+}
+
 ?>
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>SteelRoot Installer</title>
-    <style>
-        body { font-family: Arial, sans-serif; background:#f6f8fb; color:#222; margin:0; padding:20px; }
-        .card { max-width: 820px; margin: 0 auto 20px; background:#fff; border:1px solid #e3e7ee; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.05); padding:20px; }
-        h1 { margin-top:0; }
-        .status { display:flex; gap:12px; flex-wrap:wrap; }
-        .status div { padding:6px 10px; border-radius:6px; background:#f0f3f8; }
-        .error { color:#b00020; }
-        .success { color:green; }
-        .log { background:#0f172a; color:#e5e7eb; padding:10px; border-radius:6px; font-family: Menlo, monospace; font-size: 13px; max-height:200px; overflow:auto; }
-        label { display:block; margin:8px 0 4px; }
-        input[type=text], input[type=password], input[type=number] { width:100%; padding:8px; border:1px solid #cbd5e1; border-radius:6px; }
-        button { padding:10px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; cursor:pointer; }
-        button:disabled { background:#9ca3af; }
-        .row { display:flex; gap:16px; }
-        .row .col { flex:1; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SteelRoot — Installer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b1220;--bg2:#111827;--bg3:#1a2235;
+  --text:#e5e7eb;--muted:#94a3b8;--accent:#22d3ee;--accent-dim:#0e7490;
+  --border:#1f2937;--danger:#f87171;--success:#4ade80;
+  --radius:8px;--shadow:0 4px 24px rgba(0,0,0,.5);
+}
+html{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.6}
+body{min-height:100vh;padding:2rem 1rem 4rem}
+
+.wrap{max-width:820px;margin:0 auto}
+
+/* Logo */
+.logo-wrap{text-align:center;margin-bottom:2rem}
+.logo-wrap svg{filter:drop-shadow(0 0 12px rgba(34,211,238,.35))}
+.logo-tagline{margin-top:.5rem;color:var(--muted);font-size:.85rem;letter-spacing:.08em;text-transform:uppercase}
+
+/* Cards */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow)}
+.card-title{font-size:1rem;font-weight:700;color:var(--accent);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
+.card-title span{opacity:.6;font-size:.8rem;font-weight:400;color:var(--muted)}
+
+/* Env grid */
+.check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.5rem}
+.check-item{display:flex;align-items:center;gap:.5rem;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.4rem .75rem;font-size:.82rem}
+.badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:.7rem;font-weight:700;flex-shrink:0}
+.badge.ok{background:var(--success);color:#000}
+.badge.fail{background:var(--danger);color:#fff}
+
+/* Form */
+.field{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1rem}
+.field label{font-size:.82rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.field input[type=text],
+.field input[type=password],
+.field input[type=number],
+.field select{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.55rem .85rem;font-size:.92rem;width:100%;outline:none;transition:border-color .15s}
+.field input:focus,.field select:focus{border-color:var(--accent)}
+.field .hint{font-size:.78rem;color:var(--muted)}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
+
+/* Modules */
+.module-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.75rem}
+.module-card{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.85rem 1rem;cursor:pointer;transition:border-color .15s,background .15s}
+.module-card:hover{border-color:var(--accent-dim)}
+.module-card input[type=checkbox]{display:none}
+.module-card.always{opacity:.65;cursor:default}
+.module-card.selected{border-color:var(--accent);background:rgba(34,211,238,.06)}
+.module-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
+.module-name{font-weight:700;font-size:.88rem}
+.module-desc{font-size:.77rem;color:var(--muted);line-height:1.4}
+.module-badge{font-size:.68rem;padding:.15rem .45rem;border-radius:20px;font-weight:600}
+.module-badge.core{background:rgba(34,211,238,.15);color:var(--accent)}
+.module-badge.optional{background:rgba(148,163,184,.12);color:var(--muted)}
+
+/* Buttons */
+.btn-row{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:1.5rem}
+.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem 1.4rem;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;border:none;transition:opacity .15s,background .15s}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover:not(:disabled){background:#38bcd8}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-ghost:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid rgba(248,113,113,.3)}
+
+/* Alerts */
+.alert{border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.88rem}
+.alert.success{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:var(--success)}
+.alert.danger{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--danger)}
+
+/* Log */
+.run-log{background:#060d18;border:1px solid var(--border);border-radius:6px;padding:1rem;max-height:240px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:.78rem;line-height:1.7}
+.run-log .ok{color:var(--success)}
+.run-log .err{color:var(--danger)}
+
+/* Divider */
+.divider{height:1px;background:var(--border);margin:1.25rem 0}
+
+@media(max-width:600px){.grid-2,.grid-3{grid-template-columns:1fr}}
+</style>
 </head>
 <body>
-<div class="card">
-    <div style="text-align:center;">
-        <svg width="180" height="190" viewBox="0 0 240 260" xmlns="http://www.w3.org/2000/svg">
-          <style>
-            .steel { stroke:#8FA3AD; stroke-width:10; fill:none; stroke-linecap:round; stroke-linejoin:round; }
-            .root  { stroke:#5F6F78; stroke-width:8;  fill:none; stroke-linecap:round; stroke-linejoin:round; }
-            .text  { fill:#8FA3AD; font-family: 'JetBrains Mono', monospace; font-size:24px; letter-spacing:4px; }
-          </style>
-          <text x="120" y="40" text-anchor="middle" class="text">STEELROOT</text>
-          <path class="steel" d="M60 90 L60 200 M60 90 H135 Q170 90 170 125 Q170 160 135 160 H60 M135 160 L175 200" />
-          <path class="root" d="M100 200 V240 M100 215 H70 M100 225 H130  M140 200 V240 M140 215 H165 M140 225 H115" />
-        </svg>
+<div class="wrap">
+
+  <!-- Logo -->
+  <div class="logo-wrap">
+    <svg width="72" height="72" viewBox="0 0 240 260" xmlns="http://www.w3.org/2000/svg">
+      <path stroke="#22d3ee" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"
+            d="M60 90 L60 200 M60 90 H135 Q170 90 170 125 Q170 160 135 160 H60 M135 160 L175 200"/>
+      <path stroke="#0e7490" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"
+            d="M100 200 V240 M100 215 H70 M100 225 H130 M140 200 V240 M140 215 H165 M140 225 H115"/>
+    </svg>
+    <div class="logo-tagline">SteelRoot CMS — Installer</div>
+  </div>
+
+  <?php if ($success): ?>
+  <!-- ── SUCCESS ── -->
+  <div class="card">
+    <div class="card-title">🎉 Installation complete</div>
+    <div class="alert success">
+      SteelRoot installed successfully. Delete this file before going live.
     </div>
-    <h1>Установка SteelRoot</h1>
-    <p>Пожалуйста, заполните параметры базы данных и администратора. Скрипт проверит окружение, выполнит миграции и создаст конфигурацию.</p>
-
-    <h3>Проверка окружения</h3>
-    <div class="status">
-        <?php foreach ($requirements as $label => $ok): ?>
-            <div><?= status_icon($ok) . ' ' . esc($label) ?></div>
-        <?php endforeach; ?>
+    <div class="run-log">
+      <?php foreach ($runLog as [$type, $line]): ?>
+        <div class="<?= $type ?>"><?= $type === 'ok' ? '✓' : '✗' ?> <?= esc($line) ?></div>
+      <?php endforeach; ?>
     </div>
-    <h3>Права на запись</h3>
-    <div class="status">
-        <?php foreach ($paths as $label => $ok): ?>
-            <div><?= status_icon($ok) . ' ' . esc($label) ?></div>
-        <?php endforeach; ?>
-    </div>
-
-    <?php if (!empty($errors)): ?>
-        <div class="error">
-            <ul>
-                <?php foreach ($errors as $e): ?>
-                    <li><?= esc($e) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        </div>
-    <?php endif; ?>
-    <?php if ($testStatus): ?>
-        <div class="<?= empty($errors) ? 'success' : 'error' ?>"><?= esc($testStatus) ?></div>
-    <?php endif; ?>
-
-    <?php if ($success): ?>
-        <div class="success">
-            <p>Установка успешно завершена.</p>
-            <p>Настоятельно рекомендуется удалить installer.php.</p>
-            <p>Пожалуйста, смените пароль администратора после входа.</p>
-        </div>
-    <?php endif; ?>
-
-    <?php if (!empty($runLog)): ?>
-        <h3>Шаги</h3>
-        <div class="log">
-            <?php foreach ($runLog as $line): ?>
-                <?= esc($line) ?><br>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
-
-    <?php if (!$success): ?>
-    <form method="post">
-        <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
-        <div class="row">
-            <div class="col">
-                <h3>База данных</h3>
-                <label>Хост</label>
-                <input type="text" name="db_host" value="<?= esc($_POST['db_host'] ?? 'localhost') ?>" required>
-                <label>Порт</label>
-                <input type="number" name="db_port" value="<?= esc($_POST['db_port'] ?? '3306') ?>" required>
-                <label>Пользователь</label>
-                <input type="text" name="db_user" value="<?= esc($_POST['db_user'] ?? '') ?>" required>
-                <label>Пароль</label>
-                <input type="password" name="db_pass" value="" required>
-                <label>Имя базы</label>
-                <input type="text" name="db_name" value="<?= esc($_POST['db_name'] ?? '') ?>" required>
-            </div>
-            <div class="col">
-                <h3>Сайт и админ</h3>
-                <label>Название сайта</label>
-                <input type="text" name="site_name" value="<?= esc($_POST['site_name'] ?? 'SteelRoot') ?>" required>
-                <label>URL сайта</label>
-                <input type="text" name="site_url" value="<?= esc($_POST['site_url'] ?? 'http://localhost') ?>" required>
-                <label>Секрет админки (опционально, добавится к /admin-...)</label>
-                <input type="text" name="admin_secret" value="<?= esc($_POST['admin_secret'] ?? '') ?>">
-                <label>Язык (en|ru)</label>
-                <input type="text" name="lang" value="<?= esc($_POST['lang'] ?? 'en') ?>" required>
-                <label>Админ логин</label>
-                <input type="text" name="admin_user" value="<?= esc($_POST['admin_user'] ?? 'admin') ?>" required>
-                <label>Админ пароль</label>
-                <input type="password" name="admin_pass" value="" required>
-            </div>
-        </div>
-        <p>
-            <button type="submit" name="action" value="test" <?= $envOk ? '' : 'disabled' ?>>Проверить подключение</button>
-            <button type="submit" name="action" value="install" <?= $envOk ? '' : 'disabled' ?>>Установить</button>
-        </p>
+    <div class="divider"></div>
+    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem">
+      Admin panel: <code style="color:var(--accent)"><?= esc($adminPrefix ?? '/admin') ?></code>
+    </p>
+    <form method="post" style="display:flex;gap:.75rem;flex-wrap:wrap">
+      <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
+      <input type="hidden" name="action" value="delete">
+      <input type="hidden" name="admin_prefix" value="<?= esc($adminPrefix ?? '/admin') ?>">
+      <button type="submit" class="btn btn-danger">Delete installer.php &amp; go to admin</button>
     </form>
-    <?php else: ?>
-        <form method="post">
-            <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
-            <input type="hidden" name="action" value="delete">
-            <button type="submit">Удалить installer.php</button>
-        </form>
-    <?php endif; ?>
+  </div>
 
-    <p style="font-size:12px;color:#555;">Лог: storage/logs/install.log (пароли маскируются).</p>
+  <?php else: ?>
+  <!-- ── ENV CHECK ── -->
+  <div class="card">
+    <div class="card-title">Environment <span>PHP <?= PHP_VERSION ?></span></div>
+    <div class="check-grid">
+      <?php foreach ($requirements as $label => $ok): ?>
+        <div class="check-item"><?= statusBadge($ok) ?> <?= esc($label) ?></div>
+      <?php endforeach; ?>
+    </div>
+    <div class="divider"></div>
+    <div class="card-title" style="margin-bottom:.75rem">Writable paths</div>
+    <div class="check-grid">
+      <?php foreach ($paths as $label => $ok): ?>
+        <div class="check-item"><?= statusBadge($ok) ?> <?= esc($label) ?></div>
+      <?php endforeach; ?>
+    </div>
+    <?php if (!$envOk): ?>
+      <div class="alert danger" style="margin-top:1rem">Fix the issues above before installing.</div>
+    <?php endif; ?>
+  </div>
+
+  <?php if (!empty($errors)): ?>
+    <div class="alert danger">
+      <?php foreach ($errors as $e): ?><div>✗ <?= esc($e) ?></div><?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+
+  <?php if (!empty($runLog)): ?>
+    <div class="run-log" style="margin-bottom:1.25rem">
+      <?php foreach ($runLog as [$type, $line]): ?>
+        <div class="<?= $type ?>"><?= $type === 'ok' ? '✓' : '✗' ?> <?= esc($line) ?></div>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+
+  <!-- ── FORM ── -->
+  <form method="post" id="installer-form">
+    <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
+
+    <!-- Database -->
+    <div class="card">
+      <div class="card-title">Database</div>
+      <div class="grid-3">
+        <div class="field">
+          <label>Host</label>
+          <input type="text" name="db_host" value="<?= esc($_POST['db_host'] ?? 'localhost') ?>" required>
+        </div>
+        <div class="field">
+          <label>Port</label>
+          <input type="number" name="db_port" value="<?= esc((string)($_POST['db_port'] ?? 3306)) ?>" required>
+        </div>
+        <div class="field">
+          <label>Database name</label>
+          <input type="text" name="db_name" value="<?= esc($_POST['db_name'] ?? '') ?>" required>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" name="db_user" value="<?= esc($_POST['db_user'] ?? '') ?>" required>
+        </div>
+        <div class="field">
+          <label>Password</label>
+          <input type="password" name="db_pass">
+        </div>
+      </div>
+    </div>
+
+    <!-- Site -->
+    <div class="card">
+      <div class="card-title">Site</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Site name</label>
+          <input type="text" name="site_name" value="<?= esc($_POST['site_name'] ?? 'SteelRoot') ?>" required>
+        </div>
+        <div class="field">
+          <label>Site URL</label>
+          <input type="text" name="site_url" value="<?= esc($_POST['site_url'] ?? 'http://localhost') ?>" required>
+        </div>
+        <div class="field">
+          <label>Language</label>
+          <select name="locale">
+            <option value="en" <?= ($_POST['locale'] ?? 'en') === 'en' ? 'selected' : '' ?>>English</option>
+            <option value="ru" <?= ($_POST['locale'] ?? '') === 'ru' ? 'selected' : '' ?>>Русский</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Locale mode</label>
+          <select name="locale_mode">
+            <option value="multi" <?= ($_POST['locale_mode'] ?? 'multi') === 'multi' ? 'selected' : '' ?>>Multi (EN + RU)</option>
+            <option value="en"    <?= ($_POST['locale_mode'] ?? '') === 'en'    ? 'selected' : '' ?>>English only</option>
+            <option value="ru"    <?= ($_POST['locale_mode'] ?? '') === 'ru'    ? 'selected' : '' ?>>Русский only</option>
+          </select>
+          <span class="hint">Controls which language fields are shown in admin forms.</span>
+        </div>
+        <div class="field">
+          <label>Admin URL secret <span style="font-weight:400">(optional)</span></label>
+          <input type="text" name="admin_secret" value="<?= esc($_POST['admin_secret'] ?? '') ?>" placeholder="leave empty for /admin">
+          <span class="hint">If set, admin will be at /admin-{secret}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Admin account -->
+    <div class="card">
+      <div class="card-title">Admin account</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Username</label>
+          <input type="text" name="admin_user" value="<?= esc($_POST['admin_user'] ?? 'admin') ?>" required>
+        </div>
+        <div class="field">
+          <label>Password <span style="font-weight:400;color:var(--muted)">(min 8 chars)</span></label>
+          <input type="password" name="admin_pass" required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modules -->
+    <div class="card">
+      <div class="card-title">Modules</div>
+      <div class="module-grid" id="module-grid">
+        <?php foreach ($moduleCatalogue as $slug => $meta): ?>
+          <?php
+            $always   = $meta[2];
+            $checked  = $always || !empty($_POST['module_' . strtolower($slug)]);
+            $postKey  = 'module_' . strtolower($slug);
+          ?>
+          <label class="module-card <?= $always ? 'always' : '' ?> <?= $checked ? 'selected' : '' ?>"
+                 <?= $always ? '' : 'onclick="toggleModule(this)"' ?>>
+            <input type="checkbox" name="<?= $postKey ?>" value="1"
+                   <?= $checked ? 'checked' : '' ?>
+                   <?= $always  ? 'disabled' : '' ?>>
+            <div class="module-card-top">
+              <span class="module-name"><?= esc($meta[0]) ?></span>
+              <span class="module-badge <?= $always ? 'core' : 'optional' ?>"><?= $always ? 'core' : 'optional' ?></span>
+            </div>
+            <div class="module-desc"><?= esc($meta[1]) ?></div>
+          </label>
+        <?php endforeach; ?>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button type="submit" name="action" value="test" class="btn btn-ghost" <?= $envOk ? '' : 'disabled' ?>>
+        Test DB connection
+      </button>
+      <button type="submit" name="action" value="install" class="btn btn-primary" <?= $envOk ? '' : 'disabled' ?>>
+        Install SteelRoot
+      </button>
+    </div>
+  </form>
+
+  <?php endif; ?>
+
+  <div style="text-align:center;margin-top:2rem;color:var(--muted);font-size:.75rem">
+    Log: storage/logs/install.log
+  </div>
 </div>
+
+<script>
+function toggleModule(card) {
+    const cb = card.querySelector('input[type=checkbox]');
+    if (!cb || cb.disabled) return;
+    cb.checked = !cb.checked;
+    card.classList.toggle('selected', cb.checked);
+}
+</script>
 </body>
 </html>

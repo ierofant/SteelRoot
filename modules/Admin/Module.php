@@ -119,6 +119,7 @@ class Module
             $r->post('/security/clear', [Controllers\SecurityController::class, 'clearLogs']);
             $r->get('/redirects', [Controllers\RedirectsController::class, 'index']);
             $r->post('/redirects', [Controllers\RedirectsController::class, 'store']);
+            $r->post('/redirects/delete', [Controllers\RedirectsController::class, 'delete']);
             $r->post('/redirects/clear-cache', [Controllers\RedirectsController::class, 'clearCache']);
         });
     }
