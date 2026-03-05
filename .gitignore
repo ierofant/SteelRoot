@@ -49,6 +49,14 @@ new/
 
 # Premium modules (not for public repo)
 modules/Shop/
+assets/css/shop-admin.css
+assets/css/shop.css
+assets/js/shop-cart.js
+assets/js/shop-catalog.js
+assets/js/shop-mini-cart.js
+assets/js/shop-product.js
+assets/js/shop-wishlist-compare.js
+
 STEELSHOP_FEATURES.md
 STEELSHOP_INSTALL.md
 steelshop.zip

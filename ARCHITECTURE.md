@@ -150,6 +150,27 @@ public_html/
 
 ---
 
+### locale_mode
+
+- Setting `locale_mode` in DB: `en` / `ru` / `multi`
+- Controls which language fields are shown in all admin forms
+- Pattern used across Articles, Gallery, Categories:
+  - Controller reads `$settings->get('locale_mode', 'multi')`, passes as `localeMode` to renderer
+  - View: `$showEn = ($lm !== 'ru')`, `$showRu = ($lm !== 'en')`
+  - Field groups wrapped in `if ($showEn && $showRu) / elseif ($showEn) / else`
+- Validation also adapts: `en` mode requires only `title_en`, `ru` only `title_ru`
+
+---
+
+### File Manager
+
+- `modules/Admin/Controllers/FileManagerController`
+- Filesystem browser scoped to `APP_ROOT . '/storage/uploads'`
+- Path traversal protection: `realpath()` + prefix comparison
+- Flash messages via `$_SESSION['file_manager_flash']` (not `$flash` — avoids conflict with layout)
+
+---
+
 ### Meta & Structured Data
 
 `core/Meta/`

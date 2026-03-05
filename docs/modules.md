@@ -7,7 +7,10 @@
 - `views/` — PHP templates; no hardcoded strings.
 - `lang/en.php`, `lang/ru.php` — localisation keys.
 - `migrations/` — DB schema changes.
-- Optional: `Search/`, `sitemap.php`, assets specific to the module.
+- Optional auto-discovery files:
+  - `sitemap.php` — returns `[['loc','lastmod','changefreq','priority'], ...]`; picked up by Kernel for sitemap.xml.
+  - `home_block.php` — returns block config (`settings_key`, `order_key`, `default_order`, `provider`, `view`); picked up by HomeController.
+  - `search_provider.php` — returns a SearchProvider instance; registered via `bootstrap/search_providers.php`.
 
 ## Required behaviours
 - Provide admin routes under `admin_prefix` for configuration if needed.

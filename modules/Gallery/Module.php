@@ -16,6 +16,7 @@ class Module
     public function register(Container $container, Router $router): void
     {
         $router->get('/gallery', [Controllers\GalleryController::class, 'index']);
+        $router->get('/gallery/category/{slug}', [Controllers\GalleryController::class, 'byCategory']);
         $router->get('/gallery/photo/{slug}', [Controllers\GalleryController::class, 'view']);
         // ЧПУ отключено по требованию: оставляем query /view?id=
         $router->get('/gallery/view', [Controllers\GalleryController::class, 'view']);
@@ -39,6 +40,12 @@ class Module
             $r->post('/delete/{id}', [Controllers\UploadController::class, 'delete']);
             $r->get('/settings', [Controllers\UploadController::class, 'settings']);
             $r->post('/settings', [Controllers\UploadController::class, 'saveSettings']);
+            $r->get('/categories', [Controllers\AdminGalleryCategoriesController::class, 'index']);
+            $r->get('/categories/create', [Controllers\AdminGalleryCategoriesController::class, 'create']);
+            $r->post('/categories/create', [Controllers\AdminGalleryCategoriesController::class, 'store']);
+            $r->get('/categories/edit/{id}', [Controllers\AdminGalleryCategoriesController::class, 'edit']);
+            $r->post('/categories/edit/{id}', [Controllers\AdminGalleryCategoriesController::class, 'update']);
+            $r->post('/categories/delete/{id}', [Controllers\AdminGalleryCategoriesController::class, 'delete']);
         });
     }
 }

@@ -26,14 +26,14 @@ class AttachmentAdminController
 
     public function index(Request $request): Response
     {
-        $files = glob(APP_ROOT . '/storage/uploads/articles/*');
+        $files = array_filter(glob(APP_ROOT . '/storage/uploads/articles/*') ?: [], 'is_file');
         $items = array_map(function ($file) {
             return [
                 'name' => basename($file),
                 'url' => '/storage/uploads/articles/' . basename($file),
                 'size' => filesize($file),
             ];
-        }, $files ?: []);
+        }, $files);
         $msg = null;
         if (!empty($request->query['msg'])) {
             $msg = $request->query['msg'] === 'uploaded' ? 'Файл загружен' : null;

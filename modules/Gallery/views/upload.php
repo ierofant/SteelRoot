@@ -1,5 +1,9 @@
 <?php
 $ap = defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin';
+$categories = $categories ?? [];
+$lm = $localeMode ?? 'multi';
+$showEn = ($lm !== 'ru');
+$showRu = ($lm !== 'en');
 ob_start();
 ?>
 <div class="card stack">
@@ -8,14 +12,21 @@ ob_start();
             <p class="eyebrow"><?= __('gallery.upload.title') ?></p>
             <h3><?= __('gallery.upload.subtitle') ?></h3>
         </div>
-        <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>"><?= __('gallery.upload.back_admin') ?></a>
+        <div style="display:flex;gap:.5rem">
+            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/gallery/categories">Categories</a>
+            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>"><?= __('gallery.upload.back_admin') ?></a>
+        </div>
     </div>
-    <form method="post" enctype="multipart/form-data" class="stack">
+    <form method="post" enctype="multipart/form-data" class="stack" id="gallery-upload-form">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
         <label class="field">
             <span><?= __('gallery.upload.field.file') ?></span>
-            <input type="file" name="image" required>
+            <input type="file" name="image" required id="gallery-file-input" accept="image/*">
+            <div id="gallery-preview" style="display:none;margin-top:.5rem">
+                <img id="gallery-preview-img" src="" alt="preview" style="max-width:240px;max-height:160px;border-radius:6px;border:1px solid var(--border);object-fit:cover">
+            </div>
         </label>
+        <?php if ($showEn && $showRu): ?>
         <div class="grid two">
             <label class="field">
                 <span><?= __('gallery.upload.field.title_en') ?></span>
@@ -29,30 +40,67 @@ ob_start();
         <div class="grid two">
             <label class="field">
                 <span><?= __('gallery.upload.field.description_en') ?></span>
-                <textarea name="description_en" rows="4"></textarea>
+                <textarea name="description_en" rows="3"></textarea>
             </label>
             <label class="field">
                 <span><?= __('gallery.upload.field.description_ru') ?></span>
-                <textarea name="description_ru" rows="4"></textarea>
+                <textarea name="description_ru" rows="3"></textarea>
             </label>
         </div>
+        <?php elseif ($showEn): ?>
+        <label class="field">
+            <span><?= __('gallery.upload.field.title_en') ?></span>
+            <input type="text" name="title_en">
+        </label>
+        <label class="field">
+            <span><?= __('gallery.upload.field.description_en') ?></span>
+            <textarea name="description_en" rows="3"></textarea>
+        </label>
+        <?php else: ?>
+        <label class="field">
+            <span><?= __('gallery.upload.field.title_ru') ?></span>
+            <input type="text" name="title_ru">
+        </label>
+        <label class="field">
+            <span><?= __('gallery.upload.field.description_ru') ?></span>
+            <textarea name="description_ru" rows="3"></textarea>
+        </label>
+        <?php endif; ?>
         <label class="field">
             <span><?= __('gallery.upload.field.tags') ?></span>
             <input type="text" name="tags">
         </label>
-        <div class="grid two">
-            <label class="field">
-                <span><?= __('gallery.upload.field.category') ?></span>
-                <input type="text" name="category" list="cat-list" placeholder="<?= __('gallery.upload.placeholder.category') ?>">
-                <?php if (!empty($categories)): ?>
-                    <datalist id="cat-list">
-                        <?php foreach ($categories as $cat): ?>
-                            <option value="<?= htmlspecialchars($cat) ?>"></option>
-                        <?php endforeach; ?>
-                    </datalist>
-                <?php endif; ?>
-            </label>
-        </div>
+        <label class="field">
+            <span>Folder</span>
+            <select name="target_folder" id="target-folder-select">
+                <option value="">— root (no subfolder) —</option>
+                <?php foreach ($folders ?? [] as $f): ?>
+                    <option value="<?= htmlspecialchars($f) ?>">/<?= htmlspecialchars($f) ?>/</option>
+                <?php endforeach; ?>
+                <option value="__new__">+ New folder…</option>
+            </select>
+            <input type="text" name="target_folder_new" id="target-folder-new"
+                   placeholder="new-folder-name (a-z, 0-9, hyphen)"
+                   pattern="[a-zA-Z0-9_\-]+"
+                   style="display:none;margin-top:.4rem">
+        </label>
+        <label class="field">
+            <span><?= __('gallery.upload.field.category') ?></span>
+            <select name="category_id">
+                <option value="">— No category —</option>
+                <?php foreach ($categories as $cat): ?>
+                    <option value="<?= (int)$cat['id'] ?>">
+                        <?= htmlspecialchars($cat['name_en']) ?><?= $cat['name_ru'] ? ' / ' . htmlspecialchars($cat['name_ru']) : '' ?>
+                        — /<?= htmlspecialchars($cat['slug']) ?>/
+                    </option>
+                <?php endforeach; ?>
+            </select>
+            <?php if (empty($categories)): ?>
+                <span class="muted" style="font-size:.85em">
+                    <a href="<?= htmlspecialchars($ap) ?>/gallery/categories">Create categories</a> to organise uploads.
+                </span>
+            <?php endif; ?>
+        </label>
         <div class="form-actions">
             <button type="submit" class="btn primary"><?= __('gallery.upload.action.upload') ?></button>
             <a class="btn ghost" href="/gallery"><?= __('gallery.upload.action.open_gallery') ?></a>
@@ -94,6 +142,39 @@ ob_start();
         </table>
     </div>
 </div>
+<script>
+document.getElementById('gallery-file-input').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const preview = document.getElementById('gallery-preview');
+    const img = document.getElementById('gallery-preview-img');
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        img.src = e.target.result;
+        preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+});
+
+(function() {
+    const sel = document.getElementById('target-folder-select');
+    const newInput = document.getElementById('target-folder-new');
+    if (!sel || !newInput) return;
+
+    sel.addEventListener('change', function() {
+        newInput.style.display = this.value === '__new__' ? 'block' : 'none';
+        newInput.required = this.value === '__new__';
+    });
+
+    document.getElementById('gallery-upload-form').addEventListener('submit', function() {
+        if (sel.value === '__new__' && newInput.value.trim() !== '') {
+            sel.value = newInput.value.trim();
+        } else if (sel.value === '__new__') {
+            sel.value = '';
+        }
+    });
+})();
+</script>
 <?php
 $title = __('gallery.upload.page_title');
 $content = ob_get_clean();

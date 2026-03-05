@@ -16,6 +16,7 @@ class Module
     public function register(Container $container, Router $router): void
     {
         $router->get('/articles', [Controllers\ArticlesController::class, 'index']);
+        $router->get('/articles/category/{slug}', [Controllers\ArticlesController::class, 'byCategory']);
         $router->get('/articles/{slug}', [Controllers\ArticlesController::class, 'view']);
         $router->get('/tags/{slug}', [Controllers\ArticlesController::class, 'byTag']);
 
@@ -36,6 +37,12 @@ class Module
             $r->post('/delete/{slug}', [Controllers\AdminArticlesController::class, 'delete']);
             $r->get('/settings', [Controllers\AdminArticlesController::class, 'settings']);
             $r->post('/settings', [Controllers\AdminArticlesController::class, 'saveSettings']);
+            $r->get('/categories', [Controllers\AdminArticleCategoriesController::class, 'index']);
+            $r->get('/categories/create', [Controllers\AdminArticleCategoriesController::class, 'create']);
+            $r->post('/categories/create', [Controllers\AdminArticleCategoriesController::class, 'store']);
+            $r->get('/categories/edit/{id}', [Controllers\AdminArticleCategoriesController::class, 'edit']);
+            $r->post('/categories/edit/{id}', [Controllers\AdminArticleCategoriesController::class, 'update']);
+            $r->post('/categories/delete/{id}', [Controllers\AdminArticleCategoriesController::class, 'delete']);
         });
     }
 }

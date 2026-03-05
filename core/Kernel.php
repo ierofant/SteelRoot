@@ -387,75 +387,134 @@ class Kernel
 
     private function sitemap(Request $request): Response
     {
-        /** @var Cache $cache */
-        $cache = $this->container->get('cache');
+        $cache  = $this->container->get('cache');
         $cached = $cache->get('sitemap');
         if ($cached) {
             return new Response($cached, 200, ['Content-Type' => 'application/xml']);
         }
+
         $base = rtrim($this->config['app']['url'] ?? 'http://localhost', '/');
         if ($base === '') {
             $base = 'http://localhost';
         }
-        $settings = $this->container->get(SettingsService::class);
-        $cfg = [
-            'include_home' => $this->boolSetting($settings, 'include_home', true),
-            'include_contact' => $this->boolSetting($settings, 'include_contact', true),
-            'include_articles' => $this->boolSetting($settings, 'include_articles', true),
-            'include_gallery' => $this->boolSetting($settings, 'include_gallery', true),
-            'include_tags' => $this->boolSetting($settings, 'include_tags', false),
-        ];
-        $urls = [];
-        if ($cfg['include_home']) {
-            $urls[] = "{$base}/";
-        }
-        if ($cfg['include_contact']) {
-            $urls[] = "{$base}/contact";
-        }
-        if ($cfg['include_articles']) {
-            $urls[] = "{$base}/articles";
-        }
-        if ($cfg['include_gallery']) {
-            $urls[] = "{$base}/gallery";
-        }
 
-        foreach (glob($this->root . '/modules/*/sitemap.php') as $provider) {
-            $entries = include $provider;
-            if (is_array($entries)) {
-                $urls = array_merge($urls, $entries);
-            }
-        }
-
+        $settings = $this->container->get(SettingsService::class)->all();
+        $db       = null;
         try {
             $db = $this->container->get(Database::class);
-            if ($cfg['include_articles']) {
-                $articles = $db->fetchAll("SELECT slug FROM articles");
-                foreach ($articles as $article) {
-                    $urls[] = $base . '/articles/' . rawurlencode($article['slug']);
-                }
+        } catch (\Throwable $e) {}
+
+        $ttl     = max(60, (int)($settings['sitemap_cache_ttl'] ?? 600));
+        $entries = []; // each: ['loc'=>..., 'priority'=>..., 'changefreq'=>..., 'lastmod'=>...]
+
+        // ── Core pages (home, contact) ──────────────────────────
+        $coreSections = [
+            'home'    => ['path' => '/',        'def_include' => '1', 'def_priority' => '1.0', 'def_freq' => 'daily'],
+            'contact' => ['path' => '/contact', 'def_include' => '1', 'def_priority' => '0.5', 'def_freq' => 'monthly'],
+        ];
+        foreach ($coreSections as $key => $sec) {
+            $included = $settings["sitemap_include_{$key}"] ?? $settings["include_{$key}"] ?? $sec['def_include'];
+            if ($included !== '1') {
+                continue;
             }
-            if ($cfg['include_gallery']) {
-                $gallery = $db->fetchAll("SELECT id, slug FROM gallery_items");
-                foreach ($gallery as $item) {
-                    $urls[] = $base . '/gallery/view?id=' . (int)$item['id'];
-                }
-            }
-            if ($cfg['include_tags']) {
-                $tags = $db->fetchAll("SELECT slug FROM tags");
-                foreach ($tags as $tag) {
-                    $urls[] = $base . '/tags/' . rawurlencode($tag['slug']);
-                }
-            }
-        } catch (\Throwable $e) {
-            // Ignore DB issues in sitemap generation
+            $entries[] = [
+                'loc'        => $base . $sec['path'],
+                'priority'   => $settings["sitemap_priority_{$key}"]   ?? $sec['def_priority'],
+                'changefreq' => $settings["sitemap_changefreq_{$key}"] ?? $sec['def_freq'],
+            ];
         }
 
-        $xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n";
-        foreach (array_unique($urls) as $url) {
-            $xml .= "  <url><loc>" . htmlspecialchars($url, ENT_XML1) . "</loc></url>\n";
+        // ── Tags (core section, no dedicated module) ────────────
+        $includeTags = $settings['sitemap_include_tags'] ?? $settings['include_tags'] ?? '0';
+        if ($includeTags === '1' && $db !== null) {
+            try {
+                $tagPriority = $settings['sitemap_priority_tags']   ?? '0.4';
+                $tagFreq     = $settings['sitemap_changefreq_tags'] ?? 'weekly';
+                foreach ($db->fetchAll("SELECT slug FROM tags") as $tag) {
+                    $entries[] = [
+                        'loc'        => $base . '/tags/' . rawurlencode($tag['slug']),
+                        'priority'   => $tagPriority,
+                        'changefreq' => $tagFreq,
+                    ];
+                }
+            } catch (\Throwable $e) {}
+        }
+
+        // ── Module providers ────────────────────────────────────
+        foreach (glob($this->root . '/modules/*/sitemap.php') ?: [] as $providerFile) {
+            try {
+                $provider = include $providerFile;
+                if (!is_array($provider)) {
+                    continue;
+                }
+
+                if (isset($provider['key']) && isset($provider['provider']) && is_callable($provider['provider'])) {
+                    // New declarative format
+                    $key     = (string)$provider['key'];
+                    $default = ($provider['default'] ?? true) ? '1' : '0';
+                    if (($settings["sitemap_include_{$key}"] ?? $default) !== '1') {
+                        continue;
+                    }
+                    $defPriority = $settings["sitemap_priority_{$key}"]   ?? ($provider['priority']    ?? '0.6');
+                    $defFreq     = $settings["sitemap_changefreq_{$key}"] ?? ($provider['changefreq'] ?? 'weekly');
+
+                    foreach (($provider['provider'])($base, $db) as $entry) {
+                        if (is_string($entry)) {
+                            $entries[] = ['loc' => $entry, 'priority' => $defPriority, 'changefreq' => $defFreq];
+                        } elseif (is_array($entry) && !empty($entry['loc'])) {
+                            $entries[] = [
+                                'loc'        => $entry['loc'],
+                                'priority'   => $entry['priority']   ?? $defPriority,
+                                'changefreq' => $entry['changefreq'] ?? $defFreq,
+                                'lastmod'    => $entry['lastmod']    ?? null,
+                            ];
+                        }
+                    }
+                } else {
+                    // Legacy format: flat array of URL strings — include unconditionally
+                    foreach ($provider as $url) {
+                        if (is_string($url)) {
+                            $entries[] = ['loc' => $url];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                // ignore provider errors
+            }
+        }
+
+        // ── Deduplicate ─────────────────────────────────────────
+        $seen   = [];
+        $unique = [];
+        foreach ($entries as $entry) {
+            $loc = $entry['loc'] ?? '';
+            if ($loc === '' || isset($seen[$loc])) {
+                continue;
+            }
+            $seen[$loc] = true;
+            $unique[]   = $entry;
+        }
+
+        // ── Build XML ───────────────────────────────────────────
+        $xml  = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n";
+        $xml .= "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n";
+        foreach ($unique as $e) {
+            $xml .= "  <url>\n";
+            $xml .= "    <loc>" . htmlspecialchars($e['loc'], ENT_XML1) . "</loc>\n";
+            if (!empty($e['lastmod'])) {
+                $xml .= "    <lastmod>" . htmlspecialchars($e['lastmod']) . "</lastmod>\n";
+            }
+            if (!empty($e['changefreq'])) {
+                $xml .= "    <changefreq>" . htmlspecialchars($e['changefreq']) . "</changefreq>\n";
+            }
+            if (isset($e['priority']) && $e['priority'] !== '') {
+                $xml .= "    <priority>" . htmlspecialchars((string)$e['priority']) . "</priority>\n";
+            }
+            $xml .= "  </url>\n";
         }
         $xml .= "</urlset>";
-        $cache->set('sitemap', $xml, 600);
+
+        $cache->set('sitemap', $xml, $ttl);
         return new Response($xml, 200, ['Content-Type' => 'application/xml']);
     }
 

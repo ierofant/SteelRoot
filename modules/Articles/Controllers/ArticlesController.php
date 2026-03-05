@@ -32,6 +32,74 @@ class ArticlesController
         ]);
     }
 
+    public function byCategory(Request $request): Response
+    {
+        $slug = $request->params['slug'] ?? '';
+        $category = $this->db->fetch(
+            "SELECT * FROM article_categories WHERE slug = ? AND enabled = 1",
+            [$slug]
+        );
+        if (!$category) {
+            return new Response('Not found', 404);
+        }
+        $locale = $this->container->get('lang')->current();
+        $select = "a.slug, a.title_en, a.title_ru, a.created_at";
+        $join = '';
+        if ($this->hasColumn('author_id')) {
+            $select .= ", a.author_id, u.name as author_name, u.avatar as author_avatar";
+            $join = "LEFT JOIN users u ON u.id = a.author_id";
+        }
+        if ($this->hasColumn('views')) {
+            $select .= ", a.views";
+        }
+        if ($this->hasColumn('likes')) {
+            $select .= ", a.likes";
+        }
+        if ($this->hasColumn('preview_en')) {
+            $select .= ", a.preview_en, a.preview_ru";
+        }
+        if ($this->hasColumn('image_url')) {
+            $select .= ", a.image_url";
+        }
+        $articles = $this->db->fetchAll(
+            "SELECT {$select} FROM articles a {$join}
+             WHERE a.category_id = ?
+             ORDER BY a.created_at DESC LIMIT 50",
+            [(int)$category['id']]
+        );
+        $display = $this->moduleSettings->all('articles');
+        $display = array_merge([
+            'show_author' => true, 'show_date' => true,
+            'show_likes' => true, 'show_views' => true, 'show_tags' => true,
+        ], $display);
+        $titleKey = $locale === 'ru' ? 'name_ru' : 'name_en';
+        $catTitle = $category[$titleKey] ?: ($category['name_en'] ?: $category['name_ru']);
+        $canonical = $this->canonical($request);
+        $html = $this->container->get('renderer')->render(
+            'articles/list',
+            [
+                '_layout'     => true,
+                'title'       => $catTitle,
+                'description' => '',
+                'articles'    => $articles,
+                'locale'      => $locale,
+                'display'     => $display,
+                'category'    => $category,
+                'breadcrumbs' => [
+                    ['label' => $locale === 'ru' ? 'Статьи' : 'Articles', 'url' => '/articles'],
+                    ['label' => $catTitle],
+                ],
+            ],
+            [
+                'title'       => $catTitle,
+                'description' => '',
+                'canonical'   => $canonical,
+                'image'       => !empty($category['image_url']) ? $category['image_url'] : $this->defaultOgImage(),
+            ]
+        );
+        return new Response($html);
+    }
+
     public function byTag(Request $request): Response
     {
         $slug = $request->params['slug'] ?? '';
@@ -88,7 +156,7 @@ class ArticlesController
         $select = "a.slug, a.title_en, a.title_ru, a.created_at";
         $join = '';
         if ($this->hasColumn('author_id')) {
-            $select .= ", a.author_id, u.name as author_name, u.avatar as author_avatar, u.username as author_username, u.profile_visibility as author_profile_visibility";
+            $select .= ", a.author_id, u.name as author_name, u.avatar as author_avatar";
             $join = "LEFT JOIN users u ON u.id = a.author_id";
         }
         if ($this->hasColumn('views')) {
@@ -99,17 +167,26 @@ class ArticlesController
         }
         $hasPreview = $this->hasColumn('preview_en');
         $hasImg = $this->hasColumn('image_url');
-        $hasCat = $this->hasColumn('category');
+        $hasCatId = $this->hasColumn('category_id');
         if ($hasPreview) {
             $select .= ", preview_en, preview_ru";
         }
         if ($hasImg) {
-            $select .= ", image_url";
+            $select .= ", a.image_url";
         }
-        if ($hasCat) {
-            $select .= ", category";
+        if ($hasCatId) {
+            $select .= ", a.category_id, ac.slug AS category_slug, ac.name_en AS category_name_en, ac.name_ru AS category_name_ru";
+            $join .= " LEFT JOIN article_categories ac ON ac.id = a.category_id";
         }
         $articles = $this->db->fetchAll("SELECT {$select} FROM articles a {$join} ORDER BY a.created_at DESC LIMIT 50");
+        $enabledCategories = [];
+        if ($hasCatId) {
+            try {
+                $enabledCategories = $this->db->fetchAll(
+                    "SELECT id, slug, name_en, name_ru, image_url FROM article_categories WHERE enabled = 1 ORDER BY position ASC, id ASC"
+                );
+            } catch (\Throwable $e) {}
+        }
         $display = $this->moduleSettings->all('articles');
         $display = array_merge([
             'show_author' => true,
@@ -130,10 +207,11 @@ class ArticlesController
                 '_layout' => true,
                 'title' => $listTitle,
                 'description' => $listDesc,
-                'articles' => $articles,
-                'locale' => $currentLocale,
-                'display' => $display,
-                'breadcrumbs' => [
+                'articles'           => $articles,
+                'locale'             => $currentLocale,
+                'display'            => $display,
+                'enabledCategories'  => $enabledCategories,
+                'breadcrumbs'        => [
                     ['label' => $listTitle],
                 ],
             ],
@@ -151,10 +229,18 @@ class ArticlesController
     public function view(Request $request): Response
     {
         $slug = $request->params['slug'] ?? '';
+        $catJoin = $this->hasColumn('category_id')
+            ? " LEFT JOIN article_categories ac ON ac.id = a.category_id"
+            : "";
+        $catSelect = $this->hasColumn('category_id')
+            ? ", ac.slug AS category_slug, ac.name_en AS category_name_en, ac.name_ru AS category_name_ru"
+            : "";
         $article = $this->db->fetch("
-            SELECT a.*, u.name AS author_name, u.avatar AS author_avatar, u.username AS author_username, u.profile_visibility AS author_profile_visibility, u.signature AS author_signature
+            SELECT a.*, u.name AS author_name, u.avatar AS author_avatar
+                   {$catSelect}
             FROM articles a
             LEFT JOIN users u ON u.id = a.author_id
+            {$catJoin}
             WHERE a.slug = ?
         ", [$slug]);
         if (!$article) {
@@ -219,7 +305,7 @@ class ArticlesController
         $schemaProvider = new ArticleSchemaProvider($baseUrl);
         $articleSchema = $schemaProvider->getSchema($article);
 
-        $settings = $this->container->get(\App\Services\SettingsService::class)->getAll();
+        $settings = $this->container->get(\App\Services\SettingsService::class)->all();
         $orgSchema = CommonSchemas::organization([
             'name' => $settings['site_title'] ?? 'SteelRoot',
             'url' => $baseUrl,
@@ -241,10 +327,14 @@ class ArticlesController
                 'authorProfileUrl' => $authorProfileUrl,
                 'authorSignature' => $showSignature ? ($article['author_signature'] ?? '') : '',
                 'authorSignatureVisible' => $showSignature && !empty($article['author_signature']),
-                'breadcrumbs' => [
+                'breadcrumbs' => array_filter([
                     ['label' => 'Articles', 'url' => '/articles'],
+                    !empty($article['category_slug']) ? [
+                        'label' => ($locale === 'ru' ? ($article['category_name_ru'] ?: $article['category_name_en']) : ($article['category_name_en'] ?: $article['category_name_ru'])),
+                        'url'   => '/articles/category/' . rawurlencode($article['category_slug']),
+                    ] : null,
                     ['label' => $article[$titleKey] ?? 'Article'],
-                ],
+                ]),
             ],
             [
                 'title' => $article[$titleKey] ?? '',

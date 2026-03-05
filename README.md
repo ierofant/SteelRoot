@@ -54,8 +54,10 @@ public_html/
 ```
 
 ## Features (current)
-- Articles: list/detail, tags, previews, meta; admin CRUD, module settings; **JSON-LD structured data** (Schema.org Article + Organization).
-- Gallery: masonry list, lightbox, likes/views, tags; admin upload/edit/delete, module settings, sitemap provider.
+- **Articles**: list/detail, tags, previews, meta; admin CRUD, module settings; **author field** (user dropdown); **categories** with images, slug, position, enabled flag; locale_mode-aware forms (EN/RU/both); **JSON-LD structured data** (Schema.org Article + Organization).
+- **Gallery**: masonry list, lightbox, likes/views, tags; admin upload/edit/delete, module settings, sitemap provider; **categories** with cover images and subfolder organisation; **folder picker** on upload (existing folders + create new); locale_mode-aware upload form with file preview.
+- **File Manager** (`/admin/files`): filesystem browser for `storage/uploads/`; folder navigation with breadcrumbs; upload, create folder, delete file/empty-folder; path-traversal protected.
+- **Attachments** (`/admin/attachments`): article image popup picker; upload, delete, insert URL into editor; directories excluded from listing.
 - Pages: static pages with admin CRUD, menu integration, sitemap; embeds handled in content.
 - Menu: configurable RU/EN labels, SEO meta, OG image; supports one-level dropdowns (parent/child).
 - Embeddable forms: admin tab `/admin/forms/embeds`, JSON-defined fields, localized success, embed via `{{ form:slug }}`; CSRF/rate-limit/spam protections reused from contact form.
@@ -67,7 +69,7 @@ public_html/
 - PWA: admin-managed manifest/SW version/cache list; runtime cache with versioning.
 - **SEO & Structured Data**: JSON-LD infrastructure (`core/Meta`); auto-generated Schema.org markup for articles; extensible for other modules; Google Rich Results compatible.
 - Themes: light/dark via tokens/variables; no inline colors.
-- i18n: lang files per app/module; helper `__()`.
+- i18n: lang files per app/module; helper `__()`; **locale_mode** setting (`en`/`ru`/`multi`) hides irrelevant language fields across all admin forms.
 - Cache: file cache; sitemap cached 10 min.
 - Module system: `core/ModuleManager`, per-module migrations (`ModuleMigrationRunner`), lang/views/routes providers.
 

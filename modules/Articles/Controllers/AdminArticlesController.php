@@ -9,6 +9,7 @@ use Core\Csrf;
 use Core\ModuleSettings;
 use App\Services\TagService;
 use App\Services\SettingsService;
+use Modules\Articles\Services\ArticleCategoryService;
 
 class AdminArticlesController
 {
@@ -17,8 +18,10 @@ class AdminArticlesController
     private TagService $tags;
     private SettingsService $settings;
     private ModuleSettings $moduleSettings;
+    private ArticleCategoryService $articleCategories;
     private string $uploadPath;
     private array $columnCache = [];
+    private string $localeMode;
 
     public function __construct(Container $container)
     {
@@ -27,6 +30,8 @@ class AdminArticlesController
         $this->tags = new TagService($this->db);
         $this->settings = $container->get(SettingsService::class);
         $this->moduleSettings = $container->get(ModuleSettings::class);
+        $this->articleCategories = new ArticleCategoryService($this->db);
+        $this->localeMode = $this->settings->get('locale_mode', 'multi');
         $this->uploadPath = APP_ROOT . '/storage/uploads/articles';
         if (!is_dir($this->uploadPath)) {
             mkdir($this->uploadPath, 0775, true);
@@ -45,11 +50,12 @@ class AdminArticlesController
     {
         $articles = $this->db->fetchAll("SELECT * FROM articles ORDER BY created_at DESC");
         $html = $this->container->get('renderer')->render('articles/form', [
-            'title' => 'Manage Articles',
-            'articles' => $articles,
-            'csrf' => Csrf::token('articles_form'),
-            'mode' => 'list',
-            'categories' => $this->categories(),
+            'title'      => 'Manage Articles',
+            'articles'   => $articles,
+            'csrf'       => Csrf::token('articles_form'),
+            'mode'       => 'list',
+            'categories' => $this->articleCategories->all(),
+            'localeMode' => $this->localeMode,
         ]);
         return new Response($html);
     }
@@ -57,11 +63,13 @@ class AdminArticlesController
     public function create(Request $request): Response
     {
         $html = $this->container->get('renderer')->render('articles/form', [
-            'title' => 'Create Article',
-            'mode' => 'create',
-            'article' => null,
-            'csrf' => Csrf::token('articles_form'),
-            'categories' => $this->categories(),
+            'title'      => 'Create Article',
+            'mode'       => 'create',
+            'article'    => null,
+            'csrf'       => Csrf::token('articles_form'),
+            'categories' => $this->articleCategories->all(),
+            'localeMode' => $this->localeMode,
+            'users'      => $this->loadUsers(),
         ]);
         return new Response($html);
     }
@@ -76,17 +84,20 @@ class AdminArticlesController
         $slug = $this->slugify($slugSource);
         $titleEn = trim($request->body['title_en'] ?? '');
         $titleRu = trim($request->body['title_ru'] ?? '');
-        if ($titleEn === '' || $titleRu === '') {
-            return new Response('Titles are required', 422);
+        $titleInvalid = match ($this->localeMode) {
+            'en'    => $titleEn === '',
+            'ru'    => $titleRu === '',
+            default => $titleEn === '' && $titleRu === '',
+        };
+        if ($titleInvalid) {
+            return new Response('Title is required', 422);
         }
-        $category = trim($request->body['category_new'] ?? '') ?: trim($request->body['category'] ?? '');
-        $this->rememberCategory($category);
+        $categoryId = (int)($request->body['category_id'] ?? 0) ?: null;
         $exists = $this->db->fetch("SELECT id FROM articles WHERE slug = ?", [$slug]);
         if ($exists) {
             return new Response('Slug already exists', 409);
         }
         $imageUrl = $this->hasColumn('image_url') ? $this->handleUpload($request, trim($request->body['image_url'] ?? '') ?: null) : null;
-        $hasCat = $this->hasColumn('category');
         $hasImg = $this->hasColumn('image_url');
         $hasPreview = $this->hasColumn('preview_en');
         $hasAuthor = $this->hasColumn('author_id');
@@ -102,7 +113,8 @@ class AdminArticlesController
         if ($hasAuthor) {
             $cols[] = 'author_id';
             $vals[] = ':author_id';
-            $params[':author_id'] = $this->currentAuthorId();
+            $authorId = (int)($request->body['author_id'] ?? 0) ?: null;
+            $params[':author_id'] = $authorId;
         }
         if ($hasPreview) {
             $cols[] = 'preview_en';
@@ -122,10 +134,10 @@ class AdminArticlesController
             $vals[] = ':description_ru';
             $params[':description_ru'] = $request->body['description_ru'] ?? '';
         }
-        if ($hasCat) {
-            $cols[] = 'category';
-            $vals[] = ':category';
-            $params[':category'] = $category ?: null;
+        if ($this->hasColumn('category_id')) {
+            $cols[] = 'category_id';
+            $vals[] = ':category_id';
+            $params[':category_id'] = $categoryId;
         }
         if ($hasImg) {
             $cols[] = 'image_url';
@@ -151,12 +163,14 @@ class AdminArticlesController
         $slug = $request->params['slug'] ?? '';
         $article = $this->db->fetch("SELECT * FROM articles WHERE slug = ?", [$slug]);
         $html = $this->container->get('renderer')->render('articles/form', [
-            'title' => 'Edit Article',
-            'mode' => 'edit',
-            'article' => $article,
-            'csrf' => Csrf::token('articles_form'),
-            'tags' => $this->tags->forEntity('article', (int)($article['id'] ?? 0)),
-            'categories' => $this->categories(),
+            'title'      => 'Edit Article',
+            'mode'       => 'edit',
+            'article'    => $article,
+            'csrf'       => Csrf::token('articles_form'),
+            'tags'       => $this->tags->forEntity('article', (int)($article['id'] ?? 0)),
+            'categories' => $this->articleCategories->all(),
+            'localeMode' => $this->localeMode,
+            'users'      => $this->loadUsers(),
         ]);
         return new Response($html);
     }
@@ -214,12 +228,11 @@ class AdminArticlesController
         if ($existing) {
             return new Response('Slug already exists', 409);
         }
-        $category = trim($request->body['category_new'] ?? '') ?: trim($request->body['category'] ?? '');
-        $this->rememberCategory($category);
+        $categoryId = (int)($request->body['category_id'] ?? 0) ?: null;
         $imageUrl = $this->hasColumn('image_url') ? $this->handleUpload($request, trim($request->body['image_url'] ?? '') ?: ($article['image_url'] ?? null)) : ($article['image_url'] ?? null);
-        $hasCat = $this->hasColumn('category');
         $hasImg = $this->hasColumn('image_url');
         $hasPreview = $this->hasColumn('preview_en');
+        $hasAuthor = $this->hasColumn('author_id');
         $sets = [
             'slug = :slug',
             'title_en = :title_en',
@@ -236,15 +249,19 @@ class AdminArticlesController
             ':body_ru' => $request->body['body_ru'] ?? '',
             ':current' => $slug,
         ];
+        if ($hasAuthor) {
+            $sets[] = 'author_id = :author_id';
+            $params[':author_id'] = (int)($request->body['author_id'] ?? 0) ?: null;
+        }
         if ($hasPreview) {
             $sets[] = 'preview_en = :preview_en';
             $sets[] = 'preview_ru = :preview_ru';
             $params[':preview_en'] = $request->body['preview_en'] ?? '';
             $params[':preview_ru'] = $request->body['preview_ru'] ?? '';
         }
-        if ($hasCat) {
-            $sets[] = 'category = :category';
-            $params[':category'] = $category ?: null;
+        if ($this->hasColumn('category_id')) {
+            $sets[] = 'category_id = :category_id';
+            $params[':category_id'] = $categoryId;
         }
         if ($hasImg) {
             $sets[] = 'image_url = :image_url';
@@ -305,25 +322,6 @@ class AdminArticlesController
         $cache->delete('article_' . $slug);
     }
 
-    private function categories(): array
-    {
-        $json = $this->settings->get('article_categories', '[]');
-        $arr = json_decode($json, true);
-        return is_array($arr) ? $arr : [];
-    }
-
-    private function rememberCategory(string $category): void
-    {
-        if ($category === '') {
-            return;
-        }
-        $cats = $this->categories();
-        if (!in_array($category, $cats, true)) {
-            $cats[] = $category;
-            $this->settings->set('article_categories', json_encode($cats, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        }
-    }
-
     private function handleUpload(Request $request, ?string $existing = null): ?string
     {
         if (empty($request->files['image']['tmp_name'])) {
@@ -368,6 +366,14 @@ class AdminArticlesController
         } catch (\Throwable $e) {
             return null;
         }
+    }
+
+    private function loadUsers(): array
+    {
+        if (!$this->hasColumn('author_id')) {
+            return [];
+        }
+        return $this->db->fetchAll("SELECT id, name FROM users ORDER BY name ASC");
     }
 
     private function hasColumn(string $name): bool

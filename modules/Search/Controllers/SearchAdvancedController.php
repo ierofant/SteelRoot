@@ -33,28 +33,32 @@ class SearchAdvancedController
         $filters = $request->body['filters'] ?? [];
         $requested = $request->body['providers'] ?? [];
         $requested = is_array($requested) ? array_filter(array_map('strval', $requested)) : [];
+
+        $locale  = trim($request->body['locale'] ?? $request->query['locale'] ?? 'ru');
+        $options = array_merge(is_array($filters) ? $filters : [], ['locale' => $locale]);
+
         $results = [];
         if ($q !== '') {
             if ($providerKey !== '') {
                 $provider = $this->registry->get($providerKey);
                 if ($provider) {
-                    $results = $provider->search($q, is_array($filters) ? $filters : []);
+                    $results = $provider->search($q, $options);
                 }
             } else {
                 $keys = $requested ?: array_keys($this->registry->getProviders());
                 foreach ($keys as $k) {
                     $p = $this->registry->get($k);
                     if ($p) {
-                        $results = array_merge($results, $p->search($q, is_array($filters) ? $filters : []));
+                        $results = array_merge($results, $p->search($q, $options));
                     }
                 }
             }
         }
         return Response::json([
-            'query' => $q,
-            'provider' => $providerKey,
+            'query'     => $q,
+            'provider'  => $providerKey,
             'providers' => $requested,
-            'results' => $results,
+            'results'   => $results,
         ]);
     }
 }

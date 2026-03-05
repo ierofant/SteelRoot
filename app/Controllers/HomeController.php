@@ -34,6 +34,9 @@ class HomeController
         if ($homeCfg['show_articles']) {
             $sections[] = ['type' => 'articles', 'order' => $homeCfg['order_articles']];
         }
+        foreach ($this->loadModuleBlocks($this->settings->all()) as $block) {
+            $sections[] = ['type' => '__block', 'order' => $block['order'], '_block' => $block];
+        }
         usort($sections, function ($a, $b) {
             return ($a['order'] ?? 0) <=> ($b['order'] ?? 0);
         });
@@ -366,6 +369,48 @@ class HomeController
             $select .= ", likes";
         }
         return $this->db->fetchAll("SELECT {$select} FROM articles ORDER BY created_at DESC LIMIT {$lim}");
+    }
+
+    // Auto-discovers home blocks from modules/{name}/home_block.php files.
+    // Each file returns: settings_key, order_key, default_order, provider (callable), view (path).
+    private function loadModuleBlocks(array $settings): array
+    {
+        $blocks = [];
+        $pattern = APP_ROOT . '/modules/*/home_block.php';
+        foreach ((array)glob($pattern) as $file) {
+            try {
+                $def = (static fn($f) => include $f)($file);
+                if (!is_array($def)) {
+                    continue;
+                }
+                // Check enabled setting
+                $settingsKey = $def['settings_key'] ?? null;
+                if ($settingsKey && ($settings[$settingsKey] ?? '0') !== '1') {
+                    continue;
+                }
+                // Determine order
+                $orderKey = $def['order_key'] ?? null;
+                $order = $orderKey
+                    ? (int)($settings[$orderKey] ?? $def['default_order'] ?? 99)
+                    : (int)($def['default_order'] ?? 99);
+                // Fetch data via provider closure
+                $data = [];
+                if (isset($def['provider']) && is_callable($def['provider'])) {
+                    $data = ($def['provider'])($this->db, $settings);
+                }
+                if (empty($data)) {
+                    continue;
+                }
+                $blocks[] = [
+                    'order' => $order,
+                    'view'  => $def['view'] ?? null,
+                    'data'  => $data,
+                ];
+            } catch (\Throwable $e) {
+                // ignore broken/unavailable blocks (e.g. table not yet created)
+            }
+        }
+        return $blocks;
     }
 
     private function hasColumn(string $name): bool

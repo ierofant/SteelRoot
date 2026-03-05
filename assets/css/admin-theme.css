@@ -2425,3 +2425,14 @@ hr.thin::after {
 .docs-list li strong {
   color: var(--text);
 }
+
+/* ── Locale-aware field visibility ─────────────────────────────────────────── */
+body[data-locale="ru"] .locale-en,
+body[data-locale="ru"] .locale-col-en { display: none !important; }
+
+body[data-locale="en"] .locale-ru,
+body[data-locale="en"] .locale-col-ru { display: none !important; }
+
+/* Expand single visible column in a 2-col grid when the other is hidden */
+body[data-locale="ru"] .grid.two:has(> .locale-en),
+body[data-locale="en"] .grid.two:has(> .locale-ru) { grid-template-columns: 1fr; }

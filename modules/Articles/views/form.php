@@ -5,8 +5,11 @@ $isList = $mode === 'list';
 $isCreate = $mode === 'create';
 $isEdit = $mode === 'edit';
 $categories = $categories ?? [];
-$articleCat = $article['category'] ?? '';
+$articleCatId = (int)($article['category_id'] ?? 0);
 $imageUrl = $article['image_url'] ?? '';
+$lm = $localeMode ?? 'multi';
+$showEn = ($lm !== 'ru');
+$showRu = ($lm !== 'en');
 ob_start();
 ?>
 
@@ -17,14 +20,17 @@ ob_start();
                 <p class="eyebrow"><?= __('articles.title') ?></p>
                 <h3><?= __('articles.subtitle') ?></h3>
             </div>
-            <a class="btn primary" href="<?= htmlspecialchars($ap) ?>/articles/create"><?= __('articles.action.create') ?></a>
+            <div style="display:flex;gap:.5rem">
+                <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/articles/categories">Categories</a>
+                <a class="btn primary" href="<?= htmlspecialchars($ap) ?>/articles/create"><?= __('articles.action.create') ?></a>
+            </div>
         </div>
         <div class="table-wrap">
             <table class="table data">
                 <thead>
                     <tr>
-                        <th><?= __('articles.table.title_en') ?></th>
-                        <th><?= __('articles.table.preview_en') ?></th>
+                        <th><?= $showRu && !$showEn ? __('articles.table.title_ru') : __('articles.table.title_en') ?></th>
+                        <th>Preview</th>
                         <th><?= __('articles.table.meta_description') ?></th>
                         <th><?= __('articles.table.slug') ?></th>
                         <th><?= __('articles.table.created') ?></th>
@@ -33,10 +39,13 @@ ob_start();
                 </thead>
                 <tbody>
                     <?php foreach ($articles as $a): ?>
+                        <?php $titleCol = ($showRu && !$showEn) ? 'title_ru' : 'title_en'; ?>
+                        <?php $previewCol = ($showRu && !$showEn) ? 'preview_ru' : 'preview_en'; ?>
+                        <?php $descCol = ($showRu && !$showEn) ? 'description_ru' : 'description_en'; ?>
                         <tr>
-                            <td><?= htmlspecialchars($a['title_en']) ?></td>
-                            <td><?= htmlspecialchars(mb_strimwidth($a['preview_en'] ?? '', 0, 60, '…', 'UTF-8')) ?></td>
-                            <td><?= htmlspecialchars(mb_strimwidth($a['description_en'] ?? '', 0, 60, '…', 'UTF-8')) ?></td>
+                            <td><?= htmlspecialchars($a[$titleCol]) ?></td>
+                            <td><?= htmlspecialchars(mb_strimwidth($a[$previewCol] ?? '', 0, 60, '…', 'UTF-8')) ?></td>
+                            <td><?= htmlspecialchars(mb_strimwidth($a[$descCol] ?? '', 0, 60, '…', 'UTF-8')) ?></td>
                             <td><?= htmlspecialchars($a['slug']) ?></td>
                             <td><?= htmlspecialchars($a['created_at']) ?></td>
                             <td class="actions">
@@ -68,20 +77,33 @@ ob_start();
         </div>
             <form method="post" action="<?= $isEdit ? $ap . '/articles/edit/' . urlencode($article['slug'] ?? '') : $ap . '/articles/create' ?>" class="stack" enctype="multipart/form-data" id="article-form">
                 <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
+                <?php if ($showEn && $showRu): ?>
                 <div class="grid two">
                     <label class="field">
+                        <span><?= __('articles.form.title_en') ?></span>
+                        <input type="text" name="title_en" value="<?= htmlspecialchars($article['title_en'] ?? '') ?>" required>
+                    </label>
+                    <label class="field">
+                        <span><?= __('articles.form.title_ru') ?></span>
+                        <input type="text" name="title_ru" value="<?= htmlspecialchars($article['title_ru'] ?? '') ?>">
+                    </label>
+                </div>
+                <?php elseif ($showEn): ?>
+                <label class="field">
                     <span><?= __('articles.form.title_en') ?></span>
                     <input type="text" name="title_en" value="<?= htmlspecialchars($article['title_en'] ?? '') ?>" required>
                 </label>
+                <?php else: ?>
                 <label class="field">
                     <span><?= __('articles.form.title_ru') ?></span>
                     <input type="text" name="title_ru" value="<?= htmlspecialchars($article['title_ru'] ?? '') ?>" required>
                 </label>
-            </div>
+                <?php endif; ?>
             <label class="field">
                 <span><?= __('articles.form.slug') ?></span>
                 <input type="text" name="slug" value="<?= htmlspecialchars($article['slug'] ?? '') ?>" placeholder="<?= __('articles.placeholder.slug') ?>">
             </label>
+            <?php if ($showEn && $showRu): ?>
             <div class="grid two">
                 <label class="field">
                     <span><?= __('articles.form.preview_en') ?></span>
@@ -102,21 +124,54 @@ ob_start();
                     <textarea name="description_ru" rows="2"><?= htmlspecialchars($article['description_ru'] ?? '') ?></textarea>
                 </label>
             </div>
-            <div class="grid two">
-                <label class="field">
-                    <span><?= __('articles.form.category') ?></span>
-                    <select name="category">
-                        <option value="">—</option>
-                        <?php foreach ($categories as $cat): ?>
-                            <option value="<?= htmlspecialchars($cat) ?>" <?= $cat === $articleCat ? 'selected' : '' ?>><?= htmlspecialchars($cat) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </label>
-                <label class="field">
-                    <span><?= __('articles.form.category_new') ?></span>
-                    <input type="text" name="category_new" placeholder="<?= __('articles.placeholder.category_new') ?>">
-                </label>
-            </div>
+            <?php elseif ($showEn): ?>
+            <label class="field">
+                <span><?= __('articles.form.preview_en') ?></span>
+                <textarea name="preview_en" rows="3"><?= htmlspecialchars($article['preview_en'] ?? '') ?></textarea>
+            </label>
+            <label class="field">
+                <span><?= __('articles.form.description_en') ?></span>
+                <textarea name="description_en" rows="2"><?= htmlspecialchars($article['description_en'] ?? '') ?></textarea>
+            </label>
+            <?php else: ?>
+            <label class="field">
+                <span><?= __('articles.form.preview_ru') ?></span>
+                <textarea name="preview_ru" rows="3"><?= htmlspecialchars($article['preview_ru'] ?? '') ?></textarea>
+            </label>
+            <label class="field">
+                <span><?= __('articles.form.description_ru') ?></span>
+                <textarea name="description_ru" rows="2"><?= htmlspecialchars($article['description_ru'] ?? '') ?></textarea>
+            </label>
+            <?php endif; ?>
+            <label class="field">
+                <span><?= __('articles.form.category') ?></span>
+                <select name="category_id">
+                    <option value="">— No category —</option>
+                    <?php foreach ($categories as $cat): ?>
+                        <option value="<?= (int)$cat['id'] ?>" <?= $articleCatId === (int)$cat['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($cat['name_en']) ?><?= $cat['name_ru'] ? ' / ' . htmlspecialchars($cat['name_ru']) : '' ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if (empty($categories)): ?>
+                    <span class="muted" style="font-size:.85em">
+                        No categories yet. <a href="<?= htmlspecialchars($ap) ?>/articles/categories">Manage categories</a>
+                    </span>
+                <?php endif; ?>
+            </label>
+            <?php if (!empty($users)): ?>
+            <label class="field">
+                <span>Author</span>
+                <select name="author_id">
+                    <option value="">— No author —</option>
+                    <?php foreach ($users as $u): ?>
+                        <option value="<?= (int)$u['id'] ?>" <?= (int)($article['author_id'] ?? 0) === (int)$u['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($u['name']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </label>
+            <?php endif; ?>
             <label class="field">
                 <span><?= __('articles.form.image') ?></span>
                 <input type="file" name="image" accept="image/*">
@@ -127,6 +182,7 @@ ob_start();
                 </div>
                 <button type="button" class="btn ghost small" onclick="openAttachmentPicker()"><?= __('articles.action.pick_attachment') ?></button>
             </label>
+            <?php if ($showEn && $showRu): ?>
             <div class="grid two">
                 <label class="field">
                     <span><?= __('articles.form.body_en') ?></span>
@@ -137,6 +193,17 @@ ob_start();
                     <textarea id="body_ru" name="body_ru" rows="8"><?= htmlspecialchars($article['body_ru'] ?? '') ?></textarea>
                 </label>
             </div>
+            <?php elseif ($showEn): ?>
+            <label class="field">
+                <span><?= __('articles.form.body_en') ?></span>
+                <textarea id="body_en" name="body_en" rows="12"><?= htmlspecialchars($article['body_en'] ?? '') ?></textarea>
+            </label>
+            <?php else: ?>
+            <label class="field">
+                <span><?= __('articles.form.body_ru') ?></span>
+                <textarea id="body_ru" name="body_ru" rows="12"><?= htmlspecialchars($article['body_ru'] ?? '') ?></textarea>
+            </label>
+            <?php endif; ?>
             <?php
                 $tagNames = [];
                 if (!empty($tags)) {
@@ -178,8 +245,8 @@ ob_start();
                 }
             });
         }
-        const mdeEn = initMDE('body_en');
-        const mdeRu = initMDE('body_ru');
+        const mdeEn = document.getElementById('body_en') ? initMDE('body_en') : null;
+        const mdeRu = document.getElementById('body_ru') ? initMDE('body_ru') : null;
         const imageInput = document.getElementById('image_url');
         const imagePreview = document.getElementById('image_preview');
 

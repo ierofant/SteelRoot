@@ -9,6 +9,7 @@ use Core\Response;
 use Core\ModuleSettings;
 use App\Services\TagService;
 use App\Services\SettingsService;
+use Modules\Gallery\Services\GalleryCategoryService;
 
 class UploadController
 {
@@ -18,6 +19,8 @@ class UploadController
     private TagService $tags;
     private SettingsService $settings;
     private ModuleSettings $moduleSettings;
+    private GalleryCategoryService $galleryCategories;
+    private string $localeMode;
 
     public function __construct(Container $container)
     {
@@ -26,6 +29,7 @@ class UploadController
         $this->tags = new TagService($this->db);
         $this->settings = $container->get(SettingsService::class);
         $this->moduleSettings = $container->get(ModuleSettings::class);
+        $this->localeMode = $this->settings->get('locale_mode', 'multi');
         $this->moduleSettings->loadDefaults('gallery', [
             'show_title' => true,
             'show_description' => true,
@@ -35,6 +39,7 @@ class UploadController
             'enable_lightbox' => true,
             'lightbox_likes' => true,
         ]);
+        $this->galleryCategories = new GalleryCategoryService($this->db);
         $this->uploadPath = APP_ROOT . '/storage/uploads/gallery';
         if (!is_dir($this->uploadPath)) {
             mkdir($this->uploadPath, 0775, true);
@@ -45,12 +50,32 @@ class UploadController
     {
         $items = $this->db->fetchAll("SELECT id, title_en, title_ru, path_thumb, created_at FROM gallery_items ORDER BY created_at DESC LIMIT 30");
         $html = $this->container->get('renderer')->render('gallery/upload', [
-            'title' => 'Upload',
-            'csrf' => Csrf::token('gallery_upload'),
-            'items' => $items,
-            'categories' => $this->getCategories(),
+            'title'      => 'Upload',
+            'csrf'       => Csrf::token('gallery_upload'),
+            'items'      => $items,
+            'categories' => $this->galleryCategories->all(),
+            'localeMode' => $this->localeMode,
+            'folders'    => $this->scanFolders(),
         ]);
         return new Response($html);
+    }
+
+    private function scanFolders(): array
+    {
+        $folders = [];
+        if (!is_dir($this->uploadPath)) {
+            return $folders;
+        }
+        foreach (scandir($this->uploadPath) ?: [] as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            if (is_dir($this->uploadPath . '/' . $entry) && preg_match('/^[a-z0-9_\-]+$/i', $entry)) {
+                $folders[] = $entry;
+            }
+        }
+        sort($folders);
+        return $folders;
     }
 
     public function settings(Request $request): Response
@@ -116,9 +141,31 @@ class UploadController
         if (!isset($allowed[$mime])) {
             return new Response('Unsupported file type', 400);
         }
+        // Determine upload subfolder from explicit folder or category
+        $categoryId = (int)($request->body['category_id'] ?? 0) ?: null;
+        $catSlug = '';
+        if ($categoryId) {
+            $catRow = $this->galleryCategories->find($categoryId);
+            $catSlug = $catRow ? $catRow['slug'] : '';
+        }
+        $targetFolder = trim($request->body['target_folder'] ?? '');
+        if ($targetFolder === '__new__' || $targetFolder === '') {
+            $targetFolder = trim($request->body['target_folder_new'] ?? '');
+        }
+        if ($targetFolder !== '' && preg_match('/^[a-z0-9_\-]+$/i', $targetFolder)) {
+            $subDir = '/' . $targetFolder;
+        } else {
+            $subDir = $catSlug ? '/' . $catSlug : '';
+        }
+        $uploadDir = $this->uploadPath . $subDir;
+        if ($subDir && !is_dir($uploadDir)) {
+            mkdir($uploadDir, 0775, true);
+        }
+        $pathBase = '/storage/uploads/gallery' . $subDir;
+
         $ext = $allowed[$mime];
         $safeName = uniqid('g_', true) . '.' . $ext;
-        $target = $this->uploadPath . '/' . $safeName;
+        $target = $uploadDir . '/' . $safeName;
         if (!move_uploaded_file($_FILES['image']['tmp_name'], $target)) {
             return new Response('Upload failed', 500);
         }
@@ -130,16 +177,16 @@ class UploadController
         }
         $mediumName = preg_replace('/\.[^.]+$/', '_m.' . $ext, $safeName);
         $thumbName = preg_replace('/\.[^.]+$/', '_t.' . $ext, $safeName);
-        $mediumPath = $this->uploadPath . '/' . $mediumName;
-        $thumbPath = $this->uploadPath . '/' . $thumbName;
+        $mediumPath = $uploadDir . '/' . $mediumName;
+        $thumbPath = $uploadDir . '/' . $thumbName;
         $this->resizeCopy($target, $mediumPath, 1200);
         $this->resizeCopy($target, $thumbPath, 360);
         $cols = "path, path_medium, path_thumb, title_en, title_ru, description_en, description_ru, created_at";
         $vals = ":path, :path_medium, :path_thumb, :title_en, :title_ru, :description_en, :description_ru, NOW()";
         $params = [
-            ':path' => '/storage/uploads/gallery/' . $safeName,
-            ':path_medium' => '/storage/uploads/gallery/' . $mediumName,
-            ':path_thumb' => '/storage/uploads/gallery/' . $thumbName,
+            ':path' => $pathBase . '/' . $safeName,
+            ':path_medium' => $pathBase . '/' . $mediumName,
+            ':path_thumb' => $pathBase . '/' . $thumbName,
             ':title_en' => trim($request->body['title_en'] ?? ''),
             ':title_ru' => trim($request->body['title_ru'] ?? ''),
             ':description_en' => trim($request->body['description_en'] ?? ''),
@@ -150,10 +197,14 @@ class UploadController
             $vals = ":slug, " . $vals;
             $params[':slug'] = $this->makeSlug($params[':title_ru'] ?: $params[':title_en']);
         }
-        if ($this->hasColumn('category')) {
+        if ($this->hasColumn('category_id')) {
+            $cols .= ", category_id";
+            $vals .= ", :category_id";
+            $params[':category_id'] = $categoryId;
+        } elseif ($this->hasColumn('category')) {
             $cols .= ", category";
             $vals .= ", :category";
-            $params[':category'] = trim($request->body['category'] ?? '');
+            $params[':category'] = $catSlug ?: trim($request->body['category'] ?? '');
         }
         if ($this->hasColumn('author_id')) {
             $cols .= ", author_id";
@@ -189,10 +240,11 @@ class UploadController
             return new Response('Not found', 404);
         }
         $html = $this->container->get('renderer')->render('gallery/edit', [
-            'title' => 'Edit Image',
-            'item' => $item,
-            'csrf' => Csrf::token('gallery_edit'),
-            'tags' => $this->tags->forEntity('gallery', $id),
+            'title'      => 'Edit Image',
+            'item'       => $item,
+            'csrf'       => Csrf::token('gallery_edit'),
+            'tags'       => $this->tags->forEntity('gallery', $id),
+            'categories' => $this->galleryCategories->all(),
         ]);
         return new Response($html);
     }
@@ -211,7 +263,7 @@ class UploadController
         $titleRu = trim($request->body['title_ru'] ?? '');
         $descEn = trim($request->body['description_en'] ?? '');
         $descRu = trim($request->body['description_ru'] ?? '');
-        $category = trim($request->body['category'] ?? '');
+        $categoryId = (int)($request->body['category_id'] ?? 0) ?: null;
         $params = [
             ':ten' => $titleEn,
             ':tru' => $titleRu,
@@ -225,9 +277,12 @@ class UploadController
             $params[':slug'] = $this->makeSlug($titleRu ?: $titleEn ?: ('photo-' . $id), $id);
         }
         $catSql = '';
-        if ($this->hasColumn('category')) {
+        if ($this->hasColumn('category_id')) {
+            $catSql = ", category_id = :cat_id";
+            $params[':cat_id'] = $categoryId;
+        } elseif ($this->hasColumn('category')) {
             $catSql = ", category = :cat";
-            $params[':cat'] = $category;
+            $params[':cat'] = trim($request->body['category'] ?? '');
         }
         $this->db->execute("
             UPDATE gallery_items
@@ -330,15 +385,6 @@ class UploadController
             $cache[$name] = $row ? true : false;
         }
         return $cache[$name];
-    }
-
-    private function getCategories(): array
-    {
-        if (!$this->hasColumn('category')) {
-            return [];
-        }
-        $rows = $this->db->fetchAll("SELECT DISTINCT category FROM gallery_items WHERE category IS NOT NULL AND category <> '' ORDER BY category ASC");
-        return array_values(array_filter(array_map(fn($r) => $r['category'] ?? '', $rows)));
     }
 
     private function makeSlug(string $title, ?int $ignoreId = null): string

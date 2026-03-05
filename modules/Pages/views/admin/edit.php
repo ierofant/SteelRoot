@@ -30,11 +30,11 @@
                 </label>
             </div>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('pages.admin.fields.title_en') ?></span>
                     <input type="text" name="title_en" value="<?= htmlspecialchars($page['title_en'] ?? '') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('pages.admin.fields.title_ru') ?></span>
                     <input type="text" name="title_ru" value="<?= htmlspecialchars($page['title_ru'] ?? '') ?>">
                 </label>
@@ -47,11 +47,11 @@
                 <h4><?= __('pages.admin.section.content_sub') ?></h4>
             </header>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('pages.admin.fields.content_en') ?></span>
                     <textarea name="content_en" rows="7"><?= htmlspecialchars($page['content_en'] ?? '') ?></textarea>
                 </label>
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('pages.admin.fields.content_ru') ?></span>
                     <textarea name="content_ru" rows="7"><?= htmlspecialchars($page['content_ru'] ?? '') ?></textarea>
                 </label>
@@ -64,21 +64,21 @@
                 <h4><?= __('pages.admin.section.meta_sub') ?></h4>
             </header>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('pages.admin.fields.meta_title_en') ?></span>
                     <input type="text" name="meta_title_en" value="<?= htmlspecialchars($page['meta_title_en'] ?? '') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('pages.admin.fields.meta_title_ru') ?></span>
                     <input type="text" name="meta_title_ru" value="<?= htmlspecialchars($page['meta_title_ru'] ?? '') ?>">
                 </label>
             </div>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('pages.admin.fields.meta_description_en') ?></span>
                     <textarea name="meta_description_en" rows="3"><?= htmlspecialchars($page['meta_description_en'] ?? '') ?></textarea>
                 </label>
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('pages.admin.fields.meta_description_ru') ?></span>
                     <textarea name="meta_description_ru" rows="3"><?= htmlspecialchars($page['meta_description_ru'] ?? '') ?></textarea>
                 </label>

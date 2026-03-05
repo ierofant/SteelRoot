@@ -1,18 +1,26 @@
 <?php
-use Core\Database;
-
-$app = include __DIR__ . '/../../app/config/app.php';
-$dbCfg = include __DIR__ . '/../../app/config/database.php';
-$base = rtrim($app['url'] ?? 'http://localhost', '/');
-$entries = [];
-
-try {
-    $db = new Database($dbCfg);
-    $pages = $db->fetchAll("SELECT slug FROM pages WHERE visible = 1");
-    foreach ($pages as $page) {
-        $entries[] = $base . '/' . rawurlencode($page['slug']);
-    }
-} catch (\Throwable $e) {
-    // ignore db failures in sitemap provider
-}
-return $entries;
+return [
+    'key'         => 'pages',
+    'label'       => 'Pages',
+    'description' => 'Static content pages (visible only)',
+    'default'     => true,
+    'priority'    => '0.7',
+    'changefreq'  => 'monthly',
+    'provider'    => function (string $base, ?\Core\Database $db): array {
+        if (!$db) {
+            return [];
+        }
+        $entries = [];
+        try {
+            $rows = $db->fetchAll("SELECT slug, updated_at FROM pages WHERE visible = 1 ORDER BY id");
+            foreach ($rows as $r) {
+                $entry = ['loc' => $base . '/' . rawurlencode($r['slug'])];
+                if (!empty($r['updated_at'])) {
+                    $entry['lastmod'] = date('Y-m-d', strtotime($r['updated_at']));
+                }
+                $entries[] = $entry;
+            }
+        } catch (\Throwable $e) {}
+        return $entries;
+    },
+];

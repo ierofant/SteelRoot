@@ -1,3 +1,9 @@
+<?php
+$enabledCategories = $enabledCategories ?? [];
+$currentCategory = $currentCategory ?? null;
+$currentCategorySlug = $currentCategory ? ($currentCategory['slug'] ?? '') : ($category ?? '');
+$loc = $locale ?? 'en';
+?>
 <div class="gallery-hero">
     <div>
         <p class="eyebrow"><?= htmlspecialchars($title ?? __('gallery.title')) ?></p>
@@ -5,7 +11,6 @@
     </div>
     <form method="get" action="/gallery" class="gallery-filter">
         <input type="text" name="tag" value="<?= htmlspecialchars($tag ?? '') ?>" placeholder="Искать по тегу">
-        <input type="text" name="cat" value="<?= htmlspecialchars($category ?? '') ?>" placeholder="Категория">
         <select name="sort">
             <option value="new" <?= ($sort ?? 'new') === 'new' ? 'selected' : '' ?>>По новизне</option>
             <option value="likes" <?= ($sort ?? 'new') === 'likes' ? 'selected' : '' ?>>По лайкам</option>
@@ -14,6 +19,23 @@
         <button type="submit" class="btn ghost">Применить</button>
     </form>
 </div>
+
+<?php if (!empty($enabledCategories)): ?>
+<nav class="gallery-categories">
+    <a class="pill <?= $currentCategorySlug === '' ? 'active' : '' ?>" href="/gallery">
+        <?= $loc === 'ru' ? 'Все' : 'All' ?>
+    </a>
+    <?php foreach ($enabledCategories as $ec): ?>
+        <?php
+        $ecLabel = $loc === 'ru' ? ($ec['name_ru'] ?: $ec['name_en']) : ($ec['name_en'] ?: $ec['name_ru']);
+        $isActive = $currentCategorySlug === $ec['slug'];
+        ?>
+        <a class="pill <?= $isActive ? 'active' : '' ?>" href="/gallery/category/<?= rawurlencode($ec['slug']) ?>">
+            <?= htmlspecialchars($ecLabel) ?>
+        </a>
+    <?php endforeach; ?>
+</nav>
+<?php endif; ?>
 <div class="masonry" id="gallery-grid">
     <?php foreach ($items as $idx => $item): ?>
         <?php

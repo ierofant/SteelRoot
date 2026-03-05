@@ -39,6 +39,28 @@ Audience: administrators responsible for configuration and operations.
 - Files/Attachments: delete unused files, regenerate thumbnails when required.
 - Forms: adjust spam rules (blacklist/regex/domains) when patterns shift.
 
-## Localization
+## Localization & locale_mode
 - Switch locale globally in Settings; verify lang files exist for modules in both `en` and `ru`.
-- Use __() in templates; never hardcode strings when adjusting views.
+- **locale_mode** setting (`en` / `ru` / `multi`) hides irrelevant language fields across all admin forms:
+  - `en` — shows only EN fields; title_en is required.
+  - `ru` — shows only RU fields; title_ru is required.
+  - `multi` — shows both EN and RU fields.
+- Use `__()` in templates; never hardcode strings when adjusting views.
+
+## File Manager
+- Browse the full `storage/uploads/` tree at Admin → Files.
+- Upload files, create subfolders, delete files or empty folders.
+- Path traversal is blocked; all paths are validated against the uploads root.
+- Flash messages confirm each action.
+
+## Categories (Articles & Gallery)
+- Both Articles and Gallery support independent category systems.
+- Categories have: slug (used as filesystem folder for gallery), name EN/RU, cover image, position, enabled flag.
+- Admin CRUD: Admin → Articles → Categories, Admin → Gallery → Categories.
+- Gallery categories determine upload subfolders; changing a category on an existing item does **not** move its files.
+- Enabled categories appear as nav pills on public list pages and are included in the sitemap.
+
+## Attachments
+- Admin → Attachments lists uploaded article images (files only, not subfolders).
+- Delete unused files to keep storage clean.
+- Upload limit and allowed types configured in Settings.

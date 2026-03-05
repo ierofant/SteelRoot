@@ -101,5 +101,6 @@ window.showToast = (message, type = 'info') => {
 };
 </script>
 <script src="/assets/js/popup.js"></script>
+<?php \Core\Slot::render('body_end'); ?>
 </body>
 </html>

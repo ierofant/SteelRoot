@@ -20,11 +20,11 @@ ob_start();
         <div class="card subtle stack">
             <p class="eyebrow"><?= __('homepage.hero.section') ?></p>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.hero.eyebrow_ru') ?></span>
                     <input type="text" name="home_hero_eyebrow_ru" value="<?= htmlspecialchars($s['home_hero_eyebrow_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.hero_eyebrow_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.hero.eyebrow_en') ?></span>
                     <input type="text" name="home_hero_eyebrow_en" value="<?= htmlspecialchars($s['home_hero_eyebrow_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.hero_eyebrow_en') ?>">
                 </label>
@@ -148,89 +148,138 @@ ob_start();
             <input type="number" name="home_order_articles" value="<?= htmlspecialchars($s['home_order_articles'] ?? 2) ?>" min="1" max="10">
         </label>
 
+        <div class="grid two">
+            <label class="field checkbox">
+                <input type="checkbox" name="home_show_popular_products" value="1"
+                       <?= ($s['home_show_popular_products'] ?? '0') === '1' ? 'checked' : '' ?>>
+                <span>Показывать блок «Популярные товары»</span>
+            </label>
+            <label class="field">
+                <span>Кол-во товаров</span>
+                <input type="number" name="home_popular_products_limit"
+                       value="<?= htmlspecialchars($s['home_popular_products_limit'] ?? 4) ?>"
+                       min="1" max="20">
+            </label>
+        </div>
+        <label class="field">
+            <span>Порядок блока «Популярные товары»</span>
+            <input type="number" name="home_order_popular_products"
+                   value="<?= htmlspecialchars($s['home_order_popular_products'] ?? 3) ?>"
+                   min="1" max="10">
+        </label>
+
         <div class="card subtle stack">
             <p class="eyebrow"><?= __('homepage.localization.section') ?></p>
             <p class="muted"><?= __('homepage.localization.help') ?></p>
 
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.localization.stats_gallery_ru') ?></span>
                     <input type="text" name="home_stats_gallery_label_ru" value="<?= htmlspecialchars($s['home_stats_gallery_label_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.stats_gallery_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.localization.stats_gallery_en') ?></span>
                     <input type="text" name="home_stats_gallery_label_en" value="<?= htmlspecialchars($s['home_stats_gallery_label_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.stats_gallery_en') ?>">
                 </label>
             </div>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.localization.stats_articles_ru') ?></span>
                     <input type="text" name="home_stats_articles_label_ru" value="<?= htmlspecialchars($s['home_stats_articles_label_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.stats_articles_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.localization.stats_articles_en') ?></span>
                     <input type="text" name="home_stats_articles_label_en" value="<?= htmlspecialchars($s['home_stats_articles_label_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.stats_articles_en') ?>">
                 </label>
             </div>
 
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.localization.gallery_title_ru') ?></span>
                     <input type="text" name="home_gallery_title_ru" value="<?= htmlspecialchars($s['home_gallery_title_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.gallery_title_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.localization.gallery_title_en') ?></span>
                     <input type="text" name="home_gallery_title_en" value="<?= htmlspecialchars($s['home_gallery_title_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.gallery_title_en') ?>">
                 </label>
             </div>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.localization.gallery_cta_ru') ?></span>
                     <input type="text" name="home_gallery_cta_ru" value="<?= htmlspecialchars($s['home_gallery_cta_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.gallery_cta_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.localization.gallery_cta_en') ?></span>
                     <input type="text" name="home_gallery_cta_en" value="<?= htmlspecialchars($s['home_gallery_cta_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.gallery_cta_en') ?>">
                 </label>
             </div>
 
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.localization.articles_title_ru') ?></span>
                     <input type="text" name="home_articles_title_ru" value="<?= htmlspecialchars($s['home_articles_title_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.articles_title_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.localization.articles_title_en') ?></span>
                     <input type="text" name="home_articles_title_en" value="<?= htmlspecialchars($s['home_articles_title_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.articles_title_en') ?>">
                 </label>
             </div>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.localization.articles_cta_ru') ?></span>
                     <input type="text" name="home_articles_cta_ru" value="<?= htmlspecialchars($s['home_articles_cta_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.articles_cta_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.localization.articles_cta_en') ?></span>
                     <input type="text" name="home_articles_cta_en" value="<?= htmlspecialchars($s['home_articles_cta_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.articles_cta_en') ?>">
                 </label>
             </div>
 
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
+                    <span>Заголовок блока «Популярные товары» RU</span>
+                    <input type="text" name="home_popular_products_title_ru"
+                           value="<?= htmlspecialchars($s['home_popular_products_title_ru'] ?? '') ?>"
+                           placeholder="Популярные товары">
+                </label>
+                <label class="field locale-en">
+                    <span>Popular products block title EN</span>
+                    <input type="text" name="home_popular_products_title_en"
+                           value="<?= htmlspecialchars($s['home_popular_products_title_en'] ?? '') ?>"
+                           placeholder="Popular products">
+                </label>
+            </div>
+            <div class="grid two">
+                <label class="field locale-ru">
+                    <span>Ссылка «Все товары» RU</span>
+                    <input type="text" name="home_popular_products_cta_ru"
+                           value="<?= htmlspecialchars($s['home_popular_products_cta_ru'] ?? '') ?>"
+                           placeholder="Все товары →">
+                </label>
+                <label class="field locale-en">
+                    <span>CTA «All products» EN</span>
+                    <input type="text" name="home_popular_products_cta_en"
+                           value="<?= htmlspecialchars($s['home_popular_products_cta_en'] ?? '') ?>"
+                           placeholder="All products →">
+                </label>
+            </div>
+
+            <div class="grid two">
+                <label class="field locale-ru">
                     <span><?= __('homepage.localization.custom_blocks_title_ru') ?></span>
                     <input type="text" name="home_custom_blocks_title_ru" value="<?= htmlspecialchars($s['home_custom_blocks_title_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.custom_blocks_title_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.localization.custom_blocks_title_en') ?></span>
                     <input type="text" name="home_custom_blocks_title_en" value="<?= htmlspecialchars($s['home_custom_blocks_title_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.custom_blocks_title_en') ?>">
                 </label>
             </div>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.localization.custom_block_cta_ru') ?></span>
                     <input type="text" name="home_custom_block_cta_ru" value="<?= htmlspecialchars($s['home_custom_block_cta_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.custom_block_cta_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.localization.custom_block_cta_en') ?></span>
                     <input type="text" name="home_custom_block_cta_en" value="<?= htmlspecialchars($s['home_custom_block_cta_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.custom_block_cta_en') ?>">
                 </label>
@@ -252,21 +301,21 @@ ob_start();
             </label>
 
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.meta.title_ru') ?></span>
                     <input type="text" name="home_page_title_ru" value="<?= htmlspecialchars($s['home_page_title_ru'] ?? '') ?>" placeholder="<?= __('homepage.defaults.page_title_ru') ?>">
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.meta.title_en') ?></span>
                     <input type="text" name="home_page_title_en" value="<?= htmlspecialchars($s['home_page_title_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.page_title_en') ?>">
                 </label>
             </div>
             <div class="grid two">
-                <label class="field">
+                <label class="field locale-ru">
                     <span><?= __('homepage.meta.description_ru') ?></span>
                     <textarea name="home_page_description_ru" rows="2" placeholder="<?= __('homepage.defaults.page_description_ru') ?>"><?= htmlspecialchars($s['home_page_description_ru'] ?? '') ?></textarea>
                 </label>
-                <label class="field">
+                <label class="field locale-en">
                     <span><?= __('homepage.meta.description_en') ?></span>
                     <textarea name="home_page_description_en" rows="2" placeholder="<?= __('homepage.defaults.page_description_en') ?>"><?= htmlspecialchars($s['home_page_description_en'] ?? '') ?></textarea>
                 </label>

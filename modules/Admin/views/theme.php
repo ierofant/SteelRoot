@@ -73,21 +73,21 @@
             <h4 style="margin:0;"><?= __('theme.footer.subtitle') ?></h4>
             <?php for ($i=1; $i<=3; $i++): ?>
                 <div class="grid two">
-                    <label class="field">
+                    <label class="field locale-ru">
                         <span><?= __('theme.footer.title_ru', ['num' => $i]) ?></span>
                         <input type="text" name="footer_col<?= $i ?>_title_ru" value="<?= htmlspecialchars($settings["footer_col{$i}_title_ru"] ?? '') ?>">
                     </label>
-                    <label class="field">
+                    <label class="field locale-en">
                         <span><?= __('theme.footer.title_en', ['num' => $i]) ?></span>
                         <input type="text" name="footer_col<?= $i ?>_title_en" value="<?= htmlspecialchars($settings["footer_col{$i}_title_en"] ?? '') ?>">
                     </label>
                 </div>
                 <div class="grid two">
-                    <label class="field">
+                    <label class="field locale-ru">
                         <span><?= __('theme.footer.body_ru', ['num' => $i]) ?></span>
                         <textarea name="footer_col<?= $i ?>_body_ru" rows="4"><?= htmlspecialchars($settings["footer_col{$i}_body_ru"] ?? '') ?></textarea>
                     </label>
-                    <label class="field">
+                    <label class="field locale-en">
                         <span><?= __('theme.footer.body_en', ['num' => $i]) ?></span>
                         <textarea name="footer_col<?= $i ?>_body_en" rows="4"><?= htmlspecialchars($settings["footer_col{$i}_body_en"] ?? '') ?></textarea>
                     </label>

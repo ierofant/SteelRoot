@@ -10,5 +10,14 @@
     "20251212_add_gallery_slug": "up",
     "20251213_create_search_index": "up",
     "20251214_add_views_likes": "up",
-    "20251215_add_search_index_media": "up"
+    "20251215_add_search_index_media": "up",
+    "20251213_create_embed_forms": "up",
+    "20260115_create_module_logs": "up",
+    "20260120_add_search_index_slug": "up",
+    "20260121_add_gallery_slug": "up",
+    "20260122_add_gallery_category": "up",
+    "20260123_create_redirects": "up",
+    "20260216_add_article_meta_columns": "up",
+    "20260305_create_article_categories": "up",
+    "20260305_create_gallery_categories": "up"
 }

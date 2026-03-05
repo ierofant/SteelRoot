@@ -2,145 +2,271 @@
 namespace Modules\Admin\Controllers;
 
 use Core\Container;
-use Core\Database;
 use Core\Request;
 use Core\Response;
 use Core\Csrf;
-use App\Services\TagService;
+use App\Services\SettingsService;
 
 class FileManagerController
 {
     private Container $container;
-    private Database $db;
-    private string $uploadPath;
-    private TagService $tags;
+    private string $basePath;
+    private string $baseUrl;
+    private SettingsService $settings;
 
     public function __construct(Container $container)
     {
         $this->container = $container;
-        $this->db = $container->get(Database::class);
-        $this->tags = new TagService($this->db);
-        $this->uploadPath = APP_ROOT . '/storage/uploads/gallery';
+        $this->settings  = $container->get(SettingsService::class);
+        $this->basePath  = APP_ROOT . '/storage/uploads';
+        $this->baseUrl   = '/storage/uploads';
     }
 
     public function index(Request $request): Response
     {
-        $q = trim($request->query['q'] ?? '');
-        if ($q !== '') {
-            $like = '%' . $q . '%';
-            $items = $this->db->fetchAll("SELECT * FROM gallery_items WHERE title_en LIKE :like OR title_ru LIKE :like ORDER BY id DESC LIMIT 200", [':like' => $like]);
-        } else {
-            $items = $this->db->fetchAll("SELECT * FROM gallery_items ORDER BY id DESC LIMIT 200");
+        $dir  = $this->resolveDir($request->query['dir'] ?? '');
+        $ap   = $this->prefix();
+
+        if ($dir === null) {
+            return new Response('Forbidden', 403);
         }
+
+        $fmFlash = $_SESSION['file_manager_flash'] ?? null;
+        unset($_SESSION['file_manager_flash']);
+
+        [$folders, $files] = $this->scanDir($dir);
+        $breadcrumbs = $this->breadcrumbs($dir);
+
         $html = $this->container->get('renderer')->render('admin/files', [
-            'title' => 'Files',
-            'items' => $items,
-            'csrf' => Csrf::token('files'),
-            'query' => $q,
+            'title'       => 'File Manager',
+            'folders'     => $folders,
+            'files'       => $files,
+            'breadcrumbs' => $breadcrumbs,
+            'currentDir'  => $dir,
+            'csrf'        => Csrf::token('file_manager'),
+            'fmFlash'     => $fmFlash,
+            'ap'          => $ap,
         ]);
         return new Response($html);
     }
 
-    public function regenerate(Request $request): Response
+    public function mkdir(Request $request): Response
     {
-        if (!Csrf::check('files', $request->body['_token'] ?? null)) {
+        if (!Csrf::check('file_manager', $request->body['_token'] ?? null)) {
             return new Response('Invalid CSRF', 400);
         }
-        $id = (int)($request->params['id'] ?? 0);
-        $item = $this->db->fetch("SELECT * FROM gallery_items WHERE id = ?", [$id]);
-        if (!$item) {
-            return new Response('Not found', 404);
+        $dir  = $this->resolveDir($request->body['dir'] ?? '');
+        $name = $this->sanitizeName($request->body['name'] ?? '');
+
+        if ($dir === null || $name === '') {
+            return new Response('Invalid request', 400);
         }
-        $full = APP_ROOT . $item['path'];
-        if (!is_file($full)) {
-            return new Response('Original missing', 404);
+
+        $target = $dir . '/' . $name;
+        if (!is_dir($target)) {
+            mkdir($target, 0775, true);
         }
-        $ext = pathinfo($full, PATHINFO_EXTENSION);
-        $base = pathinfo($full, PATHINFO_FILENAME);
-        $mediumName = $base . '_m.' . $ext;
-        $thumbName = $base . '_t.' . $ext;
-        $mediumPath = $this->uploadPath . '/' . $mediumName;
-        $thumbPath = $this->uploadPath . '/' . $thumbName;
-        $this->resizeCopy($full, $mediumPath, 1200);
-        $this->resizeCopy($full, $thumbPath, 360);
-        $this->db->execute("
-            UPDATE gallery_items SET path_medium = :pm, path_thumb = :pt WHERE id = :id
-        ", [
-            ':pm' => '/storage/uploads/gallery/' . $mediumName,
-            ':pt' => '/storage/uploads/gallery/' . $thumbName,
-            ':id' => $id,
-        ]);
-        return new Response('', 302, ['Location' => $this->prefix() . '/files']);
+
+        $_SESSION['file_manager_flash'] = ['type' => 'success', 'text' => "Folder «{$name}» created."];
+        return new Response('', 302, ['Location' => $this->indexUrl($dir)]);
+    }
+
+    public function upload(Request $request): Response
+    {
+        if (!Csrf::check('file_manager', $request->body['_token'] ?? null)) {
+            return new Response('Invalid CSRF', 400);
+        }
+        $dir = $this->resolveDir($request->body['dir'] ?? '');
+        if ($dir === null) {
+            return new Response('Forbidden', 403);
+        }
+
+        $file = $_FILES['file'] ?? null;
+        if (empty($file['tmp_name'])) {
+            return new Response('No file', 400);
+        }
+
+        $cfg     = $this->settings->all();
+        $maxSize = (int)($cfg['upload_max_bytes'] ?? 10 * 1024 * 1024);
+        if ($file['size'] > $maxSize) {
+            $_SESSION['file_manager_flash'] = ['type' => 'danger', 'text' => 'File too large.'];
+            return new Response('', 302, ['Location' => $this->indexUrl($dir)]);
+        }
+
+        $finfo   = new \finfo(FILEINFO_MIME_TYPE);
+        $mime    = $finfo->file($file['tmp_name']);
+        $allowed = [
+            'image/jpeg' => 'jpg', 'image/png' => 'png',
+            'image/webp' => 'webp', 'image/gif' => 'gif',
+            'image/svg+xml' => 'svg',
+            'application/pdf' => 'pdf',
+            'application/zip' => 'zip',
+            'text/plain' => 'txt',
+        ];
+
+        if (!isset($allowed[$mime])) {
+            $_SESSION['file_manager_flash'] = ['type' => 'danger', 'text' => 'File type not allowed.'];
+            return new Response('', 302, ['Location' => $this->indexUrl($dir)]);
+        }
+
+        $ext    = $allowed[$mime];
+        $base   = pathinfo($file['name'], PATHINFO_FILENAME);
+        $base   = $this->sanitizeName($base) ?: uniqid('file_', true);
+        $name   = $base . '.' . $ext;
+        $target = $dir . '/' . $name;
+
+        // avoid overwrite
+        if (file_exists($target)) {
+            $name   = $base . '_' . time() . '.' . $ext;
+            $target = $dir . '/' . $name;
+        }
+
+        if (!move_uploaded_file($file['tmp_name'], $target)) {
+            $_SESSION['file_manager_flash'] = ['type' => 'danger', 'text' => 'Upload failed.'];
+            return new Response('', 302, ['Location' => $this->indexUrl($dir)]);
+        }
+
+        $_SESSION['file_manager_flash'] = ['type' => 'success', 'text' => "Uploaded: {$name}"];
+        return new Response('', 302, ['Location' => $this->indexUrl($dir)]);
     }
 
     public function delete(Request $request): Response
     {
-        if (!Csrf::check('files', $request->body['_token'] ?? null)) {
+        if (!Csrf::check('file_manager', $request->body['_token'] ?? null)) {
             return new Response('Invalid CSRF', 400);
         }
-        $id = (int)($request->params['id'] ?? 0);
-        $item = $this->db->fetch("SELECT * FROM gallery_items WHERE id = ?", [$id]);
-        if ($item) {
-            foreach (['path','path_medium','path_thumb'] as $k) {
-                if (!empty($item[$k]) && is_file(APP_ROOT . $item[$k])) {
-                    @unlink(APP_ROOT . $item[$k]);
-                }
-            }
-            $this->db->execute("DELETE FROM gallery_items WHERE id = ?", [$id]);
-            $this->db->execute("DELETE FROM taggables WHERE entity_type = 'gallery' AND entity_id = ?", [$id]);
+        $dir    = $this->resolveDir($request->body['dir'] ?? '');
+        $target = $this->resolvePath($request->body['path'] ?? '');
+
+        if ($dir === null || $target === null) {
+            return new Response('Forbidden', 403);
         }
-        return new Response('', 302, ['Location' => $this->prefix() . '/files']);
+
+        if (is_file($target)) {
+            @unlink($target);
+            $_SESSION['file_manager_flash'] = ['type' => 'success', 'text' => 'File deleted.'];
+        } elseif (is_dir($target)) {
+            if ($this->isDirEmpty($target)) {
+                rmdir($target);
+                $_SESSION['file_manager_flash'] = ['type' => 'success', 'text' => 'Folder deleted.'];
+            } else {
+                $_SESSION['file_manager_flash'] = ['type' => 'danger', 'text' => 'Folder is not empty.'];
+            }
+        }
+
+        return new Response('', 302, ['Location' => $this->indexUrl($dir)]);
     }
 
-    private function resizeCopy(string $src, string $dest, int $maxWidth): void
+    // ── Helpers ──────────────────────────────────────────────────────────────
+
+    /** Resolve and validate a relative dir path. Returns absolute path or null. */
+    private function resolveDir(string $rel): ?string
     {
-        $info = @getimagesize($src);
-        if (!$info) {
-            @copy($src, $dest);
-            return;
+        $rel  = trim($rel, '/');
+        $path = $rel === '' ? $this->basePath : $this->basePath . '/' . $rel;
+        $real = realpath($path);
+        if ($real === false || !is_dir($real)) {
+            return $rel === '' ? $this->basePath : null;
         }
-        [$w, $h, $type] = $info;
-        if ($w <= $maxWidth) {
-            @copy($src, $dest);
-            return;
+        if (strncmp($real, $this->basePath, strlen($this->basePath)) !== 0) {
+            return null; // path traversal
         }
-        $newW = $maxWidth;
-        $newH = (int)round($h * ($newW / $w));
-        $dst = imagecreatetruecolor($newW, $newH);
-        switch ($type) {
-            case IMAGETYPE_JPEG:
-                $srcImg = imagecreatefromjpeg($src);
-                imagecopyresampled($dst, $srcImg, 0, 0, 0, 0, $newW, $newH, $w, $h);
-                imagejpeg($dst, $dest, 85);
-                imagedestroy($srcImg);
-                break;
-            case IMAGETYPE_PNG:
-                $srcImg = imagecreatefrompng($src);
-                imagealphablending($dst, false);
-                imagesavealpha($dst, true);
-                imagecopyresampled($dst, $srcImg, 0, 0, 0, 0, $newW, $newH, $w, $h);
-                imagepng($dst, $dest, 6);
-                imagedestroy($srcImg);
-                break;
-            case IMAGETYPE_WEBP:
-                if (function_exists('imagecreatefromwebp')) {
-                    $srcImg = imagecreatefromwebp($src);
-                    imagecopyresampled($dst, $srcImg, 0, 0, 0, 0, $newW, $newH, $w, $h);
-                    imagewebp($dst, $dest, 85);
-                    imagedestroy($srcImg);
-                } else {
-                    @copy($src, $dest);
-                }
-                break;
-            default:
-                @copy($src, $dest);
+        return $real;
+    }
+
+    /** Resolve and validate an arbitrary path (file or dir). */
+    private function resolvePath(string $rel): ?string
+    {
+        $rel  = trim($rel, '/');
+        $path = $rel === '' ? null : $this->basePath . '/' . $rel;
+        if ($path === null) {
+            return null;
         }
-        imagedestroy($dst);
+        // Don't require realpath (file may be deleted), validate prefix manually
+        $normalized = realpath(dirname($path));
+        if ($normalized === false) {
+            return null;
+        }
+        $full = $normalized . '/' . basename($path);
+        if (strncmp($full, $this->basePath, strlen($this->basePath)) !== 0) {
+            return null;
+        }
+        return $full;
+    }
+
+    private function sanitizeName(string $name): string
+    {
+        $name = preg_replace('/[^a-zA-Z0-9_\-.]/', '_', trim($name));
+        $name = trim($name, '.');
+        return $name === '' ? '' : $name;
+    }
+
+    private function scanDir(string $absDir): array
+    {
+        $folders = [];
+        $files   = [];
+        $entries = scandir($absDir) ?: [];
+
+        foreach ($entries as $entry) {
+            if ($entry === '.' || $entry === '..') {
+                continue;
+            }
+            $full = $absDir . '/' . $entry;
+            $rel  = ltrim(substr($full, strlen($this->basePath)), '/');
+
+            if (is_dir($full)) {
+                $folders[] = [
+                    'name'  => $entry,
+                    'rel'   => $rel,
+                    'count' => count(array_diff(scandir($full) ?: [], ['.', '..'])),
+                ];
+            } elseif (is_file($full)) {
+                $mime    = mime_content_type($full) ?: '';
+                $isImage = strncmp($mime, 'image/', 6) === 0;
+                $files[] = [
+                    'name'    => $entry,
+                    'rel'     => $rel,
+                    'url'     => $this->baseUrl . '/' . $rel,
+                    'size'    => filesize($full),
+                    'isImage' => $isImage,
+                    'mime'    => $mime,
+                ];
+            }
+        }
+
+        return [$folders, $files];
+    }
+
+    private function breadcrumbs(string $absDir): array
+    {
+        $rel   = ltrim(substr($absDir, strlen($this->basePath)), '/');
+        $crumbs = [['label' => 'uploads', 'rel' => '']];
+        if ($rel !== '') {
+            $parts   = explode('/', $rel);
+            $cumulative = '';
+            foreach ($parts as $part) {
+                $cumulative .= ($cumulative === '' ? '' : '/') . $part;
+                $crumbs[] = ['label' => $part, 'rel' => $cumulative];
+            }
+        }
+        return $crumbs;
+    }
+
+    private function indexUrl(string $absDir): string
+    {
+        $rel = ltrim(substr($absDir, strlen($this->basePath)), '/');
+        $ap  = $this->prefix();
+        return $ap . '/files' . ($rel !== '' ? '?dir=' . urlencode($rel) : '');
+    }
+
+    private function isDirEmpty(string $path): bool
+    {
+        $items = array_diff(scandir($path) ?: [], ['.', '..']);
+        return count($items) === 0;
     }
 
     private function prefix(): string
     {
-        $config = $this->container->get('config');
-        return $config['admin_prefix'] ?? '/admin';
+        return $this->container->get('config')['admin_prefix'] ?? '/admin';
     }
 }

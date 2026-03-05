@@ -9,11 +9,11 @@
     <form method="post" action="<?= htmlspecialchars($action ?? '') ?>" class="stack" enctype="multipart/form-data">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
         <div class="grid two">
-            <label class="field">
+            <label class="field locale-ru">
                 <span><?= __('menu.field.label_ru') ?></span>
                 <input type="text" name="label_ru" value="<?= htmlspecialchars($item['label_ru'] ?? '') ?>" required>
             </label>
-            <label class="field">
+            <label class="field locale-en">
                 <span><?= __('menu.field.label_en') ?></span>
                 <input type="text" name="label_en" value="<?= htmlspecialchars($item['label_en'] ?? '') ?>" required>
             </label>
@@ -23,21 +23,21 @@
             <input type="text" name="url" value="<?= htmlspecialchars($item['url'] ?? '') ?>" required placeholder="/path">
         </label>
         <div class="grid two">
-            <label class="field">
+            <label class="field locale-ru">
                 <span><?= __('menu.field.title_ru') ?></span>
                 <input type="text" name="title_ru" value="<?= htmlspecialchars($item['title_ru'] ?? '') ?>">
             </label>
-            <label class="field">
+            <label class="field locale-en">
                 <span><?= __('menu.field.title_en') ?></span>
                 <input type="text" name="title_en" value="<?= htmlspecialchars($item['title_en'] ?? '') ?>">
             </label>
         </div>
         <div class="grid two">
-            <label class="field">
+            <label class="field locale-ru">
                 <span><?= __('menu.field.description_ru') ?></span>
                 <textarea name="description_ru" rows="3"><?= htmlspecialchars($item['description_ru'] ?? '') ?></textarea>
             </label>
-            <label class="field">
+            <label class="field locale-en">
                 <span><?= __('menu.field.description_en') ?></span>
                 <textarea name="description_en" rows="3"><?= htmlspecialchars($item['description_en'] ?? '') ?></textarea>
             </label>

@@ -12,7 +12,7 @@ $flash = $flash ?? null;
     <title><?= htmlspecialchars($pageTitle) ?> · SteelRoot Admin</title>
     <link rel="stylesheet" href="/assets/css/admin-theme.css?v=3">
 </head>
-<body class="admin-shell" data-theme="<?= htmlspecialchars(($GLOBALS['settingsAll']['theme'] ?? 'dark')) ?>">
+<body class="admin-shell" data-theme="<?= htmlspecialchars(($GLOBALS['settingsAll']['theme'] ?? 'dark')) ?>" data-locale="<?= htmlspecialchars($GLOBALS['settingsAll']['locale_mode'] ?? 'multi') ?>">
 <?php if ($showSidebar): ?>
     <aside class="sidebar">
         <div class="brand">
@@ -73,5 +73,15 @@ $flash = $flash ?? null;
         <?= $content ?? '' ?>
     </main>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var locale = document.body.dataset.locale || 'multi';
+    if (locale === 'multi') return;
+    var hiddenClass = locale === 'ru' ? '.locale-en' : '.locale-ru';
+    document.querySelectorAll(hiddenClass + ' [required]').forEach(function (el) {
+        el.removeAttribute('required');
+    });
+});
+</script>
 </body>
 </html>

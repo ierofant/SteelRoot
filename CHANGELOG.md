@@ -9,8 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- **JSON-LD Structured Data System** (2025-02-15)
+### Added (2026-03-05)
+
+#### locale_mode — Adaptive language fields
+- New `locale_mode` setting (`en` / `ru` / `multi`) hides irrelevant language fields across all admin forms.
+- Pattern: controller reads setting → passes `localeMode` to view → view computes `$showEn`/`$showRu` → wraps field groups in conditionals.
+- Implemented in: Articles (list + create/edit), Article Categories (list + form), Gallery upload form.
+- Title validation respects mode: `en` requires only `title_en`, `ru` requires only `title_ru`, `multi` requires at least one.
+
+#### Articles — Author field
+- Author dropdown (list of registered users) on article create/edit form.
+- `author_id` saved on create and updated on edit.
+- Shown only when `author_id` column exists (graceful degradation pre-migration).
+
+#### Article Categories
+- New table `article_categories` (slug, name_en/ru, image_url, position, enabled).
+- Admin CRUD at `/admin/articles/categories` with cover image upload.
+- Public route `/articles/category/{slug}` with nav pills and category breadcrumb.
+- Sitemap entries for enabled categories.
+
+#### Gallery Categories + Upload Subfolders
+- New table `gallery_categories` (slug, name_en/ru, image_url, position, enabled).
+- Admin CRUD at `/admin/gallery/categories` with cover image upload.
+- Upload subfolders: files go to `/storage/uploads/gallery/{category-slug}/` (auto-created).
+- Folder picker on upload form: lists existing filesystem folders + "New folder…" option.
+- Public route `/gallery/category/{slug}` with nav pills on list page.
+- Sitemap entries for enabled categories.
+
+#### File Manager (`/admin/files`) — rebuilt
+- Full filesystem browser for `storage/uploads/` with breadcrumb navigation.
+- Actions: upload file, create folder, delete file, delete empty folder (with confirmation).
+- Path traversal protection via `realpath()` prefix check.
+- Flash messages via `$_SESSION['file_manager_flash']` (separate from layout `$flash`).
+
+#### Gallery upload — improvements
+- File preview shown immediately on file selection (JS `FileReader`, no upload needed).
+- locale_mode-aware title/description fields.
+
+#### Attachments (`/admin/attachments`) — fix
+- Subdirectories (e.g. `categories/`) excluded from file listing via `array_filter(..., 'is_file')`.
+
+### Added (2025-02-15)
+- **JSON-LD Structured Data System**
   - Core infrastructure in `core/Meta/` for Schema.org markup generation
   - `JsonLdRenderer` for rendering and merging JSON-LD schemas with XSS protection
   - `CommonSchemas` for reusable templates (Organization, WebSite, BreadcrumbList)

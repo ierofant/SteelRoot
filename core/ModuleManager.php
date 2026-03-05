@@ -199,6 +199,17 @@ class ModuleManager
         $this->enable($slug);
         $this->registerEnabled();
         $this->migrate($slug);
+
+        // on_install hook — copy public assets, seed settings, etc.
+        $onInstall = $definition['on_install'] ?? null;
+        if (is_callable($onInstall)) {
+            try {
+                $onInstall($target, dirname($this->modulesPath));
+            } catch (\Throwable $e) {
+                Logger::log("Module {$slug} on_install error: " . $e->getMessage());
+            }
+        }
+
         return ['ok' => true, 'message' => "Module {$slug} installed"];
     }
 

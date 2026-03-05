@@ -7,6 +7,7 @@ use Core\Request;
 use Core\Response;
 use Core\ModuleSettings;
 use App\Services\SettingsService;
+use Modules\Gallery\Services\GalleryCategoryService;
 use Modules\Users\Services\Auth;
 
 class GalleryController
@@ -16,6 +17,7 @@ class GalleryController
     private string $uploadPath;
     private SettingsService $settings;
     private ModuleSettings $moduleSettings;
+    private GalleryCategoryService $galleryCategories;
 
     public function __construct(Container $container)
     {
@@ -32,6 +34,7 @@ class GalleryController
             'enable_lightbox' => true,
             'lightbox_likes' => true,
         ]);
+        $this->galleryCategories = new GalleryCategoryService($this->db);
         $this->uploadPath = APP_ROOT . '/storage/uploads/gallery';
         if (!is_dir($this->uploadPath)) {
             mkdir($this->uploadPath, 0775, true);
@@ -50,6 +53,12 @@ class GalleryController
 
         if ($tag !== '') {
             $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items gi JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image') JOIN tags t ON t.id = tg.tag_id WHERE t.slug = ?", [$tag]);
+        } elseif ($category !== '' && $this->hasColumn('category_id')) {
+            try {
+                $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items gi JOIN gallery_categories gc ON gc.id = gi.category_id AND gc.slug = ?", [$category]);
+            } catch (\Throwable $e) {
+                $totalRow = ['cnt' => 0];
+            }
         } elseif ($category !== '' && $this->hasColumn('category')) {
             $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items WHERE category = ?", [$category]);
         } else {
@@ -78,12 +87,13 @@ class GalleryController
                 'total' => $total,
                 'perPage' => $perPage,
                 'locale' => $this->container->get('lang')->current(),
-                'tag' => $tag,
-                'sort' => $sort,
-                'category' => $category,
-                'openMode' => $mode,
-                'display' => $display,
-                'breadcrumbs' => [
+                'tag'               => $tag,
+                'sort'              => $sort,
+                'category'          => $category,
+                'openMode'          => $mode,
+                'display'           => $display,
+                'enabledCategories' => $this->galleryCategories->enabled(),
+                'breadcrumbs'       => [
                     ['label' => $listTitle],
                 ],
             ],
@@ -105,7 +115,7 @@ class GalleryController
         $authorSelect = '';
         if ($this->hasColumn('author_id')) {
             $authorJoin = "LEFT JOIN users u ON u.id = gi.author_id";
-            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, u.username AS author_username, u.profile_visibility AS author_profile_visibility, u.signature AS author_signature";
+            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar";
         }
         if ($slugParam) {
             $item = $this->db->fetch("
@@ -192,6 +202,67 @@ class GalleryController
         return new Response($html);
     }
 
+    public function byCategory(Request $request): Response
+    {
+        $slug = $request->params['slug'] ?? '';
+        $category = $this->galleryCategories->findBySlug($slug);
+        if (!$category || !$category['enabled']) {
+            return new Response('Not found', 404);
+        }
+        $page = max(1, (int)($request->query['page'] ?? 1));
+        $perPage = 9;
+        $sort = $this->sanitizeSort($request->query['sort'] ?? 'new');
+        $display = $this->displaySettings();
+        $mode = !empty($display['enable_lightbox']) ? $this->settings->get('gallery_open_mode', 'lightbox') : 'page';
+        try {
+            $totalRow = $this->db->fetch(
+                "SELECT COUNT(*) as cnt FROM gallery_items WHERE category_id = ?",
+                [(int)$category['id']]
+            );
+        } catch (\Throwable $e) {
+            $totalRow = ['cnt' => 0];
+        }
+        $total = (int)($totalRow['cnt'] ?? 0);
+        $offset = ($page - 1) * $perPage;
+        $orderSql = $this->orderSql($sort, true);
+        $items = $this->fetchItems('', $slug, $orderSql, $perPage, $offset);
+        $locale = $this->container->get('lang')->current();
+        $titleKey = $locale === 'ru' ? 'name_ru' : 'name_en';
+        $catTitle = $category[$titleKey] ?: ($category['name_en'] ?: $category['name_ru']);
+        $canonical = $this->canonical($request);
+        $html = $this->container->get('renderer')->render(
+            'gallery/list',
+            [
+                '_layout'           => true,
+                'title'             => $catTitle,
+                'description'       => '',
+                'items'             => $items,
+                'page'              => $page,
+                'total'             => $total,
+                'perPage'           => $perPage,
+                'locale'            => $locale,
+                'tag'               => '',
+                'sort'              => $sort,
+                'category'          => $slug,
+                'currentCategory'   => $category,
+                'openMode'          => $mode,
+                'display'           => $display,
+                'enabledCategories' => $this->galleryCategories->enabled(),
+                'breadcrumbs'       => [
+                    ['label' => $locale === 'ru' ? 'Галерея' : 'Gallery', 'url' => '/gallery'],
+                    ['label' => $catTitle],
+                ],
+            ],
+            [
+                'title'       => $catTitle,
+                'description' => '',
+                'canonical'   => $canonical,
+                'image'       => !empty($category['image_url']) ? $category['image_url'] : $this->defaultOgImage(),
+            ]
+        );
+        return new Response($html);
+    }
+
     public function byTag(Request $request): Response
     {
         $slug = $request->params['slug'] ?? '';
@@ -242,7 +313,7 @@ class GalleryController
         $authorSelect = '';
         $authorJoin = '';
         if ($this->hasColumn('author_id')) {
-            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, gi.author_id, u.username AS author_username";
+            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, gi.author_id";
             $authorJoin = "LEFT JOIN users u ON u.id = gi.author_id";
         }
         try {
@@ -255,6 +326,14 @@ class GalleryController
                     WHERE t.slug = :slug
                     ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}
                 ", [':slug' => $tag]);
+            }
+            if ($category !== '' && $this->hasColumn('category_id')) {
+                return $this->db->fetchAll("
+                    SELECT gi.*{$authorSelect} FROM gallery_items gi
+                    JOIN gallery_categories gc ON gc.id = gi.category_id AND gc.slug = :cat
+                    {$authorJoin}
+                    ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}
+                ", [':cat' => $category]);
             }
             if ($category !== '' && $this->hasColumn('category')) {
                 return $this->db->fetchAll("

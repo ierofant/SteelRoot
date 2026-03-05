@@ -1,4 +1,8 @@
-<?php $loc = $locale ?? 'en'; ?>
+<?php
+$loc = $locale ?? 'en';
+$enabledCategories = $enabledCategories ?? [];
+$currentCategory = $category ?? null;
+?>
 <section class="articles-hero">
     <div>
         <p class="eyebrow"><?= htmlspecialchars($title ?? __('articles.title')) ?></p>
@@ -6,6 +10,23 @@
         <p class="muted"><?= htmlspecialchars($description ?? __('articles.list.subtitle')) ?></p>
     </div>
 </section>
+
+<?php if (!empty($enabledCategories)): ?>
+<nav class="articles-categories">
+    <a class="pill <?= $currentCategory === null ? 'active' : '' ?>" href="/articles">
+        <?= $loc === 'ru' ? 'Все' : 'All' ?>
+    </a>
+    <?php foreach ($enabledCategories as $ec): ?>
+        <?php
+        $ecLabel = $loc === 'ru' ? ($ec['name_ru'] ?: $ec['name_en']) : ($ec['name_en'] ?: $ec['name_ru']);
+        $isActive = $currentCategory && (int)($currentCategory['id'] ?? 0) === (int)$ec['id'];
+        ?>
+        <a class="pill <?= $isActive ? 'active' : '' ?>" href="/articles/category/<?= rawurlencode($ec['slug']) ?>">
+            <?= htmlspecialchars($ecLabel) ?>
+        </a>
+    <?php endforeach; ?>
+</nav>
+<?php endif; ?>
 
 <section class="articles-grid">
     <?php foreach ($articles as $article): ?>
@@ -26,6 +47,10 @@
             $profileUrl = $authorUsername ? '/users/' . urlencode($authorUsername) : '/users/' . $authorId;
             $authorAvatar = $article['author_avatar'] ?? '';
             $letter = strtoupper(substr($authorName ?: ($itemTitle ?: 'A'), 0, 1));
+            $catSlug = $article['category_slug'] ?? '';
+            $catLabel = $loc === 'ru'
+                ? ($article['category_name_ru'] ?? ($article['category_name_en'] ?? ''))
+                : ($article['category_name_en'] ?? ($article['category_name_ru'] ?? ''));
         ?>
         <article class="<?= $classes ?>" <?= $bg ? "style=\"--article-bg: {$bg}\"" : '' ?>>
             <a class="article-card__link" href="/articles/<?= urlencode($article['slug']) ?>">
@@ -48,6 +73,11 @@
                 </div>
                 <h3><?= htmlspecialchars($itemTitle) ?></h3>
                 <?php if ($excerpt): ?><p class="muted"><?= htmlspecialchars($excerpt) ?></p><?php endif; ?>
+                <?php if ($catSlug && $catLabel): ?>
+                    <a class="pill article-card__cat" href="/articles/category/<?= rawurlencode($catSlug) ?>" onclick="event.stopPropagation()">
+                        <?= htmlspecialchars($catLabel) ?>
+                    </a>
+                <?php endif; ?>
             </a>
             <?php if (!empty($display['show_author']) && $authorName && $authorId > 0): ?>
                 <div class="author-chip">

@@ -70,14 +70,16 @@ class Module
             $r->post('/search/rebuild', [Controllers\SearchSettingsController::class, 'rebuild']);
             $r->get('/sitemap', [Controllers\SitemapController::class, 'index']);
             $r->post('/sitemap', [Controllers\SitemapController::class, 'save']);
+            $r->get('/sitemap/preview', [Controllers\SitemapController::class, 'previewCount']);
             $r->post('/sitemap/clear-cache', [Controllers\SitemapController::class, 'clearCache']);
             $r->get('/theme', [Controllers\ThemeController::class, 'index']);
             $r->post('/theme', [Controllers\ThemeController::class, 'save']);
             $r->get('/template/errors', [Controllers\TemplateErrorsController::class, 'index']);
             $r->post('/template/errors', [Controllers\TemplateErrorsController::class, 'save']);
             $r->get('/files', [Controllers\FileManagerController::class, 'index']);
-            $r->post('/files/regenerate/{id}', [Controllers\FileManagerController::class, 'regenerate']);
-            $r->post('/files/delete/{id}', [Controllers\FileManagerController::class, 'delete']);
+            $r->post('/files/upload', [Controllers\FileManagerController::class, 'upload']);
+            $r->post('/files/mkdir',  [Controllers\FileManagerController::class, 'mkdir']);
+            $r->post('/files/delete', [Controllers\FileManagerController::class, 'delete']);
             $r->get('/pwa', [Controllers\PwaAdminController::class, 'index']);
             $r->post('/pwa', [Controllers\PwaAdminController::class, 'save']);
             $r->get('/attachments', [Controllers\AttachmentAdminController::class, 'index']);

@@ -15,7 +15,13 @@ Minimal checklist to deploy on a new shared/VPS hosting. No elevated privileges 
   - `public_html/storage/tmp/`
   - `public_html/storage/tmp/user_tokens/`
   - `public_html/storage/uploads/`
-  - `public_html/storage/uploads/{gallery,articles,users}/`
+  - `public_html/storage/uploads/gallery/`
+  - `public_html/storage/uploads/gallery/categories/` *(category covers)*
+  - `public_html/storage/uploads/articles/`
+  - `public_html/storage/uploads/articles/categories/` *(category covers)*
+  - `public_html/storage/uploads/users/`
+  - `public_html/storage/uploads/menu/`
+- Gallery upload subfolders (`storage/uploads/gallery/{slug}/`) are auto-created when a category is selected on upload.
 - Optional: `public_html/assets/css/backups/` (auto-created by build script for SCSS backups).
 
 ## CLI tools (optional but recommended for development)

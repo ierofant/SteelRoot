@@ -106,6 +106,14 @@ $sectionPadding = (int)($home['section_padding'] ?? 80);
                 <?php endforeach; ?>
             </div>
         </section>
+    <?php elseif ($section['type'] === '__block' && !empty($section['_block']['view'])): ?>
+        <?php
+            $__blockData = $section['_block']['data'];
+            $__blockView = $section['_block']['view'];
+            if (file_exists($__blockView)) {
+                include $__blockView;
+            }
+        ?>
     <?php endif; ?>
 <?php endforeach; ?>
 <?php if (!empty($home['custom_blocks']) && is_array($home['custom_blocks'])): ?>
