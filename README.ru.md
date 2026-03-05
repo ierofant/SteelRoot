@@ -52,10 +52,27 @@ https://staffstyle.ru/forum/t/root
 
 ---
 
+## Быстрый старт
+
+**Вариант А — одна команда (без git):**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ierofant/SteelRoot/main/setup.sh)
+```
+
+**Вариант Б — клонирование:**
+```bash
+git clone https://github.com/ierofant/SteelRoot.git
+cd SteelRoot/public_html
+bash setup.sh          # проверяет PHP, создаёт storage-папки, устанавливает зависимости
+```
+
+Затем откройте `http://ваш-домен/installer.php` в браузере.
+
+---
+
 ## Установка (через браузер)
 
-1. Убедитесь, что все необходимые каталоги доступны для записи
-   (`.gitkeep` включены).
+1. Запустите `bash setup.sh` после клонирования — скрипт проверит требования и создаст все нужные папки.
 2. Укажите корень сайта на `public_html/` и настройте rewrite на `prefilter.php`.
 3. Откройте `installer.php`:
    - укажите данные БД

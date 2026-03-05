@@ -33,8 +33,24 @@ pages, forms, search, and PWA support.
 - Web server with URL rewrite (Apache/Nginx) pointing to `public_html/`.
 - Writable: `public_html/storage/{cache,logs,tmp,uploads/*}`, `public_html/database/migrations`. See `DEPENDENCIES.md` for full checklist.
 
+## Quick start
+
+**Option A — one-liner (no git required):**
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/ierofant/SteelRoot/main/setup.sh)
+```
+
+**Option B — clone:**
+```bash
+git clone https://github.com/ierofant/SteelRoot.git
+cd SteelRoot/public_html
+bash setup.sh          # checks PHP, creates storage dirs, installs composer deps
+```
+
+Then open `http://your-domain/installer.php` in a browser to finish setup.
+
 ## Install (browser)
-1) Ensure writable dirs above exist (place `.gitkeep` are included).
+1) Run `bash setup.sh` after cloning — it verifies requirements and creates all needed directories.
 2) Point vhost to `public_html/` with rewrites to `prefilter.php`.
 3) Open `installer.php` in browser, fill DB/admin, optional admin_secret for custom prefix. Installer writes configs and runs migrations (core + pages table).
 4) Delete `installer.php` after success.
