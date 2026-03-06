@@ -3,12 +3,20 @@ return new class {
     public function up(\Core\Database $db): void
     {
         // Articles fulltext
-        $db->execute("ALTER TABLE articles ADD FULLTEXT idx_articles_fulltext (title_en, title_ru, body_en, body_ru)");
+        if (!$db->fetch("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'articles' AND INDEX_NAME = 'idx_articles_fulltext'")) {
+            $db->execute("ALTER TABLE articles ADD FULLTEXT idx_articles_fulltext (title_en, title_ru, body_en, body_ru)");
+        }
         // Gallery fulltext
-        $db->execute("ALTER TABLE gallery_items ADD FULLTEXT idx_gallery_fulltext (title_en, title_ru, description_en, description_ru)");
+        if (!$db->fetch("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gallery_items' AND INDEX_NAME = 'idx_gallery_fulltext'")) {
+            $db->execute("ALTER TABLE gallery_items ADD FULLTEXT idx_gallery_fulltext (title_en, title_ru, description_en, description_ru)");
+        }
         // Tags index for autocomplete
-        $db->execute("CREATE INDEX idx_tags_name ON tags(name)");
-        $db->execute("CREATE INDEX idx_tags_slug ON tags(slug)");
+        if (!$db->fetch("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tags' AND INDEX_NAME = 'idx_tags_name'")) {
+            $db->execute("CREATE INDEX idx_tags_name ON tags(name)");
+        }
+        if (!$db->fetch("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'tags' AND INDEX_NAME = 'idx_tags_slug'")) {
+            $db->execute("CREATE INDEX idx_tags_slug ON tags(slug)");
+        }
     }
 
     public function down(\Core\Database $db): void

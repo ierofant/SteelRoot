@@ -254,6 +254,7 @@ class Kernel
             $GLOBALS['viewTheme'] = $settings->get('theme', 'dark');
             $GLOBALS['customThemeUrl'] = $settings->get('theme_custom_url', null);
             $GLOBALS['settingsAll'] = $settings->all();
+            $GLOBALS['db'] = $this->container->get(Database::class);
             if (class_exists(\Modules\Pages\Module::class)) {
                 try {
                     \Modules\Pages\Module::appendMenuItems($GLOBALS['settingsAll']);

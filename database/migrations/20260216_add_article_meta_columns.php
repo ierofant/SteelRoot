@@ -19,7 +19,7 @@ return new class {
     private function addColumn(\Core\Database $db, string $name, string $definition): void
     {
         $exists = $db->fetch(
-            "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'articles' AND COLUMN_NAME = ?",
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'articles' AND COLUMN_NAME = ?",
             [$name]
         );
         if (!$exists) {
@@ -30,7 +30,7 @@ return new class {
     private function dropColumn(\Core\Database $db, string $name): void
     {
         $exists = $db->fetch(
-            "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'articles' AND COLUMN_NAME = ?",
+            "SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'articles' AND COLUMN_NAME = ?",
             [$name]
         );
         if ($exists) {

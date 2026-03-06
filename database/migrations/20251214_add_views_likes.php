@@ -2,8 +2,12 @@
 return new class {
     public function up(\Core\Database $db): void
     {
-        $db->execute("ALTER TABLE articles ADD COLUMN views INT NOT NULL DEFAULT 0, ADD COLUMN likes INT NOT NULL DEFAULT 0");
-        $db->execute("ALTER TABLE gallery_items ADD COLUMN views INT NOT NULL DEFAULT 0, ADD COLUMN likes INT NOT NULL DEFAULT 0");
+        if (!$db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'articles' AND COLUMN_NAME = 'views'")) {
+            $db->execute("ALTER TABLE articles ADD COLUMN views INT NOT NULL DEFAULT 0, ADD COLUMN likes INT NOT NULL DEFAULT 0");
+        }
+        if (!$db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gallery_items' AND COLUMN_NAME = 'views'")) {
+            $db->execute("ALTER TABLE gallery_items ADD COLUMN views INT NOT NULL DEFAULT 0, ADD COLUMN likes INT NOT NULL DEFAULT 0");
+        }
         $db->execute("
             CREATE TABLE IF NOT EXISTS likes (
                 id INT AUTO_INCREMENT PRIMARY KEY,

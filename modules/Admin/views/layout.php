@@ -42,7 +42,19 @@ $flash = $flash ?? null;
             <a href="<?= htmlspecialchars($ap) ?>/gallery/upload"><?= __('nav.gallery_upload') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/pages"><?= __('nav.pages') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/articles"><?= __('nav.articles') ?></a>
+            <?php
+            $__shopEnabled = in_array('Shop', json_decode($GLOBALS['settingsAll']['modules_enabled'] ?? '[]', true) ?: []);
+            $__shopMigrated = false;
+            if ($__shopEnabled && isset($GLOBALS['db'])) {
+                try {
+                    $__shopMigrated = (bool)$GLOBALS['db']->fetch(
+                        "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'products'"
+                    );
+                } catch (\Throwable $e) {}
+            }
+            if ($__shopMigrated): ?>
             <a href="<?= htmlspecialchars($ap) ?>/shop">Shop</a>
+            <?php endif; ?>
             <a href="<?= htmlspecialchars($ap) ?>/pwa"><?= __('nav.pwa') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/cache"><?= __('nav.cache') ?></a>
         </nav>

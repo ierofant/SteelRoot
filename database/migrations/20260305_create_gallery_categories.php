@@ -4,7 +4,7 @@ use Core\Database;
 return new class {
     public function up(Database $db): void
     {
-        $db->execute("CREATE TABLE gallery_categories (
+        $db->execute("CREATE TABLE IF NOT EXISTS gallery_categories (
             id        INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
             slug      VARCHAR(255) NOT NULL UNIQUE,
             name_en   VARCHAR(255) NOT NULL DEFAULT '',
@@ -13,9 +13,13 @@ return new class {
             position  INT NOT NULL DEFAULT 0,
             enabled   TINYINT(1) NOT NULL DEFAULT 1
         )");
-        $db->execute("ALTER TABLE gallery_items ADD COLUMN category_id INT UNSIGNED NULL AFTER category");
-        $db->execute("ALTER TABLE gallery_items ADD CONSTRAINT fk_gallery_items_category
-            FOREIGN KEY (category_id) REFERENCES gallery_categories(id) ON DELETE SET NULL");
+        if (!$db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gallery_items' AND COLUMN_NAME = 'category_id'")) {
+            $db->execute("ALTER TABLE gallery_items ADD COLUMN category_id INT UNSIGNED NULL AFTER category");
+        }
+        if (!$db->fetch("SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gallery_items' AND CONSTRAINT_NAME = 'fk_gallery_items_category'")) {
+            $db->execute("ALTER TABLE gallery_items ADD CONSTRAINT fk_gallery_items_category
+                FOREIGN KEY (category_id) REFERENCES gallery_categories(id) ON DELETE SET NULL");
+        }
         // Migrate existing string categories
         try {
             $rows = $db->fetchAll("SELECT DISTINCT category FROM gallery_items WHERE category IS NOT NULL AND category != ''");

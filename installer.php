@@ -5,6 +5,13 @@ session_start();
 const INSTALL_LOG = __DIR__ . '/storage/logs/install.log';
 const APP_ROOT    = __DIR__;
 
+// Detect browser locale: default 'en', switch to 'ru' if Accept-Language starts with ru
+$detectedLocale = 'en';
+$acceptLang = strtolower($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '');
+if (preg_match('/\bru\b/', $acceptLang)) {
+    $detectedLocale = 'ru';
+}
+
 // ─── Utilities ───────────────────────────────────────────────────────────────
 
 function ilog(string $msg): void
@@ -515,6 +522,32 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
   <form method="post" id="installer-form">
     <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
 
+    <!-- Language -->
+    <div class="card">
+      <div class="card-title">Language</div>
+      <div class="grid-2">
+        <div class="field">
+          <label>Site language</label>
+          <select name="locale">
+            <?php $loc = $_POST['locale'] ?? $detectedLocale; ?>
+            <option value="en" <?= $loc === 'en' ? 'selected' : '' ?>>English</option>
+            <option value="ru" <?= $loc === 'ru' ? 'selected' : '' ?>>Русский</option>
+          </select>
+          <span class="hint">Default locale for the public site.</span>
+        </div>
+        <div class="field">
+          <label>Content mode</label>
+          <select name="locale_mode">
+            <?php $lm = $_POST['locale_mode'] ?? ($detectedLocale === 'ru' ? 'ru' : 'multi'); ?>
+            <option value="multi" <?= $lm === 'multi' ? 'selected' : '' ?>>Bilingual (EN + RU)</option>
+            <option value="en"    <?= $lm === 'en'    ? 'selected' : '' ?>>English only</option>
+            <option value="ru"    <?= $lm === 'ru'    ? 'selected' : '' ?>>Только русский</option>
+          </select>
+          <span class="hint">Controls which language fields appear in admin forms.</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Database -->
     <div class="card">
       <div class="card-title">Database</div>
@@ -555,22 +588,6 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
         <div class="field">
           <label>Site URL</label>
           <input type="text" name="site_url" value="<?= esc($_POST['site_url'] ?? 'http://localhost') ?>" required>
-        </div>
-        <div class="field">
-          <label>Language</label>
-          <select name="locale">
-            <option value="en" <?= ($_POST['locale'] ?? 'en') === 'en' ? 'selected' : '' ?>>English</option>
-            <option value="ru" <?= ($_POST['locale'] ?? '') === 'ru' ? 'selected' : '' ?>>Русский</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Locale mode</label>
-          <select name="locale_mode">
-            <option value="multi" <?= ($_POST['locale_mode'] ?? 'multi') === 'multi' ? 'selected' : '' ?>>Multi (EN + RU)</option>
-            <option value="en"    <?= ($_POST['locale_mode'] ?? '') === 'en'    ? 'selected' : '' ?>>English only</option>
-            <option value="ru"    <?= ($_POST['locale_mode'] ?? '') === 'ru'    ? 'selected' : '' ?>>Русский only</option>
-          </select>
-          <span class="hint">Controls which language fields are shown in admin forms.</span>
         </div>
         <div class="field">
           <label>Admin URL secret <span style="font-weight:400">(optional)</span></label>

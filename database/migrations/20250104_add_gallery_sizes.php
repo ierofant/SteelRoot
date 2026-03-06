@@ -2,8 +2,12 @@
 return new class {
     public function up(\Core\Database $db): void
     {
-        $db->execute("ALTER TABLE gallery_items ADD COLUMN path_medium VARCHAR(255) NULL AFTER path");
-        $db->execute("ALTER TABLE gallery_items ADD COLUMN path_thumb VARCHAR(255) NULL AFTER path_medium");
+        if (!$db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gallery_items' AND COLUMN_NAME = 'path_medium'")) {
+            $db->execute("ALTER TABLE gallery_items ADD COLUMN path_medium VARCHAR(255) NULL AFTER path");
+        }
+        if (!$db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gallery_items' AND COLUMN_NAME = 'path_thumb'")) {
+            $db->execute("ALTER TABLE gallery_items ADD COLUMN path_thumb VARCHAR(255) NULL AFTER path_medium");
+        }
     }
 
     public function down(\Core\Database $db): void
