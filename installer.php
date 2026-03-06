@@ -606,7 +606,7 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
             $postKey  = 'module_' . strtolower($slug);
           ?>
           <label class="module-card <?= $always ? 'always' : '' ?> <?= $checked ? 'selected' : '' ?>"
-                 <?= $always ? '' : 'onclick="toggleModule(this)"' ?>>
+                 <?= $always ? '' : 'onclick="toggleModule(event, this)"' ?>>
             <input type="checkbox" name="<?= $postKey ?>" value="1"
                    <?= $checked ? 'checked' : '' ?>
                    <?= $always  ? 'disabled' : '' ?>>
@@ -638,7 +638,8 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
 </div>
 
 <script>
-function toggleModule(card) {
+function toggleModule(event, card) {
+    event.preventDefault();
     const cb = card.querySelector('input[type=checkbox]');
     if (!cb || cb.disabled) return;
     cb.checked = !cb.checked;

@@ -2,7 +2,7 @@
 return new class {
     public function up(\Core\Database $db): void
     {
-        $slugExists = $db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_NAME = 'gallery_items' AND COLUMN_NAME = 'slug'");
+        $slugExists = $db->fetch("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gallery_items' AND COLUMN_NAME = 'slug'");
         if (!$slugExists) {
             $db->execute("ALTER TABLE gallery_items ADD COLUMN slug VARCHAR(191) NULL DEFAULT NULL AFTER id");
         }
@@ -19,7 +19,7 @@ return new class {
             $used[$slug] = true;
             $db->execute("UPDATE gallery_items SET slug = ? WHERE id = ?", [$slug, $row['id']]);
         }
-        $indexExists = $db->fetch("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_NAME = 'gallery_items' AND INDEX_NAME = 'uniq_gallery_slug'");
+        $indexExists = $db->fetch("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'gallery_items' AND INDEX_NAME = 'uniq_gallery_slug'");
         if (!$indexExists) {
             $db->execute("ALTER TABLE gallery_items ADD UNIQUE KEY uniq_gallery_slug (slug)");
         }
