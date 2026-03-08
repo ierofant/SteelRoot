@@ -29,6 +29,28 @@ $theme = $theme ?? 'light';
         <link rel="stylesheet" href="<?= htmlspecialchars($themeHref) ?><?= str_contains($themeHref, '?') ? '' : $v ?>">
     <?php endif; ?>
     <?php if (!empty($themeVars)): ?>
-        <style>:root {<?php foreach ($themeVars as $k=>$v): ?> <?= $k ?>: <?= htmlspecialchars($v) ?>;<?php endforeach; ?> }</style>
+        <?php
+            $themeVarsCss = ":root {\n";
+            foreach ($themeVars as $k => $v) {
+                $safeKey = preg_replace('/[^a-zA-Z0-9\-_]/', '', (string)$k);
+                $safeValue = preg_replace('/[^#(),.%\-\s\w]/u', '', (string)$v);
+                if ($safeKey === '' || $safeValue === '') {
+                    continue;
+                }
+                $themeVarsCss .= "  {$safeKey}: {$safeValue};\n";
+            }
+            $themeVarsCss .= "}\n";
+            $themeVarsDir = APP_ROOT . '/storage/uploads/system';
+            if (!is_dir($themeVarsDir)) {
+                @mkdir($themeVarsDir, 0775, true);
+            }
+            $themeVarsPath = $themeVarsDir . '/theme-vars.css';
+            if (!is_file($themeVarsPath) || file_get_contents($themeVarsPath) !== $themeVarsCss) {
+                @file_put_contents($themeVarsPath, $themeVarsCss, LOCK_EX);
+            }
+            $themeVarsVersion = @filemtime($themeVarsPath) ?: time();
+        ?>
+        <link rel="stylesheet" href="/storage/uploads/system/theme-vars.css?v=<?= (int)$themeVarsVersion ?>">
     <?php endif; ?>
+    <?php \Core\Slot::render('head_end'); ?>
 </head>

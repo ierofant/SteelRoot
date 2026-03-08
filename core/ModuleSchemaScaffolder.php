@@ -413,7 +413,7 @@ PHP;
                 <?php endforeach; ?>
                 <td class="actions">
                     <a class="btn ghost" href="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/{$entitySlug}/edit/' . (int)(\$item['id'] ?? 0)) ?>">Edit</a>
-                    <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/{$entitySlug}/delete/' . (int)(\$item['id'] ?? 0)) ?>" onsubmit="return confirm('Delete item?')" style="display:inline-block">
+                    <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/{$entitySlug}/delete/' . (int)(\$item['id'] ?? 0)) ?>" onsubmit="return confirm('Delete item?')" class="module-action-form">
                         <input type="hidden" name="_token" value="<?= htmlspecialchars(\$csrf ?? '') ?>">
                         <button type="submit" class="btn danger ghost">Delete</button>
                     </form>

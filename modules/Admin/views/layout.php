@@ -10,7 +10,7 @@ $flash = $flash ?? null;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> · SteelRoot Admin</title>
-    <link rel="stylesheet" href="/assets/css/admin-theme.css?v=3">
+    <link rel="stylesheet" href="/assets/css/admin-theme.css?v=4">
 </head>
 <body class="admin-shell" data-theme="<?= htmlspecialchars(($GLOBALS['settingsAll']['theme'] ?? 'dark')) ?>" data-locale="<?= htmlspecialchars($GLOBALS['settingsAll']['locale_mode'] ?? 'multi') ?>">
 <?php if ($showSidebar): ?>
@@ -42,6 +42,7 @@ $flash = $flash ?? null;
             <a href="<?= htmlspecialchars($ap) ?>/gallery/upload"><?= __('nav.gallery_upload') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/pages"><?= __('nav.pages') ?></a>
             <a href="<?= htmlspecialchars($ap) ?>/articles"><?= __('nav.articles') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/videos">Videos</a>
             <?php
             $__shopEnabled = in_array('Shop', json_decode($GLOBALS['settingsAll']['modules_enabled'] ?? '[]', true) ?: []);
             $__shopMigrated = false;

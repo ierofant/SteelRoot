@@ -34,17 +34,18 @@ class SearchController
         }
         $selectedSources = $request->query['sources'] ?? [];
         $selectedSources = is_array($selectedSources) ? array_filter(array_map('trim', $selectedSources)) : [];
-        $allowedSources = ['articles', 'gallery', 'tags'];
+        $allowedSources = ['articles', 'news', 'gallery', 'tags'];
         $selectedSources = array_values(array_intersect($allowedSources, $selectedSources));
 
-        $results = ['articles' => [], 'gallery' => [], 'tags' => []];
+        $results = ['articles' => [], 'news' => [], 'gallery' => [], 'tags' => []];
         $useSettings = empty($selectedSources);
         $includeArticles = $useSettings ? (($settings->get('search_include_articles', '1') === '1')) : in_array('articles', $selectedSources, true);
+        $includeNews = $useSettings ? (($settings->get('search_include_news', '1') === '1')) : in_array('news', $selectedSources, true);
         $includeGallery = $useSettings ? (($settings->get('search_include_gallery', '1') === '1')) : in_array('gallery', $selectedSources, true);
         $includeTags = $useSettings ? (($settings->get('search_include_tags', '0') === '1')) : in_array('tags', $selectedSources, true);
 
         $cacheTtl = max(0, (int)$settings->get('search_cache_ttl', 10));
-        $cacheKey = 'search_' . md5($q . '_' . ($includeArticles ? '1' : '0') . '_' . ($includeGallery ? '1' : '0') . '_' . ($includeTags ? '1' : '0'));
+        $cacheKey = 'search_' . md5($q . '_' . ($includeArticles ? '1' : '0') . '_' . ($includeNews ? '1' : '0') . '_' . ($includeGallery ? '1' : '0') . '_' . ($includeTags ? '1' : '0'));
         /** @var \Core\Cache $cache */
         $cache = $this->container->get('cache');
         if ($q !== '') {
@@ -52,47 +53,17 @@ class SearchController
             if ($cacheTtl > 0 && ($cached = $cache->get($cacheKey))) {
                 $results = $cached;
             } else {
-                $like = '%' . $q . '%';
+                $isShortQuery = $this->queryLength($q) < 3;
+                $like = $q . '%';
                 $max = (int)$settings->get('search_max_results', 20);
                 if ($this->indexService->hasIndex()) {
-                    if ($this->indexService->isEmpty()
-                        || ($includeArticles && $this->indexService->countByType('article') === 0)
-                        || ($includeGallery && $this->indexService->countByType('gallery') === 0)
-                    ) {
-                        $this->indexService->rebuildAll();
+                    if (!$this->indexService->isEmpty()) {
+                        $results = $this->searchIndexed($q, $like, $settings, $max, $includeArticles, $includeNews, $includeGallery, $includeTags, $isShortQuery);
+                    } else {
+                        $results = $this->searchDirect($q, $like, $max, $includeArticles, $includeNews, $includeGallery, $includeTags, $isShortQuery);
                     }
-                    $results = $this->searchIndexed($q, $like, $settings, $max, $includeArticles, $includeGallery, $includeTags);
                 } else {
-                    if ($includeArticles) {
-                        $articles = $this->db->fetchAll("
-                            SELECT slug, title_en, title_ru FROM articles
-                            WHERE MATCH(title_en, title_ru, body_en, body_ru) AGAINST(:q IN BOOLEAN MODE)
-                               OR title_en LIKE :like OR title_ru LIKE :like
-                            LIMIT {$max}
-                        ", [':q' => $q . '*', ':like' => $like]);
-                        $results['articles'] = $articles;
-                    }
-                    if ($includeGallery) {
-                        $cols = "id, title_en, title_ru, path_thumb, path_medium";
-                        if ($this->hasGalleryColumn('slug')) {
-                            $cols .= ", slug";
-                        }
-                        $gallery = $this->db->fetchAll("
-                            SELECT {$cols} FROM gallery_items
-                            WHERE MATCH(title_en, title_ru, description_en, description_ru) AGAINST(:q IN BOOLEAN MODE)
-                               OR title_en LIKE :like OR title_ru LIKE :like
-                            LIMIT {$max}
-                        ", [':q' => $q . '*', ':like' => $like]);
-                        $results['gallery'] = $gallery;
-                    }
-                    if ($includeTags) {
-                        $tags = $this->db->fetchAll("
-                            SELECT name, slug FROM tags
-                            WHERE name LIKE :like OR slug LIKE :like
-                            LIMIT {$max}
-                        ", [':like' => $like]);
-                        $results['tags'] = $tags;
-                    }
+                    $results = $this->searchDirect($q, $like, $max, $includeArticles, $includeNews, $includeGallery, $includeTags, $isShortQuery);
                 }
                 if ($cacheTtl > 0) {
                     $cache->set($cacheKey, $results, $cacheTtl * 60);
@@ -110,6 +81,7 @@ class SearchController
                 'galleryMode' => $settings->get('gallery_open_mode', 'lightbox'),
                 'selectedSources' => $selectedSources ?: array_keys(array_filter([
                     'articles' => $includeArticles,
+                    'news' => $includeNews,
                     'gallery' => $includeGallery,
                     'tags' => $includeTags,
                 ])),
@@ -164,7 +136,7 @@ class SearchController
         return $cache[$name];
     }
 
-    private function searchIndexed(string $q, string $like, $settings, int $max, bool $includeArticles, bool $includeGallery, bool $includeTags): array
+    private function searchIndexed(string $q, string $like, $settings, int $max, bool $includeArticles, bool $includeNews, bool $includeGallery, bool $includeTags, bool $isShortQuery): array
     {
         $select = ['entity_type', 'entity_id', 'title_en', 'title_ru', 'snippet_en', 'snippet_ru', 'url'];
         if ($this->hasColumnSafe('search_index', 'slug')) {
@@ -174,32 +146,41 @@ class SearchController
             $select[] = 'path_thumb';
             $select[] = 'path_medium';
         }
-        $sqlBase = "
-            SELECT %s
-            FROM search_index
-            WHERE MATCH(title_en, title_ru, snippet_en, snippet_ru) AGAINST(:q IN BOOLEAN MODE)
-               OR title_en LIKE :like OR title_ru LIKE :like
-            LIMIT {$max}
-        ";
+        $where = $isShortQuery
+            ? "(title_en LIKE :like OR title_ru LIKE :like)"
+            : "MATCH(title_en, title_ru, snippet_en, snippet_ru) AGAINST(:q IN BOOLEAN MODE)";
+        $sqlBase = "SELECT %s FROM search_index WHERE {$where} LIMIT {$max}";
         $sql = sprintf($sqlBase, implode(', ', $select));
         $fallbackSql = sprintf($sqlBase, 'entity_type, entity_id, title_en, title_ru, snippet_en, snippet_ru, url');
         try {
-            $rows = $this->db->fetchAll($sql, [':q' => $q . '*', ':like' => $like]);
+            $rows = $isShortQuery
+                ? $this->db->fetchAll($sql, [':like' => $like])
+                : $this->db->fetchAll($sql, [':q' => $q . '*']);
         } catch (\Throwable $e) {
             // Column mismatch — try minimal select without optional columns.
             try {
-                $rows = $this->db->fetchAll($fallbackSql, [':q' => $q . '*', ':like' => $like]);
+                $rows = $isShortQuery
+                    ? $this->db->fetchAll($fallbackSql, [':like' => $like])
+                    : $this->db->fetchAll($fallbackSql, [':q' => $q . '*']);
             } catch (\Throwable $e2) {
                 $rows = [];
             }
         }
         $locale = $this->container->get('lang')->current();
-        $results = ['articles' => [], 'gallery' => [], 'tags' => []];
+        $results = ['articles' => [], 'news' => [], 'gallery' => [], 'tags' => []];
         foreach ($rows as $row) {
             $title = $locale === 'ru' ? ($row['title_ru'] ?? $row['title_en']) : ($row['title_en'] ?? $row['title_ru']);
-            $snippet = $locale === 'ru' ? ($row['snippet_ru'] ?? $row['snippet_en']) : ($row['snippet_en'] ?? $row['snippet_ru']);
             if ($row['entity_type'] === 'article' && $includeArticles) {
                 $results['articles'][] = [
+                    'slug' => $row['slug'] ?? '',
+                    'title_en' => $row['title_en'],
+                    'title_ru' => $row['title_ru'],
+                    'url' => $row['url'],
+                    'preview_en' => $row['snippet_en'],
+                    'preview_ru' => $row['snippet_ru'],
+                ];
+            } elseif ($row['entity_type'] === 'news' && $includeNews) {
+                $results['news'][] = [
                     'slug' => $row['slug'] ?? '',
                     'title_en' => $row['title_en'],
                     'title_ru' => $row['title_ru'],
@@ -220,7 +201,7 @@ class SearchController
             } elseif ($row['entity_type'] === 'tag' && $includeTags) {
                 $results['tags'][] = [
                     'name' => $title,
-                    'slug' => $row['slug'],
+                    'slug' => $row['slug'] ?? '',
                     'url' => $row['url'],
                 ];
             }
@@ -236,15 +217,81 @@ class SearchController
                 $gallery = $this->db->fetchAll("
                     SELECT {$cols} FROM gallery_items
                     WHERE MATCH(title_en, title_ru, description_en, description_ru) AGAINST(:q IN BOOLEAN MODE)
-                       OR title_en LIKE :like OR title_ru LIKE :like
                     LIMIT {$maxDb}
-                ", [':q' => $q . '*', ':like' => $like]);
+                ", [':q' => $q . '*']);
             } catch (\Throwable $e) {
                 $gallery = [];
             }
             $results['gallery'] = $gallery;
         }
         return $results;
+    }
+
+    private function searchDirect(string $q, string $like, int $max, bool $includeArticles, bool $includeNews, bool $includeGallery, bool $includeTags, bool $isShortQuery): array
+    {
+        $results = ['articles' => [], 'news' => [], 'gallery' => [], 'tags' => []];
+        if ($includeArticles) {
+            if ($isShortQuery) {
+                $results['articles'] = $this->db->fetchAll("
+                    SELECT slug, title_en, title_ru FROM articles
+                    WHERE title_en LIKE :like OR title_ru LIKE :like
+                    LIMIT {$max}
+                ", [':like' => $like]);
+            } else {
+                $results['articles'] = $this->db->fetchAll("
+                    SELECT slug, title_en, title_ru FROM articles
+                    WHERE MATCH(title_en, title_ru, body_en, body_ru) AGAINST(:q IN BOOLEAN MODE)
+                    LIMIT {$max}
+                ", [':q' => $q . '*']);
+            }
+        }
+        if ($includeNews) {
+            if ($isShortQuery) {
+                $results['news'] = $this->db->fetchAll("
+                    SELECT slug, title_en, title_ru, preview_en, preview_ru, created_at FROM news
+                    WHERE title_en LIKE :like OR title_ru LIKE :like
+                    LIMIT {$max}
+                ", [':like' => $like]);
+            } else {
+                $results['news'] = $this->db->fetchAll("
+                    SELECT slug, title_en, title_ru, preview_en, preview_ru, created_at FROM news
+                    WHERE MATCH(title_en, title_ru, body_en, body_ru) AGAINST(:q IN BOOLEAN MODE)
+                    LIMIT {$max}
+                ", [':q' => $q . '*']);
+            }
+        }
+        if ($includeGallery) {
+            $cols = "id, title_en, title_ru, path_thumb, path_medium";
+            if ($this->hasGalleryColumn('slug')) {
+                $cols .= ", slug";
+            }
+            if ($isShortQuery) {
+                $results['gallery'] = $this->db->fetchAll("
+                    SELECT {$cols} FROM gallery_items
+                    WHERE title_en LIKE :like OR title_ru LIKE :like
+                    LIMIT {$max}
+                ", [':like' => $like]);
+            } else {
+                $results['gallery'] = $this->db->fetchAll("
+                    SELECT {$cols} FROM gallery_items
+                    WHERE MATCH(title_en, title_ru, description_en, description_ru) AGAINST(:q IN BOOLEAN MODE)
+                    LIMIT {$max}
+                ", [':q' => $q . '*']);
+            }
+        }
+        if ($includeTags) {
+            $results['tags'] = $this->db->fetchAll("
+                SELECT name, slug FROM tags
+                WHERE name LIKE :like OR slug LIKE :like
+                LIMIT {$max}
+            ", [':like' => $like]);
+        }
+        return $results;
+    }
+
+    private function queryLength(string $q): int
+    {
+        return function_exists('mb_strlen') ? (int)mb_strlen($q, 'UTF-8') : strlen($q);
     }
 
     private function hasColumnSafe(string $table, string $name): bool

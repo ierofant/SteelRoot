@@ -60,6 +60,18 @@ class Renderer
         $this->currentMeta = $this->resolveMeta($meta);
         $layout = $this->resolve($layoutName);
 
+        // Pre-render content template so content filters (e.g. shortcodes) run
+        // before layout.php — this ensures Slot 'head_end' is populated before
+        // head.php calls Slot::render('head_end').
+        extract($this->currentData, EXTR_SKIP);
+        ob_start();
+        include $this->currentTemplate;
+        $preRendered = ob_get_clean();
+        foreach (self::$contentFilters as $filter) {
+            $preRendered = $filter($preRendered, $this->currentData);
+        }
+        $this->preRenderedContent = $preRendered;
+
         extract($data, EXTR_SKIP);
         $meta = $this->currentMeta;
 
@@ -78,13 +90,20 @@ class Renderer
         return $this->sections[$name] ?? $default;
     }
 
+    /** @var callable[] Content filters: fn(string $html, array $data): string */
+    private static array $contentFilters = [];
+
+    /** Pre-rendered content (after filters), used by renderContent() in layout */
+    private string $preRenderedContent = '';
+
+    public static function addContentFilter(callable $filter): void
+    {
+        self::$contentFilters[] = $filter;
+    }
+
     public function renderContent(): void
     {
-        if (!$this->currentTemplate) {
-            return;
-        }
-        extract($this->currentData, EXTR_SKIP);
-        include $this->currentTemplate;
+        echo $this->preRenderedContent;
     }
 
     public function hasContentTemplate(): bool

@@ -6,6 +6,22 @@
     const items = Array.from(document.querySelectorAll('.lightbox-trigger'));
     if (!items.length) return;
     let current = -1;
+    const viewed = new Set();
+
+    function sendView(id) {
+        if (!id || viewed.has(id)) return;
+        viewed.add(id);
+        fetch('/api/v1/view', {
+            method: 'POST',
+            headers: {'Accept': 'application/json'},
+            body: new URLSearchParams({type: 'gallery', id})
+        }).then(r => r.ok ? r.json() : null).then(data => {
+            if (!data || data.views === undefined) return;
+            document.querySelectorAll(`a[data-id="${id}"] .g-views`).forEach(el => {
+                el.textContent = data.views;
+            });
+        }).catch(() => {});
+    }
 
     function openAt(idx) {
         const link = items[idx];
@@ -16,6 +32,7 @@
         cap.textContent = link.dataset.title || '';
         box.hidden = false;
         document.body.classList.add('no-scroll');
+        sendView(link.dataset.id);
     }
 
     function close() {

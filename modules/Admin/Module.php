@@ -100,6 +100,7 @@ class Module
             $r->get('/cache', [Controllers\CacheController::class, 'index']);
             $r->post('/cache/clear', [Controllers\CacheController::class, 'clear']);
             $r->post('/cache/delete', [Controllers\CacheController::class, 'delete']);
+            $r->post('/cache/settings', [Controllers\CacheController::class, 'saveSettings']);
             $r->get('/docs', [Controllers\DocsController::class, 'index']);
             $r->get('/docs/support', [Controllers\DocsController::class, 'support']);
             $r->get('/profile', [Controllers\ProfileController::class, 'show']);

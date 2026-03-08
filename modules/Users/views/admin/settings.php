@@ -94,7 +94,7 @@ $s = $settings ?? [];
             </label>
         </div>
 
-        <div class="form-actions" style="gap:8px;">
+        <div class="form-actions u-gap-8">
             <button type="submit" class="btn primary"><?= __('users.settings.save') ?></button>
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/users"><?= __('users.settings.cancel') ?></a>
         </div>

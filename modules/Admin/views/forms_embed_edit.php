@@ -49,7 +49,7 @@ ob_start();
             <input type="checkbox" name="enabled" value="1" <?= !empty($form['enabled']) ? 'checked' : '' ?>>
             <span><?= __('forms.embed.fields.enabled') ?></span>
         </label>
-        <div class="form-actions" style="gap:8px;">
+        <div class="form-actions u-gap-8">
             <button type="submit" class="btn primary"><?= __('forms.embed.action.save') ?></button>
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/forms/embeds"><?= __('forms.embed.action.cancel') ?></a>
         </div>

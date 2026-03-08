@@ -23,6 +23,17 @@ class HomeController
 
     public function index(Request $request): Response
     {
+        // Cache check
+        $cacheEnabled = $this->settings->get('cache_home', '0') === '1';
+        $cacheTtl     = max(1, (int)$this->settings->get('cache_home_ttl', '10')) * 60;
+        $lang         = $this->container->get('lang')->current();
+        $cacheKey     = 'home_' . $lang;
+        /** @var \Core\Cache $cache */
+        $cache = $this->container->get('cache');
+        if ($cacheEnabled && ($cached = $cache->get($cacheKey))) {
+            return new Response($cached);
+        }
+
         $canonical = $this->canonical($request);
         $homeCfg = $this->homeConfig();
         $gallery = $homeCfg['show_gallery'] ? $this->latestGallery((int)$homeCfg['gallery_limit']) : [];
@@ -41,8 +52,15 @@ class HomeController
             return ($a['order'] ?? 0) <=> ($b['order'] ?? 0);
         });
         $locKey = $this->container->get('lang')->current() === 'ru' ? 'ru' : 'en';
-        $metaTitle = $homeCfg['page_title_' . $locKey] ?? ($locKey === 'ru' ? 'SteelRoot' : 'SteelRoot');
-        $metaDescription = $homeCfg['page_description_' . $locKey] ?? ($locKey === 'ru' ? 'Лёгкий старт для вашего сайта.' : 'Easy start for your site.');
+        $metaTitle = $this->resolveLocalizedMeta($homeCfg, 'page_title', $locKey, [
+            'ru' => 'SteelRoot',
+            'en' => 'SteelRoot',
+        ]);
+        $metaDescription = $this->resolveLocalizedMeta($homeCfg, 'page_description', $locKey, [
+            'ru' => 'Лёгкий старт для вашего сайта.',
+            'en' => 'Easy start for your site.',
+        ]);
+        $dynamicCssUrl = $this->buildHomeDynamicCss($homeCfg);
         $html = $this->container->get('renderer')->render('home', [
             '_layout' => true,
             'title' => $metaTitle,
@@ -56,12 +74,16 @@ class HomeController
             'title' => $metaTitle,
             'description' => $metaDescription,
             'canonical' => $canonical,
+            'styles' => $dynamicCssUrl !== null ? [$dynamicCssUrl] : [],
             'og' => [
                 'title' => $metaTitle,
                 'description' => $metaDescription,
                 'url' => $canonical,
             ],
         ]);
+        if ($cacheEnabled) {
+            $cache->set($cacheKey, $html, $cacheTtl);
+        }
         return new Response($html);
     }
 
@@ -131,6 +153,20 @@ class HomeController
         $scheme = (!empty($request->server['HTTPS']) && $request->server['HTTPS'] !== 'off') ? 'https' : 'http';
         $host = $request->server['HTTP_HOST'] ?? 'localhost';
         return $scheme . '://' . $host . ($request->path ?? '/');
+    }
+
+    private function resolveLocalizedMeta(array $cfg, string $prefix, string $locKey, array $defaults): string
+    {
+        $primary = trim((string)($cfg[$prefix . '_' . $locKey] ?? ''));
+        if ($primary !== '') {
+            return $primary;
+        }
+        $fallbackKey = $locKey === 'ru' ? 'en' : 'ru';
+        $fallback = trim((string)($cfg[$prefix . '_' . $fallbackKey] ?? ''));
+        if ($fallback !== '') {
+            return $fallback;
+        }
+        return $defaults[$locKey] ?? ($defaults['en'] ?? '');
     }
 
     private function loadFields(): array
@@ -257,8 +293,13 @@ class HomeController
             'articles_limit' => 3,
             'articles_title' => ['ru' => 'Статьи', 'en' => 'Articles'],
             'articles_cta' => ['ru' => 'Все статьи →', 'en' => 'All articles →'],
+            'show_news' => true,
+            'news_limit' => 6,
+            'news_title' => ['ru' => 'Новости', 'en' => 'News'],
+            'news_cta' => ['ru' => 'Все новости →', 'en' => 'All news →'],
             'order_gallery' => 1,
             'order_articles' => 2,
+            'order_news' => 3,
             'custom_blocks' => [],
             'custom_blocks_title' => ['ru' => 'Кастомные блоки', 'en' => 'Custom blocks'],
             'custom_block_cta' => ['ru' => 'Подробнее', 'en' => 'Read more'],
@@ -267,6 +308,7 @@ class HomeController
         $settings = $this->settings->all();
         $showGallery = ($settings['home_show_gallery'] ?? '1') === '1';
         $showArticles = ($settings['home_show_articles'] ?? '1') === '1';
+        $showNews = ($settings['home_show_news'] ?? '1') === '1';
         $customBlocks = [];
         if (!empty($settings['home_custom_blocks'])) {
             $decoded = json_decode((string)$settings['home_custom_blocks'], true);
@@ -308,18 +350,25 @@ class HomeController
             'articles_title_en' => $settings['home_articles_title_en'] ?? $defaults['articles_title']['en'],
             'articles_cta_ru' => $settings['home_articles_cta_ru'] ?? $defaults['articles_cta']['ru'],
             'articles_cta_en' => $settings['home_articles_cta_en'] ?? $defaults['articles_cta']['en'],
+            'show_news' => $showNews,
+            'news_limit' => (int)($settings['home_news_limit'] ?? $defaults['news_limit']),
+            'news_title_ru' => $settings['home_news_title_ru'] ?? $defaults['news_title']['ru'],
+            'news_title_en' => $settings['home_news_title_en'] ?? $defaults['news_title']['en'],
+            'news_cta_ru' => $settings['home_news_cta_ru'] ?? $defaults['news_cta']['ru'],
+            'news_cta_en' => $settings['home_news_cta_en'] ?? $defaults['news_cta']['en'],
             'order_gallery' => (int)($settings['home_order_gallery'] ?? $defaults['order_gallery']),
             'order_articles' => (int)($settings['home_order_articles'] ?? $defaults['order_articles']),
+            'order_news' => (int)($settings['home_order_news'] ?? $defaults['order_news']),
             'custom_blocks' => $customBlocks,
             'custom_blocks_title_ru' => $settings['home_custom_blocks_title_ru'] ?? $defaults['custom_blocks_title']['ru'],
             'custom_blocks_title_en' => $settings['home_custom_blocks_title_en'] ?? $defaults['custom_blocks_title']['en'],
             'custom_block_cta_ru' => $settings['home_custom_block_cta_ru'] ?? $defaults['custom_block_cta']['ru'],
             'custom_block_cta_en' => $settings['home_custom_block_cta_en'] ?? $defaults['custom_block_cta']['en'],
             'custom_css' => $settings['home_custom_css'] ?? $defaults['custom_css'],
-            'page_title_ru' => $settings['home_page_title_ru'] ?? $defaults['page_title']['ru'],
-            'page_title_en' => $settings['home_page_title_en'] ?? $defaults['page_title']['en'],
-            'page_description_ru' => $settings['home_page_description_ru'] ?? $defaults['page_description']['ru'],
-            'page_description_en' => $settings['home_page_description_en'] ?? $defaults['page_description']['en'],
+            'page_title_ru' => (($v = trim((string)($settings['home_page_title_ru'] ?? ''))) !== '') ? $v : $defaults['page_title']['ru'],
+            'page_title_en' => (($v = trim((string)($settings['home_page_title_en'] ?? ''))) !== '') ? $v : $defaults['page_title']['en'],
+            'page_description_ru' => (($v = trim((string)($settings['home_page_description_ru'] ?? ''))) !== '') ? $v : $defaults['page_description']['ru'],
+            'page_description_en' => (($v = trim((string)($settings['home_page_description_en'] ?? ''))) !== '') ? $v : $defaults['page_description']['en'],
         ];
     }
 
@@ -480,5 +529,43 @@ class HomeController
                 }
             }
         }
+    }
+
+    private function buildHomeDynamicCss(array $homeCfg): ?string
+    {
+        $rules = [];
+        $sectionPadding = max(0, min(240, (int)($homeCfg['section_padding'] ?? 80)));
+        $rules[] = '.home-section-padding{padding-top:' . $sectionPadding . 'px;padding-bottom:' . $sectionPadding . 'px;}';
+
+        $heroRules = [];
+        if (!empty($homeCfg['hero_background'])) {
+            $safe = preg_replace('/[^#(),.%\-\s\w]/u', '', (string)$homeCfg['hero_background']);
+            if ($safe !== '') {
+                $heroRules[] = 'background:' . $safe;
+            }
+        }
+        if (isset($homeCfg['hero_overlay'])) {
+            $heroRules[] = '--hero-overlay:' . max(0, min(1, (float)$homeCfg['hero_overlay']));
+        }
+        if (isset($homeCfg['hero_align'])) {
+            $safe = preg_replace('/[^a-zA-Z0-9\-_]/', '', (string)$homeCfg['hero_align']);
+            if ($safe !== '') {
+                $heroRules[] = '--hero-align:' . $safe;
+            }
+        }
+        if (!empty($heroRules)) {
+            $rules[] = '.hero.enhanced{' . implode(';', $heroRules) . ';}';
+        }
+        if (!empty($homeCfg['custom_css'])) {
+            $rules[] = $homeCfg['custom_css'];
+        }
+
+        $content  = implode("\n", $rules) . "\n";
+        $filePath = APP_ROOT . '/storage/cache/home-dynamic.css';
+        if (!is_file($filePath) || file_get_contents($filePath) !== $content) {
+            @file_put_contents($filePath, $content, LOCK_EX);
+        }
+        $version = @filemtime($filePath) ?: time();
+        return '/storage/cache/home-dynamic.css?v=' . $version;
     }
 }

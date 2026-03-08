@@ -17,7 +17,7 @@ function field($s, $key) { return htmlspecialchars($s[$key] ?? ''); }
     <?php if (!empty($saved)): ?>
         <div class="alert success"><?= __('errors.settings.saved') ?></div>
     <?php endif; ?>
-    <div class="form-actions" style="gap:8px;">
+    <div class="form-actions u-gap-8">
         <?php foreach ($codes as $code): ?>
             <?php $labelKey = "errors.settings.code_{$code}"; ?>
             <a class="btn ghost <?= $code === $active ? 'active' : '' ?>" href="?code=<?= urlencode($code) ?>"><?= __($labelKey) ?></a>
@@ -66,7 +66,7 @@ function field($s, $key) { return htmlspecialchars($s[$key] ?? ''); }
                 <span><?= __('errors.settings.show_home_button') ?></span>
             </label>
         </div>
-        <div class="form-actions" style="gap:8px;">
+        <div class="form-actions u-gap-8">
             <button type="submit" class="btn primary"><?= __('errors.settings.save') ?></button>
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/theme"><?= __('errors.settings.cancel') ?></a>
         </div>

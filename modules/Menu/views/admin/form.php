@@ -1,47 +1,93 @@
+<?php
+$lm     = $localeMode ?? 'multi';
+$showEn = ($lm !== 'ru');
+$showRu = ($lm !== 'en');
+$ap     = $adminPrefix ?? (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin');
+?>
 <div class="card stack glass">
     <div class="card-header">
         <div>
             <p class="eyebrow"><?= __('menu.admin.title') ?></p>
             <h3><?= htmlspecialchars($title ?? '') ?></h3>
         </div>
-        <a class="btn ghost" href="<?= htmlspecialchars($adminPrefix ?? (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin')) ?>/menu"><?= __('menu.admin.back') ?></a>
+        <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/menu"><?= __('menu.admin.back') ?></a>
     </div>
     <form method="post" action="<?= htmlspecialchars($action ?? '') ?>" class="stack" enctype="multipart/form-data">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
+
+        <?php if ($showEn && $showRu): ?>
         <div class="grid two">
-            <label class="field locale-ru">
+            <label class="field">
                 <span><?= __('menu.field.label_ru') ?></span>
                 <input type="text" name="label_ru" value="<?= htmlspecialchars($item['label_ru'] ?? '') ?>" required>
             </label>
-            <label class="field locale-en">
+            <label class="field">
                 <span><?= __('menu.field.label_en') ?></span>
-                <input type="text" name="label_en" value="<?= htmlspecialchars($item['label_en'] ?? '') ?>" required>
+                <input type="text" name="label_en" value="<?= htmlspecialchars($item['label_en'] ?? '') ?>">
             </label>
         </div>
+        <?php elseif ($showRu): ?>
+        <label class="field">
+            <span><?= __('menu.field.label_ru') ?></span>
+            <input type="text" name="label_ru" value="<?= htmlspecialchars($item['label_ru'] ?? '') ?>" required>
+        </label>
+        <?php else: ?>
+        <label class="field">
+            <span><?= __('menu.field.label_en') ?></span>
+            <input type="text" name="label_en" value="<?= htmlspecialchars($item['label_en'] ?? '') ?>" required>
+        </label>
+        <?php endif; ?>
+
         <label class="field">
             <span>URL</span>
             <input type="text" name="url" value="<?= htmlspecialchars($item['url'] ?? '') ?>" required placeholder="/path">
         </label>
+
+        <?php if ($showEn && $showRu): ?>
         <div class="grid two">
-            <label class="field locale-ru">
+            <label class="field">
                 <span><?= __('menu.field.title_ru') ?></span>
                 <input type="text" name="title_ru" value="<?= htmlspecialchars($item['title_ru'] ?? '') ?>">
             </label>
-            <label class="field locale-en">
+            <label class="field">
                 <span><?= __('menu.field.title_en') ?></span>
                 <input type="text" name="title_en" value="<?= htmlspecialchars($item['title_en'] ?? '') ?>">
             </label>
         </div>
+        <?php elseif ($showRu): ?>
+        <label class="field">
+            <span><?= __('menu.field.title_ru') ?></span>
+            <input type="text" name="title_ru" value="<?= htmlspecialchars($item['title_ru'] ?? '') ?>">
+        </label>
+        <?php else: ?>
+        <label class="field">
+            <span><?= __('menu.field.title_en') ?></span>
+            <input type="text" name="title_en" value="<?= htmlspecialchars($item['title_en'] ?? '') ?>">
+        </label>
+        <?php endif; ?>
+
+        <?php if ($showEn && $showRu): ?>
         <div class="grid two">
-            <label class="field locale-ru">
+            <label class="field">
                 <span><?= __('menu.field.description_ru') ?></span>
                 <textarea name="description_ru" rows="3"><?= htmlspecialchars($item['description_ru'] ?? '') ?></textarea>
             </label>
-            <label class="field locale-en">
+            <label class="field">
                 <span><?= __('menu.field.description_en') ?></span>
                 <textarea name="description_en" rows="3"><?= htmlspecialchars($item['description_en'] ?? '') ?></textarea>
             </label>
         </div>
+        <?php elseif ($showRu): ?>
+        <label class="field">
+            <span><?= __('menu.field.description_ru') ?></span>
+            <textarea name="description_ru" rows="3"><?= htmlspecialchars($item['description_ru'] ?? '') ?></textarea>
+        </label>
+        <?php else: ?>
+        <label class="field">
+            <span><?= __('menu.field.description_en') ?></span>
+            <textarea name="description_en" rows="3"><?= htmlspecialchars($item['description_en'] ?? '') ?></textarea>
+        </label>
+        <?php endif; ?>
         <div class="grid two">
             <label class="field">
                 <span><?= __('menu.field.canonical_url') ?></span>

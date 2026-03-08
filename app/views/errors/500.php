@@ -35,7 +35,7 @@ $stripScripts = function (string $html): string {
     <?php endif; ?>
 </div>
 <?php if (!empty($error) && getenv('APP_ENV') !== 'production'): ?>
-<pre style="white-space:pre-wrap;color:#b91c1c;"><?= htmlspecialchars($error->getMessage()) ?></pre>
+<pre class="error-debug"><?= htmlspecialchars($error->getMessage()) ?></pre>
 <?php endif; ?>
 <?php if (isset($error) && $error instanceof Exception && str_contains($error->getMessage(), 'installer')): ?>
     <p><a href="/installer.php">Open installer</a></p>

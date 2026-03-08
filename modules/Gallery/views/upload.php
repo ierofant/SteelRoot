@@ -12,7 +12,7 @@ ob_start();
             <p class="eyebrow"><?= __('gallery.upload.title') ?></p>
             <h3><?= __('gallery.upload.subtitle') ?></h3>
         </div>
-        <div style="display:flex;gap:.5rem">
+        <div class="u-flex u-gap-half">
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/gallery/categories">Categories</a>
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>"><?= __('gallery.upload.back_admin') ?></a>
         </div>
@@ -22,8 +22,8 @@ ob_start();
         <label class="field">
             <span><?= __('gallery.upload.field.file') ?></span>
             <input type="file" name="image" required id="gallery-file-input" accept="image/*">
-            <div id="gallery-preview" style="display:none;margin-top:.5rem">
-                <img id="gallery-preview-img" src="" alt="preview" style="max-width:240px;max-height:160px;border-radius:6px;border:1px solid var(--border);object-fit:cover">
+            <div id="gallery-preview" class="gallery-preview-wrap u-hide">
+                <img id="gallery-preview-img" src="" alt="preview" class="gallery-preview-image">
             </div>
         </label>
         <?php if ($showEn && $showRu): ?>
@@ -82,7 +82,7 @@ ob_start();
             <input type="text" name="target_folder_new" id="target-folder-new"
                    placeholder="new-folder-name (a-z, 0-9, hyphen)"
                    pattern="[a-zA-Z0-9_\-]+"
-                   style="display:none;margin-top:.4rem">
+                   class="gallery-new-folder-input u-hide">
         </label>
         <label class="field">
             <span><?= __('gallery.upload.field.category') ?></span>
@@ -96,7 +96,7 @@ ob_start();
                 <?php endforeach; ?>
             </select>
             <?php if (empty($categories)): ?>
-                <span class="muted" style="font-size:.85em">
+                <span class="muted u-font-085em">
                     <a href="<?= htmlspecialchars($ap) ?>/gallery/categories">Create categories</a> to organise uploads.
                 </span>
             <?php endif; ?>
@@ -141,6 +141,13 @@ ob_start();
             </tbody>
         </table>
     </div>
+    <?php
+    $paginationPage    = $page ?? 1;
+    $paginationTotal   = $total ?? 0;
+    $paginationPerPage = $perPage ?? 20;
+    $paginationBase    = $ap . '/gallery/upload';
+    include APP_ROOT . '/app/views/partials/pagination.php';
+    ?>
 </div>
 <script>
 document.getElementById('gallery-file-input').addEventListener('change', function() {
@@ -151,7 +158,7 @@ document.getElementById('gallery-file-input').addEventListener('change', functio
     const reader = new FileReader();
     reader.onload = function(e) {
         img.src = e.target.result;
-        preview.style.display = 'block';
+        preview.classList.remove('u-hide');
     };
     reader.readAsDataURL(file);
 });
@@ -162,7 +169,7 @@ document.getElementById('gallery-file-input').addEventListener('change', functio
     if (!sel || !newInput) return;
 
     sel.addEventListener('change', function() {
-        newInput.style.display = this.value === '__new__' ? 'block' : 'none';
+        newInput.classList.toggle('u-hide', this.value !== '__new__');
         newInput.required = this.value === '__new__';
     });
 

@@ -1,6 +1,7 @@
 <?php
 $q = $query ?? '';
 $articles = $results['articles'] ?? [];
+$news = $results['news'] ?? [];
 $gallery = $results['gallery'] ?? [];
 $tags = $results['tags'] ?? [];
 $loc = $locale ?? 'en';
@@ -11,26 +12,52 @@ $loc = $locale ?? 'en';
         <h1>Найдите нужное</h1>
         <p class="muted">Статьи и галерея по вашему запросу.</p>
     </div>
-    <?php $sourcesSel = $selectedSources ?? ['articles','gallery','tags']; ?>
-    <form method="get" action="/search" class="search-box" style="flex-wrap:wrap;gap:10px;">
-        <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="Введите запрос" style="flex:1;min-width:200px;">
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-            <label class="pill" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;padding:8px 10px;font-size:13px;">
-                <input type="checkbox" name="sources[]" value="articles" <?= in_array('articles',$sourcesSel,true)?'checked':'' ?> style="margin:0;"> Статьи
+    <?php $sourcesSel = $selectedSources ?? ['articles','news','gallery','tags']; ?>
+    <form method="get" action="/search" class="search-box search-box--filters">
+        <input type="text" name="q" value="<?= htmlspecialchars($q) ?>" placeholder="Введите запрос" class="search-box__input">
+        <div class="search-box__sources">
+            <label class="pill search-pill">
+                <input type="checkbox" name="sources[]" value="articles" <?= in_array('articles',$sourcesSel,true)?'checked':'' ?> class="search-pill__check"> Статьи
             </label>
-            <label class="pill" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;padding:8px 10px;font-size:13px;">
-                <input type="checkbox" name="sources[]" value="gallery" <?= in_array('gallery',$sourcesSel,true)?'checked':'' ?> style="margin:0;"> Галерея
+            <label class="pill search-pill">
+                <input type="checkbox" name="sources[]" value="news" <?= in_array('news',$sourcesSel,true)?'checked':'' ?> class="search-pill__check"> Новости
             </label>
-            <label class="pill" style="display:inline-flex;gap:6px;align-items:center;cursor:pointer;padding:8px 10px;font-size:13px;">
-                <input type="checkbox" name="sources[]" value="tags" <?= in_array('tags',$sourcesSel,true)?'checked':'' ?> style="margin:0;"> Теги
+            <label class="pill search-pill">
+                <input type="checkbox" name="sources[]" value="gallery" <?= in_array('gallery',$sourcesSel,true)?'checked':'' ?> class="search-pill__check"> Галерея
+            </label>
+            <label class="pill search-pill">
+                <input type="checkbox" name="sources[]" value="tags" <?= in_array('tags',$sourcesSel,true)?'checked':'' ?> class="search-pill__check"> Теги
             </label>
         </div>
-        <button type="submit" class="btn primary" style="white-space:nowrap;">Искать</button>
+        <button type="submit" class="btn primary search-box__submit">Искать</button>
     </form>
 </section>
 
 <?php if ($q !== ''): ?>
 <section class="search-results">
+    <div class="results-block">
+        <div class="block-head">
+            <h2>Новости</h2>
+            <span class="pill"><?= count($news) ?></span>
+        </div>
+        <div class="cards">
+            <?php foreach ($news as $n): ?>
+                <?php $title = $loc === 'ru' ? ($n['title_ru'] ?? '') : ($n['title_en'] ?? ''); ?>
+                <?php $href = !empty($n['url']) ? $n['url'] : '/news/' . urlencode($n['slug']); ?>
+                <a class="card-tile" href="<?= htmlspecialchars($href) ?>">
+                    <p class="eyebrow"><?= htmlspecialchars($n['created_at'] ?? '') ?></p>
+                    <h3><?= htmlspecialchars($title) ?></h3>
+                    <?php if (!empty($n['preview_en']) || !empty($n['preview_ru'])): ?>
+                        <p class="muted"><?= htmlspecialchars($loc === 'ru' ? ($n['preview_ru'] ?? '') : ($n['preview_en'] ?? '')) ?></p>
+                    <?php endif; ?>
+                </a>
+            <?php endforeach; ?>
+            <?php if (empty($news)): ?>
+                <div class="empty">Нет новостей</div>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <div class="results-block">
         <div class="block-head">
             <h2>Статьи</h2>

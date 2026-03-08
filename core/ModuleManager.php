@@ -257,6 +257,21 @@ class ModuleManager
         $path = $module['path'];
         $providers = $definition['providers'] ?? [];
 
+        // If Module.php exists alongside module.php, call register() for programmatic boot.
+        $class     = 'Modules\\' . ucfirst($module['folder']) . '\\Module';
+        $classFile = $path . '/Module.php';
+        if (file_exists($classFile)) {
+            if (!class_exists($class)) {
+                require_once $classFile;
+            }
+            if (class_exists($class)) {
+                $instance = new $class($path);
+                if (method_exists($instance, 'register')) {
+                    $instance->register($this->container, $this->router);
+                }
+            }
+        }
+
         // Auto scaffold from schema if present.
         $schemaFile = $path . '/schema.json';
         if (file_exists($schemaFile)) {

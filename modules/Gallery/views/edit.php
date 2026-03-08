@@ -51,7 +51,7 @@ ob_start();
                     </option>
                 <?php endforeach; ?>
             </select>
-            <span class="muted" style="font-size:.85em">Изменение категории не перемещает файлы, только меняет принадлежность.</span>
+            <span class="muted u-font-085em">Изменение категории не перемещает файлы, только меняет принадлежность.</span>
         </label>
         <div class="form-actions">
             <button type="submit" class="btn primary">Сохранить</button>

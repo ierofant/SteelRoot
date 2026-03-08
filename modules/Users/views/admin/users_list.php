@@ -5,15 +5,11 @@
             <p class="eyebrow">Users</p>
             <h3>Directory & access</h3>
         </div>
-        <div class="form-actions" style="gap:8px;">
+        <div class="form-actions u-gap-8">
             <a class="btn ghost" href="<?= htmlspecialchars(($ap = defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin')) ?>/users/settings"><?= __('users.settings.title') ?></a>
             <a class="btn primary" href="<?= htmlspecialchars(($ap = defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin')) ?>/users/create">New user</a>
         </div>
     </div>
-    <style>
-        .avatar.tiny {width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2f365f,#1f243a);color:#d8e0ff;display:grid;place-items:center;font-weight:700;border:1px solid rgba(255,255,255,0.08);background-size:cover;background-position:center;}
-        .row-actions form {display:inline;}
-    </style>
     <?php if (!empty($message)): ?><div class="alert success"><?= htmlspecialchars($message) ?></div><?php endif; ?>
     <form class="filters grid three" method="GET" action="">
         <label class="field">
@@ -59,9 +55,13 @@
                 <tr>
                     <td>#<?= (int)$u['id'] ?></td>
                     <td>
-                        <div style="display:flex;align-items:center;gap:10px;">
-                            <span class="avatar tiny" style="<?= !empty($u['avatar']) ? "background-image:url('".htmlspecialchars($u['avatar'])."')" : '' ?>">
-                                <?php if (empty($u['avatar'])): ?><?= htmlspecialchars(strtoupper(substr($u['name'] ?? 'U', 0, 1))) ?><?php endif; ?>
+                        <div class="user-row-main">
+                            <span class="avatar tiny">
+                                <?php if (!empty($u['avatar'])): ?>
+                                    <img src="<?= htmlspecialchars($u['avatar']) ?>" alt="<?= htmlspecialchars($u['name'] ?? 'User') ?>">
+                                <?php else: ?>
+                                    <?= htmlspecialchars(strtoupper(substr($u['name'] ?? 'U', 0, 1))) ?>
+                                <?php endif; ?>
                             </span>
                             <div>
                                 <div><?= htmlspecialchars($u['name'] ?? '') ?></div>
@@ -95,6 +95,14 @@
             </tbody>
         </table>
     </div>
+    <?php
+    $paginationPage    = $page ?? 1;
+    $paginationTotal   = $total ?? 0;
+    $paginationPerPage = $perPage ?? 20;
+    $qs = array_filter(['email' => $filters['email'] ?? '', 'role' => $filters['role'] ?? '', 'status' => $filters['status'] ?? '']);
+    $paginationBase = (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/users' . ($qs ? '?' . http_build_query($qs) : '');
+    include APP_ROOT . '/app/views/partials/pagination.php';
+    ?>
 </div>
 <?php
 $title = 'Users';

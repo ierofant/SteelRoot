@@ -16,6 +16,8 @@ class Module
     public function register(Container $container, Router $router): void
     {
         $router->get('/gallery', [Controllers\GalleryController::class, 'index']);
+        $router->get('/gallery/page/{page}', [Controllers\GalleryController::class, 'index']);
+        $router->get('/gallery/category/{slug}/page/{page}', [Controllers\GalleryController::class, 'byCategory']);
         $router->get('/gallery/category/{slug}', [Controllers\GalleryController::class, 'byCategory']);
         $router->get('/gallery/photo/{slug}', [Controllers\GalleryController::class, 'view']);
         // ЧПУ отключено по требованию: оставляем query /view?id=

@@ -5,7 +5,7 @@
             <p class="eyebrow"><?= __('pages.admin.title') ?></p>
             <h3><?= __('pages.admin.subtitle') ?></h3>
         </div>
-        <div class="form-actions" style="gap:8px;">
+        <div class="form-actions u-gap-8">
             <a class="btn ghost" href="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/pages/create') ?>"><?= __('pages.admin.action.create') ?></a>
         </div>
     </div>

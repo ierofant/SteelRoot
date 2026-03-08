@@ -18,12 +18,9 @@ $customBlocksTitle = $home['custom_blocks_title_' . $locKey] ?? ($locKey === 'ru
 $customBlockCta = $home['custom_block_cta_' . $locKey] ?? ($locKey === 'ru' ? 'Подробнее' : 'Read more');
 $layoutClass = ($home['layout_mode'] ?? 'wide') === 'boxed' ? 'layout-boxed' : '';
 $sectionPadding = (int)($home['section_padding'] ?? 80);
+$sectionPadding = max(0, min(240, $sectionPadding));
 ?>
-<?php if (!empty($home['custom_css'])): ?>
-    <style><?= $home['custom_css'] ?></style>
-<?php endif; ?>
-
-<section class="hero enhanced <?= $layoutClass ?>" style="<?= !empty($home['hero_background']) ? 'background:' . htmlspecialchars($home['hero_background']) . ';' : '' ?><?= isset($home['hero_overlay']) ? '--hero-overlay:' . max(0, min(1, (float)$home['hero_overlay'])) . ';' : '' ?><?= isset($home['hero_align']) ? '--hero-align:' . htmlspecialchars($home['hero_align']) . ';' : '' ?>">
+<section class="hero enhanced <?= $layoutClass ?>">
     <div class="hero-copy">
         <?php if (!empty($home['hero_badge'])): ?><span class="pill"><?= htmlspecialchars($home['hero_badge']) ?></span><?php endif; ?>
         <p class="eyebrow"><?= htmlspecialchars($heroEyebrow) ?></p>
@@ -55,7 +52,7 @@ $sectionPadding = (int)($home['section_padding'] ?? 80);
 
 <?php foreach ($sections as $section): ?>
     <?php if ($section['type'] === 'gallery' && $gallery): ?>
-        <section class="block <?= $layoutClass ?>" style="padding-top: <?= $sectionPadding ?>px; padding-bottom: <?= $sectionPadding ?>px;">
+        <section class="block home-section-padding <?= $layoutClass ?>">
             <div class="block-head">
                 <h2><?= htmlspecialchars($galleryTitle) ?></h2>
                 <a class="link" href="/gallery"><?= htmlspecialchars($galleryCta) ?></a>
@@ -82,12 +79,12 @@ $sectionPadding = (int)($home['section_padding'] ?? 80);
             </div>
         </section>
     <?php elseif ($section['type'] === 'articles' && $articles): ?>
-        <section class="block <?= $layoutClass ?>" style="padding-top: <?= $sectionPadding ?>px; padding-bottom: <?= $sectionPadding ?>px;">
+        <section class="block home-section-padding <?= $layoutClass ?>">
             <div class="block-head">
                 <h2><?= htmlspecialchars($articlesTitle) ?></h2>
                 <a class="link" href="/articles"><?= htmlspecialchars($articlesCta) ?></a>
             </div>
-            <div class="cards">
+            <div class="cards three-col">
                 <?php foreach ($articles as $a): ?>
                     <?php $tKey = $loc === 'ru' ? 'title_ru' : 'title_en'; ?>
                     <?php $views = (int)($a['views'] ?? 0); ?>
@@ -117,7 +114,7 @@ $sectionPadding = (int)($home['section_padding'] ?? 80);
     <?php endif; ?>
 <?php endforeach; ?>
 <?php if (!empty($home['custom_blocks']) && is_array($home['custom_blocks'])): ?>
-    <section class="block <?= $layoutClass ?>" style="padding-top: <?= $sectionPadding ?>px; padding-bottom: <?= $sectionPadding ?>px;">
+    <section class="block home-section-padding <?= $layoutClass ?>">
         <div class="block-head">
             <h2><?= htmlspecialchars($customBlocksTitle) ?></h2>
         </div>
@@ -149,6 +146,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const cap = document.getElementById('lightbox-caption');
     const items = Array.from(document.querySelectorAll('.lightbox-trigger'));
     let current = -1;
+    const viewed = new Set();
+    function sendView(id) {
+        if (!id || viewed.has(id)) return;
+        viewed.add(id);
+        fetch('/api/v1/view', {
+            method: 'POST',
+            headers: {'Accept': 'application/json'},
+            body: new URLSearchParams({type: 'gallery', id})
+        }).then(r => r.ok ? r.json() : null).then(data => {
+            if (!data || data.views === undefined) return;
+            document.querySelectorAll(`a[data-id="${id}"] .g-views`).forEach(el => el.textContent = data.views);
+        }).catch(() => {});
+    }
     function openAt(idx) {
         const link = items[idx];
         if (!link) return;
@@ -160,6 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
         cap.textContent = title;
         box.hidden = false;
         document.body.classList.add('no-scroll');
+        sendView(link.dataset.id);
     }
     function close() {
         box.hidden = true;

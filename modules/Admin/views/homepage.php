@@ -148,6 +148,22 @@ ob_start();
             <input type="number" name="home_order_articles" value="<?= htmlspecialchars($s['home_order_articles'] ?? 2) ?>" min="1" max="10">
         </label>
 
+
+        <div class="grid two">
+            <label class="field checkbox">
+                <input type="checkbox" name="home_show_news" value="1" <?= !empty($s["home_show_news"]) ? "checked" : "" ?>>
+                <span>Показывать блок «Новости»</span>
+            </label>
+            <label class="field">
+                <span>Кол-во новостей</span>
+                <input type="number" name="home_news_limit" value="<?= htmlspecialchars($s["home_news_limit"] ?? 6) ?>" min="1" max="30">
+            </label>
+        </div>
+        <label class="field">
+            <span>Порядок блока «Новости»</span>
+            <input type="number" name="home_order_news" value="<?= htmlspecialchars($s["home_order_news"] ?? 3) ?>" min="1" max="10">
+        </label>
+
         <div class="grid two">
             <label class="field checkbox">
                 <input type="checkbox" name="home_show_popular_products" value="1"
@@ -234,6 +250,28 @@ ob_start();
                     <input type="text" name="home_articles_cta_en" value="<?= htmlspecialchars($s['home_articles_cta_en'] ?? '') ?>" placeholder="<?= __('homepage.defaults.articles_cta_en') ?>">
                 </label>
             </div>
+
+            <div class="grid two">
+                <label class="field locale-ru">
+                    <span>Заголовок блока «Новости» RU</span>
+                    <input type="text" name="home_news_title_ru" value="<?= htmlspecialchars($s["home_news_title_ru"] ?? "") ?>" placeholder="Новости">
+                </label>
+                <label class="field locale-en">
+                    <span>News block title EN</span>
+                    <input type="text" name="home_news_title_en" value="<?= htmlspecialchars($s["home_news_title_en"] ?? "") ?>" placeholder="News">
+                </label>
+            </div>
+            <div class="grid two">
+                <label class="field locale-ru">
+                    <span>Ссылка «Все новости» RU</span>
+                    <input type="text" name="home_news_cta_ru" value="<?= htmlspecialchars($s["home_news_cta_ru"] ?? "") ?>" placeholder="Все новости →">
+                </label>
+                <label class="field locale-en">
+                    <span>CTA «All news» EN</span>
+                    <input type="text" name="home_news_cta_en" value="<?= htmlspecialchars($s["home_news_cta_en"] ?? "") ?>" placeholder="All news →">
+                </label>
+            </div>
+
 
             <div class="grid two">
                 <label class="field locale-ru">

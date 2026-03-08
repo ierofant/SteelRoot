@@ -9,7 +9,7 @@ ob_start();
                 <p class="eyebrow"><?= __('forms.title') ?></p>
                 <h3><?= __('forms.subtitle') ?></h3>
         </div>
-        <div class="form-actions" style="gap:8px;">
+        <div class="form-actions u-gap-8">
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>"><?= __('forms.action.back_admin') ?></a>
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/forms/embeds"><?= __('forms.embed.tab') ?></a>
         </div>
@@ -58,7 +58,7 @@ ob_start();
                 <option value="file">file</option>
             </select>
         </td>
-        <td style="text-align:center;"><input type="checkbox" class="fb-required"></td>
+        <td class="u-center"><input type="checkbox" class="fb-required"></td>
         <td class="actions">
             <button type="button" class="btn ghost small move-up"><?= __('forms.action.up') ?></button>
             <button type="button" class="btn ghost small move-down"><?= __('forms.action.down') ?></button>

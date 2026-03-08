@@ -48,7 +48,14 @@ class UploadController
 
     public function form(Request $request): Response
     {
-        $items = $this->db->fetchAll("SELECT id, title_en, title_ru, path_thumb, created_at FROM gallery_items ORDER BY created_at DESC LIMIT 30");
+        $page     = max(1, (int)($request->query['page'] ?? 1));
+        $perPage  = 20;
+        $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items");
+        $total    = (int)($totalRow['cnt'] ?? 0);
+        $offset   = ($page - 1) * $perPage;
+        $items    = $this->db->fetchAll(
+            "SELECT id, title_en, title_ru, path_thumb, created_at FROM gallery_items ORDER BY created_at DESC LIMIT {$perPage} OFFSET {$offset}"
+        );
         $html = $this->container->get('renderer')->render('gallery/upload', [
             'title'      => 'Upload',
             'csrf'       => Csrf::token('gallery_upload'),
@@ -56,6 +63,9 @@ class UploadController
             'categories' => $this->galleryCategories->all(),
             'localeMode' => $this->localeMode,
             'folders'    => $this->scanFolders(),
+            'page'       => $page,
+            'total'      => $total,
+            'perPage'    => $perPage,
         ]);
         return new Response($html);
     }
@@ -89,6 +99,10 @@ class UploadController
             'show_tags' => true,
             'enable_lightbox' => true,
             'lightbox_likes' => true,
+            'seo_title_en' => '',
+            'seo_title_ru' => '',
+            'seo_desc_en' => '',
+            'seo_desc_ru' => '',
         ];
         $merged = array_merge($defaults, $settings);
         $html = $this->container->get('renderer')->render('gallery/settings', [
@@ -117,6 +131,12 @@ class UploadController
             $val = !empty($request->body[$field]);
             $this->moduleSettings->set('gallery', $key, $val);
         }
+        $perPage = max(1, (int)($request->body['gallery_per_page'] ?? 9));
+        $this->moduleSettings->set('gallery', 'per_page', $perPage);
+        $this->moduleSettings->set('gallery', 'seo_title_en', trim((string)($request->body['gallery_seo_title_en'] ?? '')));
+        $this->moduleSettings->set('gallery', 'seo_title_ru', trim((string)($request->body['gallery_seo_title_ru'] ?? '')));
+        $this->moduleSettings->set('gallery', 'seo_desc_en', trim((string)($request->body['gallery_seo_desc_en'] ?? '')));
+        $this->moduleSettings->set('gallery', 'seo_desc_ru', trim((string)($request->body['gallery_seo_desc_ru'] ?? '')));
         return new Response('', 302, ['Location' => $this->adminPrefix() . '/gallery/settings?msg=saved']);
     }
 

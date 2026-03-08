@@ -13,7 +13,7 @@ ob_start();
             <p class="eyebrow">Gallery</p>
             <h3>Categories</h3>
         </div>
-        <div style="display:flex;gap:.5rem">
+        <div class="u-flex u-gap-half">
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/gallery/upload">← Gallery</a>
             <a class="btn primary" href="<?= htmlspecialchars($ap) ?>/gallery/categories/create">+ New Category</a>
         </div>
@@ -36,7 +36,7 @@ ob_start();
                 <tr>
                     <td>
                         <?php if (!empty($c['image_url'])): ?>
-                            <img src="<?= htmlspecialchars($c['image_url']) ?>" alt="" style="width:48px;height:32px;object-fit:cover;border-radius:4px;">
+                            <img src="<?= htmlspecialchars($c['image_url']) ?>" alt="" class="category-thumb">
                         <?php else: ?>
                             <span class="muted">—</span>
                         <?php endif; ?>
@@ -45,12 +45,12 @@ ob_start();
                     <td><?= htmlspecialchars($c['name_ru']) ?></td>
                     <td>
                         <code><?= htmlspecialchars($c['slug']) ?></code>
-                        <div class="muted" style="font-size:.8em">/storage/uploads/gallery/<?= htmlspecialchars($c['slug']) ?>/</div>
+                        <div class="muted u-font-08em">/storage/uploads/gallery/<?= htmlspecialchars($c['slug']) ?>/</div>
                     </td>
                     <td><?= (int)$c['position'] ?></td>
                     <td>
                         <?php if ($c['enabled']): ?>
-                            <span class="pill" style="background:var(--accent);color:#000">Yes</span>
+                            <span class="pill pill-accent-dark">Yes</span>
                         <?php else: ?>
                             <span class="pill">No</span>
                         <?php endif; ?>
@@ -103,7 +103,7 @@ ob_start();
             <span>Slug <span class="muted">(also used as upload subfolder name)</span></span>
             <input type="text" name="slug" value="<?= htmlspecialchars($cat['slug'] ?? '') ?>" placeholder="Auto-generated from name">
             <?php if (!empty($cat['slug'])): ?>
-                <span class="muted" style="font-size:.85em">
+                <span class="muted u-font-085em">
                     Files upload to: <code>/storage/uploads/gallery/<?= htmlspecialchars($cat['slug']) ?>/</code>
                 </span>
             <?php endif; ?>
@@ -115,11 +115,11 @@ ob_start();
             <input type="text" name="image_url" id="gcat_image_url"
                    placeholder="Or paste URL"
                    value="<?= htmlspecialchars($cat['image_url'] ?? '') ?>">
-            <div id="gcat_image_preview" <?= empty($cat['image_url']) ? 'style="display:none"' : '' ?>>
+            <div id="gcat_image_preview" class="<?= empty($cat['image_url']) ? 'u-hide' : '' ?>">
                 <?php if (!empty($cat['image_url'])): ?>
                     <img src="<?= htmlspecialchars($cat['image_url']) ?>"
                          alt="preview"
-                         style="max-width:200px;max-height:120px;border-radius:6px;margin-top:.5rem">
+                         class="category-preview-image">
                 <?php endif; ?>
             </div>
         </label>
@@ -129,7 +129,7 @@ ob_start();
                 <span>Position</span>
                 <input type="number" name="position" value="<?= (int)($cat['position'] ?? 0) ?>" min="0">
             </label>
-            <label class="field" style="flex-direction:row;align-items:center;gap:.75rem;padding-top:1.5rem">
+            <label class="field category-enabled-field">
                 <input type="checkbox" name="enabled" value="1" <?= ($cat === null || !empty($cat['enabled'])) ? 'checked' : '' ?>>
                 <span>Enabled</span>
             </label>
@@ -149,7 +149,7 @@ function previewGcatImage(input) {
         const reader = new FileReader();
         reader.onload = function(e) {
             preview.style.display = '';
-            preview.innerHTML = '<img src="'+e.target.result+'" style="max-width:200px;max-height:120px;border-radius:6px;margin-top:.5rem">';
+            preview.innerHTML = '<img src="'+e.target.result+'" class="category-preview-image">';
         };
         reader.readAsDataURL(input.files[0]);
     }
@@ -158,7 +158,7 @@ document.getElementById('gcat_image_url')?.addEventListener('input', function() 
     const preview = document.getElementById('gcat_image_preview');
     if (this.value) {
         preview.style.display = '';
-        preview.innerHTML = '<img src="'+this.value+'" style="max-width:200px;max-height:120px;border-radius:6px;margin-top:.5rem">';
+        preview.innerHTML = '<img src="'+this.value+'" class="category-preview-image">';
     }
 });
 </script>

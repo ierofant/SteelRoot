@@ -42,6 +42,31 @@
                 <span><?= __('gallery.settings.lightbox_likes') ?></span>
             </label>
         </div>
+        <div class="field">
+            <span><?= __('gallery.settings.per_page') ?></span>
+            <input type="number" name="gallery_per_page" min="1" max="100"
+                value="<?= (int)($settings['per_page'] ?? 9) ?>">
+        </div>
+        <div class="grid two">
+            <label class="field">
+                <span>SEO title (RU) for /gallery</span>
+                <input type="text" name="gallery_seo_title_ru" value="<?= htmlspecialchars((string)($settings['seo_title_ru'] ?? '')) ?>" placeholder="Галерея — ваш проект">
+            </label>
+            <label class="field">
+                <span>SEO title (EN) for /gallery</span>
+                <input type="text" name="gallery_seo_title_en" value="<?= htmlspecialchars((string)($settings['seo_title_en'] ?? '')) ?>" placeholder="Gallery — your project">
+            </label>
+        </div>
+        <div class="grid two">
+            <label class="field">
+                <span>SEO description (RU) for /gallery</span>
+                <textarea name="gallery_seo_desc_ru" rows="3" placeholder="Краткое описание страницы галереи"><?= htmlspecialchars((string)($settings['seo_desc_ru'] ?? '')) ?></textarea>
+            </label>
+            <label class="field">
+                <span>SEO description (EN) for /gallery</span>
+                <textarea name="gallery_seo_desc_en" rows="3" placeholder="Short description for gallery page"><?= htmlspecialchars((string)($settings['seo_desc_en'] ?? '')) ?></textarea>
+            </label>
+        </div>
         <div class="form-actions">
             <button type="submit" class="btn primary"><?= __('gallery.settings.save') ?></button>
         </div>

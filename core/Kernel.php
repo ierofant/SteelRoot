@@ -338,6 +338,12 @@ class Kernel
             ]);
             $result = $this->router->dispatch($request, $this->container);
             if ($result instanceof Response) {
+                if ($result->status === 200
+                    && $result->isHtml()
+                    && $settingsSvc->get('minify_html', '0') === '1'
+                ) {
+                    $result->setBody(HtmlMinifier::minify($result->body()));
+                }
                 return $result;
             }
             if (is_string($result)) {

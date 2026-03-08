@@ -41,20 +41,25 @@
             }
         ?>
         <?php if ($metaParts): ?>
-            <div class="muted" style="margin-top:6px;"><?= htmlspecialchars(implode(' · ', $metaParts)) ?></div>
+            <div class="muted article-meta-line"><?= htmlspecialchars(implode(' · ', $metaParts)) ?></div>
         <?php endif; ?>
         <?php if (!empty($display['show_author']) && !empty($article['author_name']) && !empty($article['author_id'])): ?>
-            <div style="display:flex;align-items:center;gap:10px;margin-top:10px;">
-                <span style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#1c1f2d,#292f4f);background-size:cover;background-position:center;display:grid;place-items:center;color:#dce4ff;font-weight:700;border:1px solid rgba(255,255,255,0.08);<?= !empty($article['author_avatar']) ? "background-image:url('".htmlspecialchars($article['author_avatar'])."')" : '' ?>">
-                    <?= !empty($article['author_avatar']) ? '' : htmlspecialchars(strtoupper(substr($article['author_name'],0,1))) ?>
+            <div class="article-author-row">
+                <span class="article-author-avatar">
+                    <?php if (!empty($article['author_avatar'])): ?>
+                        <img src="<?= htmlspecialchars($article['author_avatar']) ?>" alt="<?= htmlspecialchars($article['author_name']) ?>">
+                    <?php else: ?>
+                        <?= htmlspecialchars(strtoupper(substr($article['author_name'],0,1))) ?>
+                    <?php endif; ?>
                 </span>
                 <a class="muted" href="<?= htmlspecialchars($authorProfileUrl) ?>"><?= htmlspecialchars($article['author_name']) ?></a>
             </div>
         <?php endif; ?>
     </header>
-    <?php if (!empty($article['image_url'])): ?>
+    <?php $coverSrc = $article['cover_url'] ?? $article['image_url'] ?? ''; ?>
+    <?php if ($coverSrc !== ''): ?>
         <div class="article-cover">
-            <img src="<?= htmlspecialchars($article['image_url']) ?>" alt="<?= htmlspecialchars($title) ?>">
+            <img src="<?= htmlspecialchars($coverSrc) ?>" alt="<?= htmlspecialchars($title) ?>">
         </div>
     <?php endif; ?>
     <div class="article-body"><?= $bodyHtml ?></div>
@@ -68,7 +73,7 @@
             <?php endforeach; ?>
         </div>
     <?php endif; ?>
-    <div class="form-actions" style="flex-direction:row; align-items:center; gap:12px;">
+    <div class="form-actions article-actions-row">
         <?php if (!empty($display['show_likes'])): ?>
             <button type="button" class="like-btn" id="like-article" data-id="<?= (int)$article['id'] ?>"><span>❤</span><span id="like-count"><?= (int)($article['likes'] ?? 0) ?></span></button>
         <?php endif; ?>

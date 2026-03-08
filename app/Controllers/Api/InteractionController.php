@@ -23,17 +23,22 @@ class InteractionController
         if (!$this->isAllowedType($type) || $id <= 0) {
             return Response::json(['error' => 'bad_request'], 400);
         }
-        $column = $type === 'article' ? 'articles' : 'gallery_items';
+        $column = match ($type) {
+            'article' => 'articles',
+            'video'   => 'video_items',
+            default   => 'gallery_items',
+        };
+        $useSlug = $type === 'article';
         $fingerprint = $this->fp($request);
         $rl = new RateLimiter('view_' . $fingerprint . '_' . $type . '_' . $id, 3, 300);
         $already = false;
         if (!$rl->tooManyAttempts()) {
             $rl->hit();
-            $this->db->execute("UPDATE {$column} SET views = views + 1 WHERE " . ($type === 'article' ? 'slug = ?' : 'id = ?'), [$type === 'article' ? ($request->body['slug'] ?? '') : $id]);
+            $this->db->execute("UPDATE {$column} SET views = views + 1 WHERE " . ($useSlug ? 'slug = ?' : 'id = ?'), [$useSlug ? ($request->body['slug'] ?? '') : $id]);
         } else {
             $already = true;
         }
-        $row = $this->db->fetch("SELECT views FROM {$column} WHERE " . ($type === 'article' ? 'slug = ?' : 'id = ?'), [$type === 'article' ? ($request->body['slug'] ?? '') : $id]);
+        $row = $this->db->fetch("SELECT views FROM {$column} WHERE " . ($useSlug ? 'slug = ?' : 'id = ?'), [$useSlug ? ($request->body['slug'] ?? '') : $id]);
         return Response::json(['ok' => true, 'already' => $already, 'views' => (int)($row['views'] ?? 0)]);
     }
 
@@ -56,7 +61,11 @@ class InteractionController
             VALUES (:t, :id, :fp, NOW())
             ON DUPLICATE KEY UPDATE created_at = created_at
         ", [':t' => $type, ':id' => $id, ':fp' => $fingerprint]);
-        $table = $type === 'article' ? 'articles' : 'gallery_items';
+        $table = match ($type) {
+            'article' => 'articles',
+            'video'   => 'video_items',
+            default   => 'gallery_items',
+        };
         $this->db->execute("UPDATE {$table} SET likes = (SELECT COUNT(*) FROM likes WHERE entity_type = ? AND entity_id = ?) WHERE id = ?", [$type, $id, $id]);
         $row = $this->db->fetch("SELECT likes FROM {$table} WHERE id = ?", [$id]);
         return Response::json([
@@ -75,6 +84,6 @@ class InteractionController
 
     private function isAllowedType(string $type): bool
     {
-        return in_array($type, ['article', 'gallery'], true);
+        return in_array($type, ['article', 'gallery', 'video'], true);
     }
 }

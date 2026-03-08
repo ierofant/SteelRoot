@@ -16,10 +16,12 @@ $defaults = [
 ];
 $fallbackCols = $defaults[$loc] ?? $defaults['en'];
 $col = function (int $i) use ($s, $loc, $fallbackCols) {
-    $tKey = $loc === 'ru' ? "footer_col{$i}_title_ru" : "footer_col{$i}_title_en";
-    $bKey = $loc === 'ru' ? "footer_col{$i}_body_ru" : "footer_col{$i}_body_en";
-    $title = trim($s[$tKey] ?? '');
-    $body = trim($s[$bKey] ?? '');
+    $tKeyPri = $loc === 'ru' ? "footer_col{$i}_title_ru" : "footer_col{$i}_title_en";
+    $bKeyPri = $loc === 'ru' ? "footer_col{$i}_body_ru"  : "footer_col{$i}_body_en";
+    $tKeyFb  = $loc === 'ru' ? "footer_col{$i}_title_en" : "footer_col{$i}_title_ru";
+    $bKeyFb  = $loc === 'ru' ? "footer_col{$i}_body_en"  : "footer_col{$i}_body_ru";
+    $title = trim($s[$tKeyPri] ?? '') ?: trim($s[$tKeyFb] ?? '');
+    $body  = trim($s[$bKeyPri] ?? '') ?: trim($s[$bKeyFb] ?? '');
     if ($title === '' && $body === '') {
         return $fallbackCols[$i - 1] ?? ['title' => '', 'body' => ''];
     }

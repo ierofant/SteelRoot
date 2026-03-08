@@ -8,30 +8,13 @@ $baseBlocks = [
     'all-modules' => __('dashboard.block.all_modules'),
 ];
 ?>
-<style>
-.dash-controls {display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:10px;}
-.dash-controls .btn {padding:10px 14px;}
-.dash-config {display:none;}
-.dash-config.open {display:block;}
-.dash-config .option {display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
-.dash-config label {display:flex;align-items:center;gap:8px;}
-.dash-config small {color:var(--text-muted,#8b8f98);}
-.dash-block .remove-block {position:absolute;top:12px;right:12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:10px;padding:6px 10px;color:inherit;cursor:pointer;transition:all .2s ease;}
-.dash-block .remove-block:hover {background:rgba(255,255,255,0.18);}
-.dash-block.dragging {opacity:0.6;}
-.hidden-block {display:none !important;}
-.dash-config .add-form {display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
-.dash-config .add-form .full {grid-column:1/-1;}
-.dash-config .module-chips {display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
-.dash-config .module-chips .btn {padding:8px 10px;}
-</style>
-<div id="dashboard-blocks" class="stack" style="gap:12px;">
+<div id="dashboard-blocks" class="stack dashboard-blocks">
     <div class="dash-controls">
         <div class="chip-row">
             <span class="pill"><?= __('dashboard.controls.dragdrop') ?></span>
             <span class="pill"><?= __('dashboard.controls.visibility') ?></span>
         </div>
-        <div class="chip-row" style="gap:8px;">
+        <div class="chip-row dash-chip-gap">
             <button class="btn ghost" id="dash-config-toggle"><?= __('dashboard.controls.configure') ?></button>
             <button class="btn ghost" id="dash-reset"><?= __('dashboard.controls.reset') ?></button>
         </div>
@@ -188,8 +171,8 @@ $baseBlocks = [
     <section id="dash-config" class="card glass dash-config dash-block form-dark" data-block="config" draggable="false">
         <p class="eyebrow"><?= __('dashboard.config.eyebrow') ?></p>
         <h3><?= __('dashboard.config.title') ?></h3>
-        <div id="dash-config-list" class="stack" style="gap:8px;"></div>
-        <div class="stack" style="gap:6px;margin-top:14px;">
+        <div id="dash-config-list" class="stack dash-config-list"></div>
+        <div class="stack dash-config-stack">
             <p class="eyebrow"><?= __('dashboard.config.new_block') ?></p>
             <div class="add-form">
                 <label class="full"><?= __('dashboard.form.title') ?>
@@ -205,12 +188,12 @@ $baseBlocks = [
                     <input type="text" id="dash-new-link-url" placeholder="<?= htmlspecialchars(__('dashboard.form.placeholder.link_url', ['url' => $ap . '/modules'])) ?>">
                 </label>
             </div>
-            <div class="chip-row" style="gap:8px;">
+            <div class="chip-row dash-chip-gap">
                 <button class="btn primary" id="dash-add-block"><?= __('dashboard.form.add_block') ?></button>
                 <button class="btn ghost" id="dash-clear-form"><?= __('dashboard.form.clear') ?></button>
             </div>
             <?php if (!empty($modules ?? [])): ?>
-            <div class="stack" style="gap:6px;">
+            <div class="stack dash-module-stack">
                 <p class="eyebrow"><?= __('dashboard.config.fast_from_modules') ?></p>
                 <div class="module-chips" id="dash-module-chips">
                     <?php foreach ($modules as $mod): ?>
@@ -225,7 +208,7 @@ $baseBlocks = [
             </div>
             <?php endif; ?>
         </div>
-        <div class="chip-row" style="margin-top:12px;">
+        <div class="chip-row dash-chip-mt">
             <button class="btn ghost" id="dash-config-close"><?= __('dashboard.config.close') ?></button>
         </div>
     </section>

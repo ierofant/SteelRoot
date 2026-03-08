@@ -18,7 +18,7 @@ ob_start();
             <button type="button" class="tab" data-tab="cookie"><?= __('popups.tab.cookie') ?></button>
         </div>
 
-        <div class="tab-pane" data-pane="adult" style="display:block;">
+        <div class="tab-pane is-active" data-pane="adult">
             <label class="field checkbox">
                 <input type="checkbox" name="adult_enabled" value="1" <?= !empty($s['adult_enabled']) ? 'checked' : '' ?>>
                 <span><?= __('popups.adult.enabled') ?></span>
@@ -49,7 +49,7 @@ ob_start();
             </div>
         </div>
 
-        <div class="tab-pane" data-pane="cookie" style="display:none;">
+        <div class="tab-pane" data-pane="cookie">
             <label class="field checkbox">
                 <input type="checkbox" name="cookie_enabled" value="1" <?= !empty($s['cookie_enabled']) ? 'checked' : '' ?>>
                 <span><?= __('popups.cookie.enabled') ?></span>

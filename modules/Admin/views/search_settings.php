@@ -34,15 +34,19 @@
             </label>
         </div>
         <div class="grid three mini-cards">
-            <label class="field checkbox card" style="padding:10px;">
+            <label class="field checkbox card search-settings-card">
                 <input type="checkbox" name="search_include_articles" value="1" <?= (($settings['search_include_articles'] ?? '1') === '1') ? 'checked' : '' ?>>
                 <span>Искать в статьях</span>
             </label>
-            <label class="field checkbox card" style="padding:10px;">
+            <label class="field checkbox card search-settings-card">
+                <input type="checkbox" name="search_include_news" value="1" <?= (($settings['search_include_news'] ?? '1') === '1') ? 'checked' : '' ?>>
+                <span>Искать в новостях</span>
+            </label>
+            <label class="field checkbox card search-settings-card">
                 <input type="checkbox" name="search_include_gallery" value="1" <?= (($settings['search_include_gallery'] ?? '1') === '1') ? 'checked' : '' ?>>
                 <span>Искать в галерее</span>
             </label>
-            <label class="field checkbox card" style="padding:10px;">
+            <label class="field checkbox card search-settings-card">
                 <input type="checkbox" name="search_include_tags" value="1" <?= !empty($settings['search_include_tags']) ? 'checked' : '' ?>>
                 <span>Искать теги</span>
             </label>

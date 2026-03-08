@@ -53,6 +53,13 @@ class ThemeController
             foreach ($keys as $k) {
                 $data[$k] = trim((string)($request->body[$k] ?? $defaults[$k]));
             }
+            // Footer columns (3 cols × title+body × ru+en)
+            for ($i = 1; $i <= 3; $i++) {
+                foreach (['title_ru', 'title_en', 'body_ru', 'body_en'] as $f) {
+                    $k = "footer_col{$i}_{$f}";
+                    $data[$k] = trim((string)($request->body[$k] ?? ''));
+                }
+            }
             // Handle uploads
             $uploads = $this->handleUploads();
             if (!empty($uploads['logo'])) {

@@ -1,7 +1,13 @@
 <?php
-$loc = $locale ?? 'en';
-$articleCount = count($articles ?? []);
-$galleryCount = count($gallery ?? []);
+$loc          = $locale ?? 'en';
+$aPage        = $aPage   ?? 1;
+$gPage        = $gPage   ?? 1;
+$aTotal       = $aTotal  ?? count($articles ?? []);
+$gTotal       = $gTotal  ?? count($gallery  ?? []);
+$perPage      = $perPage ?? 12;
+$tagBase      = $tagBase ?? ('/tags/' . rawurlencode($slug ?? ''));
+$articleCount = $aTotal;
+$galleryCount = $gTotal;
 ?>
 <section class="tag-hero">
     <div class="tag-hero__bg"></div>
@@ -58,6 +64,14 @@ $galleryCount = count($gallery ?? []);
             <p class="muted">Добавьте материалы с этим тегом — они появятся здесь.</p>
         </div>
     <?php endif; ?>
+    <?php
+    $paginationPage    = $aPage;
+    $paginationTotal   = $aTotal;
+    $paginationPerPage = $perPage;
+    $paginationBase    = $tagBase . '?gp=' . $gPage;
+    $paginationParam   = 'ap';
+    include APP_ROOT . '/app/views/partials/pagination.php';
+    ?>
 </section>
 
 <section class="tag-section" id="gallery">
@@ -98,6 +112,14 @@ $galleryCount = count($gallery ?? []);
             </div>
         <?php endif; ?>
     </div>
+    <?php
+    $paginationPage    = $gPage;
+    $paginationTotal   = $gTotal;
+    $paginationPerPage = $perPage;
+    $paginationBase    = $tagBase . '?ap=' . $aPage;
+    $paginationParam   = 'gp';
+    include APP_ROOT . '/app/views/partials/pagination.php';
+    ?>
 </section>
 
 <?php if (($openMode ?? 'lightbox') === 'lightbox' && !empty($gallery)): ?>

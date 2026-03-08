@@ -171,7 +171,7 @@ return [
     'homepage.custom.help' => 'JSON array of objects { "title": "...", "text": "...", "icon": "🔥", "link": "/..." }. Render in template when needed.',
     'homepage.custom.blocks' => 'Custom blocks (JSON)',
     'homepage.custom.blocks_placeholder' => '[{"title":"Case","text":"Description","icon":"🚀","link":"/cases/1"}]',
-    'homepage.custom.css' => 'Extra CSS (injected into <style>)',
+    'homepage.custom.css' => 'Extra CSS (external runtime stylesheet)',
     'homepage.custom.css_placeholder' => '.home-hero { letter-spacing:-0.3px; }',
     'homepage.action.save' => 'Save',
     'homepage.action.to_site' => 'Go to site',

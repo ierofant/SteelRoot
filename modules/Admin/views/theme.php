@@ -70,7 +70,7 @@
 
         <div class="card subtle stack">
             <p class="eyebrow"><?= __('theme.footer.section') ?></p>
-            <h4 style="margin:0;"><?= __('theme.footer.subtitle') ?></h4>
+            <h4 class="u-m-0"><?= __('theme.footer.subtitle') ?></h4>
             <?php for ($i=1; $i<=3; $i++): ?>
                 <div class="grid two">
                     <label class="field locale-ru">

@@ -5,7 +5,7 @@
             <p class="eyebrow"><?= __('docs.title') ?></p>
             <h3><?= __('docs.support.title') ?></h3>
         </div>
-        <div class="form-actions" style="gap:8px;">
+        <div class="form-actions u-gap-8">
             <a class="btn ghost" href="/admin/docs"><?= __('docs.menu') ?></a>
         </div>
     </div>

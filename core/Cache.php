@@ -20,7 +20,8 @@ class Cache
         $file = $this->file($key);
         $payload = [
             'expires' => time() + ($ttl ?? $this->defaultTtl),
-            'value' => $value,
+            'key'     => $key,
+            'value'   => $value,
         ];
         file_put_contents($file, serialize($payload));
     }
@@ -49,9 +50,39 @@ class Cache
 
     public function clear(): void
     {
-        foreach (glob($this->path . '/*.cache') as $file) {
+        foreach (glob($this->path . '/*.cache') ?: [] as $file) {
             @unlink($file);
         }
+    }
+
+    /**
+     * Return metadata for all valid cache entries.
+     * @return array<int, array{key:string, expires:int, size:int, type:string}>
+     */
+    public function entries(): array
+    {
+        $result = [];
+        foreach (glob($this->path . '/*.cache') ?: [] as $file) {
+            $raw = @file_get_contents($file);
+            if ($raw === false) continue;
+            $payload = @unserialize($raw);
+            if (!is_array($payload)) continue;
+            $expires = (int)($payload['expires'] ?? 0);
+            if ($expires > 0 && $expires < time()) {
+                @unlink($file);
+                continue;
+            }
+            $value = $payload['value'] ?? null;
+            $type  = is_string($value) ? 'html' : (is_array($value) ? 'array' : gettype($value));
+            $result[] = [
+                'key'     => $payload['key'] ?? basename($file, '.cache'),
+                'expires' => $expires,
+                'size'    => strlen($raw),
+                'type'    => $type,
+            ];
+        }
+        usort($result, fn($a, $b) => $a['expires'] <=> $b['expires']);
+        return $result;
     }
 
     private function file(string $key): string

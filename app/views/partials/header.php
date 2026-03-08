@@ -39,12 +39,12 @@ $buildLangUrl = function (string $code, string $path, array $queryParams): strin
 <header class="topbar">
     <div class="brand">
         <?php if (!empty($settings['theme_logo'])): ?>
-            <img src="<?= htmlspecialchars($settings['theme_logo']) ?>" alt="Logo" style="height:32px;">
+            <img src="<?= htmlspecialchars($settings['theme_logo']) ?>" alt="Logo" class="brand-logo">
         <?php else: ?>
-            <span style="font-weight:800;">SteelRoot</span>
+            <span class="brand-text">SteelRoot</span>
         <?php endif; ?>
     </div>
-    <div class="right-tools" style="display:flex;align-items:center;gap:10px; margin-left:auto;">
+    <div class="right-tools">
         <?php if ($langSwitchEnabled): ?>
             <div class="lang-switch">
                 <?php foreach ($availableLocales as $code): ?>

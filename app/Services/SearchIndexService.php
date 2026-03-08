@@ -36,6 +36,7 @@ class SearchIndexService
     {
         $this->db->execute("TRUNCATE TABLE search_index");
         $this->indexArticles();
+        $this->indexNews();
         $this->indexGallery();
         $this->indexTags();
     }
@@ -92,6 +93,28 @@ class SearchIndexService
                     : '/gallery/view?id=' . (int)$row['id'],
                 'path_thumb' => $row['path_thumb'] ?? null,
                 'path_medium' => $row['path_medium'] ?? null,
+            ]);
+        }
+    }
+
+    private function indexNews(): void
+    {
+        $hasPreview = $this->hasColumn('news', 'preview_en');
+        $select = "id, slug, title_en, title_ru, body_en, body_ru";
+        if ($hasPreview) {
+            $select .= ", preview_en, preview_ru";
+        }
+        $rows = $this->db->fetchAll("SELECT {$select} FROM news");
+        foreach ($rows as $row) {
+            $snippetEn = $row['preview_en'] ?? mb_substr((string)($row['body_en'] ?? ''), 0, 240);
+            $snippetRu = $row['preview_ru'] ?? mb_substr((string)($row['body_ru'] ?? ''), 0, 240);
+            $this->insertIndex('news', (int)$row['id'], [
+                'slug' => $row['slug'] ?? '',
+                'title_en' => $row['title_en'] ?? '',
+                'title_ru' => $row['title_ru'] ?? '',
+                'snippet_en' => $snippetEn,
+                'snippet_ru' => $snippetRu,
+                'url' => '/news/' . ($row['slug'] ?? ''),
             ]);
         }
     }

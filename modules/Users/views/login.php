@@ -10,7 +10,6 @@ $success = $success ?? null;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($title) ?></title>
     <link rel="stylesheet" href="/assets/css/admin-login.css?v=1">
-    <style>.alert{margin-bottom:10px;border-radius:12px;padding:10px 12px;text-align:center}.alert.danger{background:rgba(231,76,60,0.12);color:#f6c1b6;border:1px solid rgba(231,76,60,0.4)}.alert.success{background:rgba(46,204,113,0.12);color:#b6f3cf;border:1px solid rgba(46,204,113,0.4)}</style>
 </head>
 <body>
 <div class="login-wrapper">

@@ -2,3 +2,72 @@
 .menu-builder {
   background: transparent;
 }
+
+.profile-page-shell {
+  max-width: 1100px;
+  margin: 24px auto;
+  padding: 10px 14px;
+}
+
+.profile-page-header {
+  margin-bottom: 16px;
+}
+
+.profile-page-kicker {
+  color: #8fa1d8;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.profile-page-title {
+  color: #f5f7ff;
+  margin: 6px 0 0;
+  font-size: 26px;
+}
+
+.profile-page-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.avatar-preview img,
+.public-profile .avatar img,
+.profile-panel-avatar img,
+.avatar.tiny img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.public-profile-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.user-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.avatar.tiny {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2f365f, #1f243a);
+  color: #d8e0ff;
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.row-actions form {
+  display: inline;
+}

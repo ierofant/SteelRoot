@@ -6,8 +6,10 @@ $letter = strtoupper(substr($user['name'] ?? 'U', 0, 1));
 <div class="panel">
     <h3>Avatar</h3>
     <div class="avatar-block">
-        <div class="avatar-preview" style="<?= $avatar ? "background-image:url('".htmlspecialchars($avatar)."')" : '' ?>;background-size:cover;background-position:center;background-repeat:no-repeat;">
-            <?php if (!$avatar): ?>
+        <div class="avatar-preview">
+            <?php if ($avatar): ?>
+                <img src="<?= htmlspecialchars($avatar) ?>" alt="Avatar">
+            <?php else: ?>
                 <span><?= htmlspecialchars($letter) ?></span>
             <?php endif; ?>
         </div>

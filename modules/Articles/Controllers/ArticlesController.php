@@ -23,12 +23,14 @@ class ArticlesController
         $this->db = $container->get(Database::class);
         $this->moduleSettings = $container->get(ModuleSettings::class);
         $this->moduleSettings->loadDefaults('articles', [
-            'show_author' => true,
-            'show_date' => true,
-            'show_likes' => true,
-            'show_views' => true,
-            'show_tags' => true,
+            'show_author'         => true,
+            'show_date'           => true,
+            'show_likes'          => true,
+            'show_views'          => true,
+            'show_tags'           => true,
             'description_enabled' => true,
+            'grid_cols'           => 3,
+            'per_page'            => 6,
         ]);
     }
 
@@ -42,6 +44,17 @@ class ArticlesController
         if (!$category) {
             return new Response('Not found', 404);
         }
+        $catSettings = $this->moduleSettings->all('articles');
+        $perPage  = max(1, (int)($catSettings['per_page'] ?? 6));
+        $gridCols = max(1, min(6, (int)($catSettings['grid_cols'] ?? 3)));
+        $page     = max(1, (int)($request->params['page'] ?? 1));
+        $typeFilter = $this->hasColumn('type') ? "AND (a.type = 'article' OR a.type IS NULL OR a.type = '')" : '';
+        $totalRow = $this->db->fetch(
+            "SELECT COUNT(*) as cnt FROM articles a WHERE a.category_id = ? {$typeFilter}",
+            [(int)$category['id']]
+        );
+        $total  = (int)($totalRow['cnt'] ?? 0);
+        $offset = ($page - 1) * $perPage;
         $locale = $this->container->get('lang')->current();
         $select = "a.slug, a.title_en, a.title_ru, a.created_at";
         $join = '';
@@ -61,27 +74,38 @@ class ArticlesController
         if ($this->hasColumn('image_url')) {
             $select .= ", a.image_url";
         }
+        $typeFilter = $this->hasColumn('type') ? "AND (a.type = 'article' OR a.type IS NULL OR a.type = '')" : '';
         $articles = $this->db->fetchAll(
             "SELECT {$select} FROM articles a {$join}
-             WHERE a.category_id = ?
-             ORDER BY a.created_at DESC LIMIT 50",
+             WHERE a.category_id = ? {$typeFilter}
+             ORDER BY a.created_at DESC LIMIT {$perPage} OFFSET {$offset}",
             [(int)$category['id']]
         );
-        $display = $this->moduleSettings->all('articles');
         $display = array_merge([
             'show_author' => true, 'show_date' => true,
             'show_likes' => true, 'show_views' => true, 'show_tags' => true,
-        ], $display);
+        ], $catSettings);
         $titleKey = $locale === 'ru' ? 'name_ru' : 'name_en';
         $catTitle = $category[$titleKey] ?: ($category['name_en'] ?: $category['name_ru']);
         $canonical = $this->canonical($request);
+        $seoTitle = $locale === 'ru' ? ($catTitle . ' — статьи') : ($catTitle . ' — articles');
+        if ($page > 1) {
+            $seoTitle .= $locale === 'ru' ? (' | Страница ' . $page) : (' | Page ' . $page);
+        }
+        $seoDesc = $locale === 'ru'
+            ? ('Статьи в категории «' . $catTitle . '». Подборка публикаций, обзоров и материалов.')
+            : ('Articles in "' . $catTitle . '" category. A curated list of publications and guides.');
         $html = $this->container->get('renderer')->render(
             'articles/list',
             [
                 '_layout'     => true,
                 'title'       => $catTitle,
-                'description' => '',
+                'description' => $seoDesc,
                 'articles'    => $articles,
+                'page'        => $page,
+                'total'       => $total,
+                'perPage'     => $perPage,
+                'gridCols'    => $gridCols,
                 'locale'      => $locale,
                 'display'     => $display,
                 'category'    => $category,
@@ -91,8 +115,8 @@ class ArticlesController
                 ],
             ],
             [
-                'title'       => $catTitle,
-                'description' => '',
+                'title'       => $seoTitle,
+                'description' => $seoDesc,
                 'canonical'   => $canonical,
                 'image'       => !empty($category['image_url']) ? $category['image_url'] : $this->defaultOgImage(),
             ]
@@ -102,57 +126,116 @@ class ArticlesController
 
     public function byTag(Request $request): Response
     {
-        $slug = $request->params['slug'] ?? '';
-        $tag = $this->db->fetch("SELECT id, name FROM tags WHERE slug = ?", [$slug]);
+        $rawSlug = (string)($request->params['slug'] ?? '');
+        $tag = $this->resolveTagBySlug($rawSlug);
         if (!$tag) {
             return new Response('Not found', 404);
         }
+        $slug = (string)$tag['slug'];
+
+        $perPage = 12;
+        $aPage   = max(1, (int)($request->query['ap'] ?? 1));
+        $gPage   = max(1, (int)($request->query['gp'] ?? 1));
+
+        $aTotal = (int)($this->db->fetch("
+            SELECT COUNT(*) AS cnt FROM articles a
+            JOIN taggables tg ON tg.entity_id = a.id AND tg.entity_type = 'article'
+            JOIN tags t ON t.id = tg.tag_id WHERE t.slug = ?
+        ", [$slug])['cnt'] ?? 0);
+
+        $gTotal = (int)($this->db->fetch("
+            SELECT COUNT(*) AS cnt FROM gallery_items gi
+            JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image')
+            JOIN tags t ON t.id = tg.tag_id WHERE t.slug = ?
+        ", [$slug])['cnt'] ?? 0);
+
+        $aOffset = ($aPage - 1) * $perPage;
+        $gOffset = ($gPage - 1) * $perPage;
+
         $articles = $this->db->fetchAll("
             SELECT a.slug, a.title_en, a.title_ru, a.created_at
             FROM articles a
             JOIN taggables tg ON tg.entity_id = a.id AND tg.entity_type = 'article'
             JOIN tags t ON t.id = tg.tag_id
             WHERE t.slug = ?
-            ORDER BY a.created_at DESC LIMIT 100
+            ORDER BY a.created_at DESC LIMIT {$perPage} OFFSET {$aOffset}
         ", [$slug]);
         $gallery = $this->db->fetchAll("
             SELECT gi.* FROM gallery_items gi
             JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image')
             JOIN tags t ON t.id = tg.tag_id
             WHERE t.slug = ?
-            ORDER BY gi.id DESC LIMIT 100
+            ORDER BY gi.id DESC LIMIT {$perPage} OFFSET {$gOffset}
         ", [$slug]);
         $canonical = $this->canonical($request);
-        $titleText = 'Tag: ' . ($tag['name'] ?? $slug);
+        $tagName = $tag['name'] ?? $slug;
+        $currentLocale = $this->container->get('lang')->current();
+        $titleText = $currentLocale === 'ru' ? ('Тег: ' . $tagName) : ('Tag: ' . $tagName);
+        $tagDesc = $currentLocale === 'ru'
+            ? ('Материалы по тегу «' . $tagName . '»: статьи и изображения.')
+            : ('Content for tag "' . $tagName . '": articles and images.');
+        $tagBase   = '/tags/' . rawurlencode($slug);
         $html = $this->container->get('renderer')->render(
             'tags/show',
             [
-                '_layout' => true,
-                'title' => $titleText,
-                'articles' => $articles,
-                'gallery' => $gallery,
-                'locale' => $this->container->get('lang')->current(),
-                'slug' => $slug,
-                'tagName' => $tag['name'] ?? $slug,
-                'openMode' => $this->container->get(\App\Services\SettingsService::class)->get('gallery_open_mode', 'lightbox'),
+                '_layout'   => true,
+                'title'     => $titleText,
+                'articles'  => $articles,
+                'gallery'   => $gallery,
+                'locale'    => $this->container->get('lang')->current(),
+                'slug'      => $slug,
+                'tagName'   => $tag['name'] ?? $slug,
+                'openMode'  => $this->container->get(\App\Services\SettingsService::class)->get('gallery_open_mode', 'lightbox'),
+                'aPage'     => $aPage,
+                'aTotal'    => $aTotal,
+                'gPage'     => $gPage,
+                'gTotal'    => $gTotal,
+                'perPage'   => $perPage,
+                'tagBase'   => $tagBase,
             ],
             [
                 'title' => $titleText,
                 'canonical' => $canonical,
-                'description' => '',
+                'description' => $tagDesc,
                 'image' => $this->defaultOgImage(),
             ]
         );
         return new Response($html);
     }
 
+    private function resolveTagBySlug(string $rawSlug): ?array
+    {
+        $candidates = [];
+        $decoded = rawurldecode($rawSlug);
+        foreach ([$rawSlug, $decoded, mb_strtolower($decoded, 'UTF-8')] as $candidate) {
+            $candidate = trim($candidate);
+            if ($candidate !== '' && !in_array($candidate, $candidates, true)) {
+                $candidates[] = $candidate;
+            }
+        }
+
+        $translit = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $decoded);
+        $translit = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', (string)$translit), '-'));
+        if ($translit !== '' && !in_array($translit, $candidates, true)) {
+            $candidates[] = $translit;
+        }
+
+        foreach ($candidates as $candidate) {
+            $tag = $this->db->fetch("SELECT id, name, slug FROM tags WHERE slug = ? LIMIT 1", [$candidate]);
+            if ($tag) {
+                return $tag;
+            }
+        }
+
+        return null;
+    }
+
     public function index(Request $request): Response
     {
-        $cache = $this->container->get('cache');
-        $cached = $cache->get('articles_list');
-        if ($cached) {
-            return new Response($cached);
-        }
+        $settings = $this->moduleSettings->all('articles');
+        $perPage  = max(1, (int)($settings['per_page'] ?? 6));
+        $gridCols = max(1, min(6, (int)($settings['grid_cols'] ?? 3)));
+        $page     = max(1, (int)($request->params['page'] ?? 1));
         $select = "a.slug, a.title_en, a.title_ru, a.created_at";
         $join = '';
         if ($this->hasColumn('author_id')) {
@@ -178,7 +261,13 @@ class ArticlesController
             $select .= ", a.category_id, ac.slug AS category_slug, ac.name_en AS category_name_en, ac.name_ru AS category_name_ru";
             $join .= " LEFT JOIN article_categories ac ON ac.id = a.category_id";
         }
-        $articles = $this->db->fetchAll("SELECT {$select} FROM articles a {$join} ORDER BY a.created_at DESC LIMIT 50");
+        $typeWhere = $this->hasColumn('type') ? "WHERE (a.type = 'article' OR a.type IS NULL OR a.type = '')" : '';
+        $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM articles a {$typeWhere}");
+        $total    = (int)($totalRow['cnt'] ?? 0);
+        $offset   = ($page - 1) * $perPage;
+        $articles = $this->db->fetchAll(
+            "SELECT {$select} FROM articles a {$join} {$typeWhere} ORDER BY a.created_at DESC LIMIT {$perPage} OFFSET {$offset}"
+        );
         $enabledCategories = [];
         if ($hasCatId) {
             try {
@@ -187,20 +276,29 @@ class ArticlesController
                 );
             } catch (\Throwable $e) {}
         }
-        $display = $this->moduleSettings->all('articles');
         $display = array_merge([
             'show_author' => true,
-            'show_date' => true,
-            'show_likes' => true,
-            'show_views' => true,
-            'show_tags' => true,
-        ], $display);
+            'show_date'   => true,
+            'show_likes'  => true,
+            'show_views'  => true,
+            'show_tags'   => true,
+        ], $settings);
         $canonical = $this->canonical($request);
         $currentLocale = $this->container->get('lang')->current();
-        $listTitle = $currentLocale === 'ru' ? 'Статьи' : 'Articles';
-        $listDesc = $currentLocale === 'ru'
+        $defaultTitle = $currentLocale === 'ru' ? 'Статьи' : 'Articles';
+        $defaultDesc = $currentLocale === 'ru'
             ? 'Свежие материалы и новости.'
             : 'Latest articles and updates.';
+        $titlePrimary = trim((string)($currentLocale === 'ru' ? ($settings['seo_title_ru'] ?? '') : ($settings['seo_title_en'] ?? '')));
+        $titleFallback = trim((string)($currentLocale === 'ru' ? ($settings['seo_title_en'] ?? '') : ($settings['seo_title_ru'] ?? '')));
+        $descPrimary = trim((string)($currentLocale === 'ru' ? ($settings['seo_desc_ru'] ?? '') : ($settings['seo_desc_en'] ?? '')));
+        $descFallback = trim((string)($currentLocale === 'ru' ? ($settings['seo_desc_en'] ?? '') : ($settings['seo_desc_ru'] ?? '')));
+        $listTitle = $titlePrimary !== '' ? $titlePrimary : ($titleFallback !== '' ? $titleFallback : $defaultTitle);
+        $listDesc = $descPrimary !== '' ? $descPrimary : ($descFallback !== '' ? $descFallback : $defaultDesc);
+        $seoListTitle = $listTitle;
+        if ($page > 1) {
+            $seoListTitle .= $currentLocale === 'ru' ? (' | Страница ' . $page) : (' | Page ' . $page);
+        }
         $html = $this->container->get('renderer')->render(
             'articles/list',
             [
@@ -208,6 +306,10 @@ class ArticlesController
                 'title' => $listTitle,
                 'description' => $listDesc,
                 'articles'           => $articles,
+                'page'               => $page,
+                'total'              => $total,
+                'perPage'            => $perPage,
+                'gridCols'           => $gridCols,
                 'locale'             => $currentLocale,
                 'display'            => $display,
                 'enabledCategories'  => $enabledCategories,
@@ -216,37 +318,54 @@ class ArticlesController
                 ],
             ],
             [
-                'title' => $listTitle,
+                'title' => $seoListTitle,
                 'description' => $listDesc,
                 'canonical' => $canonical,
                 'image' => $this->defaultOgImage(),
             ]
         );
-        $cache->set('articles_list', $html, 300);
         return new Response($html);
     }
 
     public function view(Request $request): Response
     {
         $slug = $request->params['slug'] ?? '';
-        $catJoin = $this->hasColumn('category_id')
+        $catJoin    = $this->hasColumn('category_id')
             ? " LEFT JOIN article_categories ac ON ac.id = a.category_id"
             : "";
-        $catSelect = $this->hasColumn('category_id')
+        $catSelect  = $this->hasColumn('category_id')
             ? ", ac.slug AS category_slug, ac.name_en AS category_name_en, ac.name_ru AS category_name_ru"
             : "";
+        $authorJoin   = $this->hasColumn('author_id') ? " LEFT JOIN users u ON u.id = a.author_id" : "";
+        $authorSelect = $this->hasColumn('author_id') ? ", u.name AS author_name, u.avatar AS author_avatar" : "";
         $article = $this->db->fetch("
-            SELECT a.*, u.name AS author_name, u.avatar AS author_avatar
-                   {$catSelect}
+            SELECT a.* {$authorSelect} {$catSelect}
             FROM articles a
-            LEFT JOIN users u ON u.id = a.author_id
+            {$authorJoin}
             {$catJoin}
             WHERE a.slug = ?
         ", [$slug]);
         if (!$article) {
             return new Response('Not found', 404);
         }
+        // Новость — редирект на /news/{slug}
+        if ($this->hasColumn('type') && ($article['type'] ?? 'article') === 'news') {
+            return new Response('', 301, ['Location' => '/news/' . rawurlencode($slug)]);
+        }
         $this->db->execute("UPDATE articles SET views = views + 1 WHERE id = ?", [$article['id']]);
+
+        // Cache check
+        $cacheSettings = $this->container->get(\App\Services\SettingsService::class);
+        $cacheEnabled  = $cacheSettings->get('cache_articles', '0') === '1';
+        $cacheTtl      = max(1, (int)$cacheSettings->get('cache_articles_ttl', '60')) * 60;
+        $lang          = $this->container->get('lang')->current();
+        $cacheKey      = 'article_' . $slug . '_' . $lang;
+        /** @var \Core\Cache $cache */
+        $cache = $this->container->get('cache');
+        if ($cacheEnabled && ($cached = $cache->get($cacheKey))) {
+            return new Response($cached);
+        }
+
         $tags = $this->db->fetchAll("
             SELECT t.name, t.slug
             FROM taggables tg
@@ -344,6 +463,9 @@ class ArticlesController
                 'jsonld' => $jsonLd,
             ]
         );
+        if ($cacheEnabled) {
+            $cache->set($cacheKey, $html, $cacheTtl);
+        }
         return new Response($html);
     }
 

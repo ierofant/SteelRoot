@@ -42,6 +42,7 @@ class SearchSettingsController
         $searchTtl = max(0, (int)($request->body['search_cache_ttl'] ?? 10));
         $searchMax = max(1, (int)($request->body['search_max_results'] ?? 20));
         $searchArticles = isset($request->body['search_include_articles']) ? '1' : '0';
+        $searchNews = isset($request->body['search_include_news']) ? '1' : '0';
         $searchGallery = isset($request->body['search_include_gallery']) ? '1' : '0';
         $searchTags = isset($request->body['search_include_tags']) ? '1' : '0';
         $this->settings->bulkSet([
@@ -50,6 +51,7 @@ class SearchSettingsController
             'search_cache_ttl' => (string)$searchTtl,
             'search_max_results' => (string)$searchMax,
             'search_include_articles' => $searchArticles,
+            'search_include_news' => $searchNews,
             'search_include_gallery' => $searchGallery,
             'search_include_tags' => $searchTags,
         ]);

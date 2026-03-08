@@ -22,11 +22,19 @@
 
   .cards.three-col,
   .cards.four-col {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, 1fr) !important;
   }
 
   .cards.spacious {
     gap: 20px;
+  }
+}
+
+@media (max-width: 640px) {
+  .cards.three-col,
+  .cards.four-col {
+    grid-template-columns: 1fr !important;
+    gap: 16px;
   }
 }
 
@@ -35,7 +43,7 @@
   .cards.two-col,
   .cards.three-col,
   .cards.four-col {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
     gap: 16px;
   }
 

@@ -59,7 +59,7 @@ $loc = $locale ?? 'en';
             <div class="frame">
                 <img src="<?= htmlspecialchars($thumb) ?>" alt="<?= htmlspecialchars($itemTitle) ?>">
                 <div class="meta-floating">
-                    <?php if ($views): ?><span>👁 <span class="g-views"><?= $views ?></span></span><?php endif; ?>
+                    <span>👁 <span class="g-views"><?= $views ?></span></span>
                     <button class="like-chip" data-id="<?= (int)$item['id'] ?>" data-likes="<?= $likes ?>">❤ <span class="g-likes"><?= $likes ?></span></button>
                 </div>
                 <?php if ($itemTitle): ?><div class="caption"><?= htmlspecialchars($itemTitle) ?></div><?php endif; ?>
@@ -67,6 +67,42 @@ $loc = $locale ?? 'en';
         </a>
 <?php endforeach; ?>
 </div>
+<?php
+$paginationPage    = $page ?? 1;
+$paginationTotal   = $total ?? 0;
+$paginationPerPage = $perPage ?? 9;
+$_galleryBase = '/gallery';
+if (!empty($currentCategory['slug'])) {
+    $_galleryBase = '/gallery/category/' . rawurlencode($currentCategory['slug']);
+}
+$qs = array_filter(['sort' => ($sort ?? 'new') !== 'new' ? ($sort ?? '') : '', 'tag' => $tag ?? '']);
+$paginationBase  = $_galleryBase;
+$paginationChpu  = true;
+$paginationQuery = !empty($qs) ? '?' . http_build_query($qs) : '';
+include APP_ROOT . '/app/views/partials/pagination.php';
+?>
+<?php
+$popularTags = $popularTags ?? [];
+$currentTag = trim((string)($tag ?? ''));
+?>
+<?php if (!empty($popularTags)): ?>
+<div class="tags gallery-tags-footer">
+    <?php foreach ($popularTags as $pt): ?>
+        <?php
+        $tagSlug = (string)($pt['slug'] ?? '');
+        $tagName = (string)($pt['name'] ?? $tagSlug);
+        $tagLabel = ltrim($tagName, "# \t\n\r\0\x0B");
+        if ($tagSlug === '') {
+            continue;
+        }
+        $isActiveTag = ($currentTag !== '' && $currentTag === $tagSlug);
+        ?>
+        <a class="pill ghost<?= $isActiveTag ? ' active' : '' ?>" href="/tags/<?= rawurlencode($tagSlug) ?>/gallery">
+            #<?= htmlspecialchars($tagLabel) ?>
+        </a>
+    <?php endforeach; ?>
+</div>
+<?php endif; ?>
 <?php if (($openMode ?? 'lightbox') === 'lightbox' && !empty($items)): ?>
 <div class="lightbox" id="lightbox" hidden>
     <div class="lightbox__backdrop"></div>

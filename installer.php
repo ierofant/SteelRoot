@@ -65,6 +65,7 @@ $storageDirs = [
     'storage/uploads/gallery/categories',
     'storage/uploads/articles',
     'storage/uploads/articles/categories',
+    'storage/uploads/videos',
     'storage/uploads/users',
     'storage/uploads/menu',
     'storage/tmp',
@@ -91,6 +92,7 @@ $runLog  = [];
 $moduleCatalogue = [
     'Admin'     => ['Admin Panel',   'Dashboard, settings, security, file manager, redirects',  true,  []],
     'Articles'  => ['Articles',      'Blog/news with categories, tags, author, JSON-LD',         true,  []],
+    'News'      => ['News',          'Dedicated news section with own categories and admin',         true,  []],
     'Gallery'   => ['Gallery',       'Image gallery with categories, subfolders, lightbox',      true,  []],
     'Pages'     => ['Pages',         'Static pages with menu integration and sitemap',            true,  [
         APP_ROOT . '/modules/Pages/migrations/create_pages_table.php',
@@ -115,6 +117,9 @@ $moduleCatalogue = [
     ]],
     'Api'       => ['API',           'REST API keys for external integrations',                  false, [
         APP_ROOT . '/modules/Api/migrations/001_create_api_keys.php',
+    ]],
+    'Video'     => ['Video Gallery', 'Video gallery with YouTube, Vimeo, MP4 and embed support', false, [
+        APP_ROOT . '/modules/Video/migrations/001_create_video_items.php',
     ]],
 ];
 
@@ -362,88 +367,7 @@ function statusBadge(bool $ok): string
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>SteelRoot — Installer</title>
-<style>
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{
-  --bg:#0b1220;--bg2:#111827;--bg3:#1a2235;
-  --text:#e5e7eb;--muted:#94a3b8;--accent:#22d3ee;--accent-dim:#0e7490;
-  --border:#1f2937;--danger:#f87171;--success:#4ade80;
-  --radius:8px;--shadow:0 4px 24px rgba(0,0,0,.5);
-}
-html{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:15px;line-height:1.6}
-body{min-height:100vh;padding:2rem 1rem 4rem}
-
-.wrap{max-width:820px;margin:0 auto}
-
-/* Logo */
-.logo-wrap{text-align:center;margin-bottom:2rem}
-.logo-wrap svg{filter:drop-shadow(0 0 12px rgba(34,211,238,.35))}
-.logo-tagline{margin-top:.5rem;color:var(--muted);font-size:.85rem;letter-spacing:.08em;text-transform:uppercase}
-
-/* Cards */
-.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:1.5rem;margin-bottom:1.25rem;box-shadow:var(--shadow)}
-.card-title{font-size:1rem;font-weight:700;color:var(--accent);margin-bottom:1rem;display:flex;align-items:center;gap:.5rem}
-.card-title span{opacity:.6;font-size:.8rem;font-weight:400;color:var(--muted)}
-
-/* Env grid */
-.check-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.5rem}
-.check-item{display:flex;align-items:center;gap:.5rem;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.4rem .75rem;font-size:.82rem}
-.badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;font-size:.7rem;font-weight:700;flex-shrink:0}
-.badge.ok{background:var(--success);color:#000}
-.badge.fail{background:var(--danger);color:#fff}
-
-/* Form */
-.field{display:flex;flex-direction:column;gap:.35rem;margin-bottom:1rem}
-.field label{font-size:.82rem;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
-.field input[type=text],
-.field input[type=password],
-.field input[type=number],
-.field select{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:.55rem .85rem;font-size:.92rem;width:100%;outline:none;transition:border-color .15s}
-.field input:focus,.field select:focus{border-color:var(--accent)}
-.field .hint{font-size:.78rem;color:var(--muted)}
-
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
-.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem}
-
-/* Modules */
-.module-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.75rem}
-.module-card{background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:.85rem 1rem;cursor:pointer;transition:border-color .15s,background .15s}
-.module-card:hover{border-color:var(--accent-dim)}
-.module-card input[type=checkbox]{display:none}
-.module-card.always{opacity:.65;cursor:default}
-.module-card.selected{border-color:var(--accent);background:rgba(34,211,238,.06)}
-.module-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:.3rem}
-.module-name{font-weight:700;font-size:.88rem}
-.module-desc{font-size:.77rem;color:var(--muted);line-height:1.4}
-.module-badge{font-size:.68rem;padding:.15rem .45rem;border-radius:20px;font-weight:600}
-.module-badge.core{background:rgba(34,211,238,.15);color:var(--accent)}
-.module-badge.optional{background:rgba(148,163,184,.12);color:var(--muted)}
-
-/* Buttons */
-.btn-row{display:flex;gap:.75rem;align-items:center;flex-wrap:wrap;margin-top:1.5rem}
-.btn{display:inline-flex;align-items:center;gap:.4rem;padding:.6rem 1.4rem;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;border:none;transition:opacity .15s,background .15s}
-.btn:disabled{opacity:.45;cursor:not-allowed}
-.btn-primary{background:var(--accent);color:#000}
-.btn-primary:hover:not(:disabled){background:#38bcd8}
-.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
-.btn-ghost:hover:not(:disabled){border-color:var(--accent);color:var(--accent)}
-.btn-danger{background:rgba(248,113,113,.15);color:var(--danger);border:1px solid rgba(248,113,113,.3)}
-
-/* Alerts */
-.alert{border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.88rem}
-.alert.success{background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.3);color:var(--success)}
-.alert.danger{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--danger)}
-
-/* Log */
-.run-log{background:#060d18;border:1px solid var(--border);border-radius:6px;padding:1rem;max-height:240px;overflow-y:auto;font-family:'JetBrains Mono',monospace;font-size:.78rem;line-height:1.7}
-.run-log .ok{color:var(--success)}
-.run-log .err{color:var(--danger)}
-
-/* Divider */
-.divider{height:1px;background:var(--border);margin:1.25rem 0}
-
-@media(max-width:600px){.grid-2,.grid-3{grid-template-columns:1fr}}
-</style>
+<link rel="stylesheet" href="/assets/css/installer.css?v=1">
 </head>
 <body>
 <div class="wrap">
@@ -472,10 +396,10 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
       <?php endforeach; ?>
     </div>
     <div class="divider"></div>
-    <p style="color:var(--muted);font-size:.85rem;margin-bottom:1rem">
-      Admin panel: <code style="color:var(--accent)"><?= esc($adminPrefix ?? '/admin') ?></code>
+    <p class="installer-admin-panel-note">
+      Admin panel: <code class="installer-admin-panel-code"><?= esc($adminPrefix ?? '/admin') ?></code>
     </p>
-    <form method="post" style="display:flex;gap:.75rem;flex-wrap:wrap">
+    <form method="post" class="installer-success-actions">
       <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
       <input type="hidden" name="action" value="delete">
       <input type="hidden" name="admin_prefix" value="<?= esc($adminPrefix ?? '/admin') ?>">
@@ -493,14 +417,14 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
       <?php endforeach; ?>
     </div>
     <div class="divider"></div>
-    <div class="card-title" style="margin-bottom:.75rem">Writable paths</div>
+    <div class="card-title installer-card-title-tight">Writable paths</div>
     <div class="check-grid">
       <?php foreach ($paths as $label => $ok): ?>
         <div class="check-item"><?= statusBadge($ok) ?> <?= esc($label) ?></div>
       <?php endforeach; ?>
     </div>
     <?php if (!$envOk): ?>
-      <div class="alert danger" style="margin-top:1rem">Fix the issues above before installing.</div>
+      <div class="alert danger installer-alert-top">Fix the issues above before installing.</div>
     <?php endif; ?>
   </div>
 
@@ -511,7 +435,7 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
   <?php endif; ?>
 
   <?php if (!empty($runLog)): ?>
-    <div class="run-log" style="margin-bottom:1.25rem">
+    <div class="run-log installer-runlog-spaced">
       <?php foreach ($runLog as [$type, $line]): ?>
         <div class="<?= $type ?>"><?= $type === 'ok' ? '✓' : '✗' ?> <?= esc($line) ?></div>
       <?php endforeach; ?>
@@ -590,7 +514,7 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
           <input type="text" name="site_url" value="<?= esc($_POST['site_url'] ?? 'http://localhost') ?>" required>
         </div>
         <div class="field">
-          <label>Admin URL secret <span style="font-weight:400">(optional)</span></label>
+          <label>Admin URL secret <span class="installer-label-optional">(optional)</span></label>
           <input type="text" name="admin_secret" value="<?= esc($_POST['admin_secret'] ?? '') ?>" placeholder="leave empty for /admin">
           <span class="hint">If set, admin will be at /admin-{secret}</span>
         </div>
@@ -606,7 +530,7 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
           <input type="text" name="admin_user" value="<?= esc($_POST['admin_user'] ?? 'admin') ?>" required>
         </div>
         <div class="field">
-          <label>Password <span style="font-weight:400;color:var(--muted)">(min 8 chars)</span></label>
+          <label>Password <span class="installer-label-hint">(min 8 chars)</span></label>
           <input type="password" name="admin_pass" required>
         </div>
       </div>
@@ -649,7 +573,7 @@ body{min-height:100vh;padding:2rem 1rem 4rem}
 
   <?php endif; ?>
 
-  <div style="text-align:center;margin-top:2rem;color:var(--muted);font-size:.75rem">
+  <div class="installer-log-note">
     Log: storage/logs/install.log
   </div>
 </div>

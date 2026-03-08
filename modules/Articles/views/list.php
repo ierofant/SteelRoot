@@ -28,7 +28,8 @@ $currentCategory = $category ?? null;
 </nav>
 <?php endif; ?>
 
-<section class="articles-grid">
+<?php $gridCols = max(1, min(6, (int)($gridCols ?? 3))); ?>
+<section class="articles-grid articles-grid-cols-<?= $gridCols ?>">
     <?php foreach ($articles as $article): ?>
         <?php
             $itemTitle = $loc === 'ru' ? ($article['title_ru'] ?? '') : ($article['title_en'] ?? '');
@@ -92,3 +93,13 @@ $currentCategory = $category ?? null;
         </article>
     <?php endforeach; ?>
 </section>
+<?php
+$paginationPage    = $page ?? 1;
+$paginationTotal   = $total ?? 0;
+$paginationPerPage = $perPage ?? 6;
+$paginationBase    = isset($category['slug'])
+    ? '/articles/category/' . rawurlencode($category['slug'])
+    : '/articles';
+$paginationChpu = true;
+include APP_ROOT . '/app/views/partials/pagination.php';
+?>

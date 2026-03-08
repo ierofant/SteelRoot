@@ -16,6 +16,8 @@ class Module
     public function register(Container $container, Router $router): void
     {
         $router->get('/articles', [Controllers\ArticlesController::class, 'index']);
+        $router->get('/articles/page/{page}', [Controllers\ArticlesController::class, 'index']);
+        $router->get('/articles/category/{slug}/page/{page}', [Controllers\ArticlesController::class, 'byCategory']);
         $router->get('/articles/category/{slug}', [Controllers\ArticlesController::class, 'byCategory']);
         $router->get('/articles/{slug}', [Controllers\ArticlesController::class, 'view']);
         $router->get('/tags/{slug}', [Controllers\ArticlesController::class, 'byTag']);

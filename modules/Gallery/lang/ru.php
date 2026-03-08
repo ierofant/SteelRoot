@@ -36,6 +36,7 @@ return [
     'gallery.settings.show_tags' => 'Показывать теги',
     'gallery.settings.enable_lightbox' => 'Включить лайтбокс',
     'gallery.settings.lightbox_likes' => 'Лайки в лайтбоксе',
+    'gallery.settings.per_page' => 'Фото на странице (галерея)',
     'gallery.settings.save' => 'Сохранить',
     'gallery.settings.saved' => 'Настройки сохранены',
     'gallery.list.subtitle' => 'Подборка изображений и альбомов.',

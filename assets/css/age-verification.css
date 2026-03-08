@@ -1,0 +1,120 @@
+/* Age Verification Overlay
+   Loaded only on pages containing {age_verification} shortcode */
+
+.age-verification-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.96);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: age-overlay-in 0.25s ease;
+}
+
+.age-verification-overlay.hidden {
+    display: none;
+}
+
+.age-verification-modal {
+    background: var(--color-card, #1a1a2e);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    animation: age-modal-in 0.35s ease;
+}
+
+.age-verification-content {
+    padding: 3rem 2rem;
+    text-align: center;
+}
+
+.age-icon {
+    font-size: 3.5rem;
+    display: block;
+    margin-bottom: 1rem;
+    animation: age-pulse 2.5s ease-in-out infinite;
+}
+
+.age-verification-content h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.6rem;
+    color: var(--color-text, #fff);
+}
+
+.age-verification-content p {
+    margin: 0 0 2rem;
+    line-height: 1.65;
+    color: var(--color-text, #ccc);
+    opacity: 0.8;
+}
+
+.age-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.age-buttons button {
+    padding: 0.8rem 1.75rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.age-confirm {
+    background: var(--color-primary, #e63946);
+    color: #fff;
+}
+
+.age-confirm:hover {
+    background: var(--color-primary, #c1121f);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(230, 57, 70, 0.35);
+}
+
+.age-decline {
+    background: transparent;
+    color: var(--color-text, #aaa);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.age-decline:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--color-text, #fff);
+}
+
+@keyframes age-overlay-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+@keyframes age-modal-in {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes age-pulse {
+    0%, 100% { transform: scale(1); }
+    50%       { transform: scale(1.1); }
+}
+
+@media (max-width: 500px) {
+    .age-verification-content {
+        padding: 2rem 1.25rem;
+    }
+
+    .age-buttons {
+        flex-direction: column;
+    }
+
+    .age-buttons button {
+        width: 100%;
+    }
+}

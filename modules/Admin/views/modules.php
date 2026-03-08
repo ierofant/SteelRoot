@@ -61,15 +61,18 @@
                     <?php if (strtolower($slug) === 'gallery' && !empty($module['enabled'])): ?>
                         <a class="btn ghost" href="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/gallery/settings') ?>"><?= __('modules.actions.settings') ?></a>
                     <?php endif; ?>
-                    <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/modules/' . (!empty($module['enabled']) ? 'disable' : 'enable') . '/' . rawurlencode($slug)) ?>" style="display:inline-block">
+                    <?php if (strtolower($slug) === 'news' && !empty($module['enabled'])): ?>
+                        <a class="btn ghost" href="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/news/settings') ?>"><?= __('modules.actions.settings') ?></a>
+                    <?php endif; ?>
+                    <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/modules/' . (!empty($module['enabled']) ? 'disable' : 'enable') . '/' . rawurlencode($slug)) ?>" class="module-action-form">
                         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
                         <button type="submit" class="btn ghost"><?= !empty($module['enabled']) ? __('modules.actions.disable') : __('modules.actions.enable') ?></button>
                     </form>
-                    <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/modules/migrate/' . rawurlencode($slug)) ?>" style="display:inline-block">
+                    <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/modules/migrate/' . rawurlencode($slug)) ?>" class="module-action-form">
                         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
                         <button type="submit" class="btn ghost"><?= __('modules.actions.migrate') ?></button>
                     </form>
-                    <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/modules/rollback/' . rawurlencode($slug)) ?>" style="display:inline-block">
+                    <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/modules/rollback/' . rawurlencode($slug)) ?>" class="module-action-form">
                         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
                         <input type="hidden" name="steps" value="1">
                         <button type="submit" class="btn ghost danger"><?= __('modules.actions.rollback') ?></button>

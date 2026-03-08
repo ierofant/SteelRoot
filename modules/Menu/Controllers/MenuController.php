@@ -6,19 +6,22 @@ use Core\Csrf;
 use Core\Database;
 use Core\Request;
 use Core\Response;
+use App\Services\SettingsService;
 use Modules\Menu\Services\MenuService;
 
 class MenuController
 {
     private MenuService $menu;
     private string $adminPrefix;
+    private string $localeMode;
 
     public function __construct(Container $container)
     {
         $db = $container->get(Database::class);
         $this->menu = new MenuService($db);
         $cfg = $container->get('config');
-        $this->adminPrefix = $cfg['admin_prefix'] ?? '/admin';
+        $this->adminPrefix  = $cfg['admin_prefix'] ?? '/admin';
+        $this->localeMode   = $container->get(SettingsService::class)->get('locale_mode', 'multi');
     }
 
     public function index(Request $request): Response
@@ -44,18 +47,13 @@ class MenuController
     {
         $csrf = Csrf::token('menu_admin');
         $content = $this->render('admin/form', [
-            'csrf' => $csrf,
-            'item' => [
-                'enabled' => 1,
-                'admin_only' => 0,
-                'position' => 0,
-                'parent_id' => null,
-                'depth' => 0,
-            ],
+            'csrf'          => $csrf,
+            'item'          => ['enabled' => 1, 'admin_only' => 0, 'position' => 0, 'parent_id' => null, 'depth' => 0],
             'parentOptions' => $this->getParentOptions(null),
-            'action' => $this->adminPrefix . '/menu/create',
-            'title' => __('menu.create'),
-            'adminPrefix' => $this->adminPrefix,
+            'action'        => $this->adminPrefix . '/menu/create',
+            'title'         => __('menu.create'),
+            'adminPrefix'   => $this->adminPrefix,
+            'localeMode'    => $this->localeMode,
         ]);
         return new Response($content);
     }
@@ -69,12 +67,13 @@ class MenuController
         }
         $csrf = Csrf::token('menu_admin');
         $content = $this->render('admin/form', [
-            'csrf' => $csrf,
-            'item' => $item,
+            'csrf'          => $csrf,
+            'item'          => $item,
             'parentOptions' => $this->getParentOptions($id),
-            'action' => $this->adminPrefix . '/menu/edit/' . $id,
-            'title' => __('menu.edit'),
-            'adminPrefix' => $this->adminPrefix,
+            'action'        => $this->adminPrefix . '/menu/edit/' . $id,
+            'title'         => __('menu.edit'),
+            'adminPrefix'   => $this->adminPrefix,
+            'localeMode'    => $this->localeMode,
         ]);
         return new Response($content);
     }
@@ -167,9 +166,16 @@ class MenuController
             $data['parent_id'] = null;
             $data['depth'] = 0;
         }
-        if ($data['label_ru'] === '' || $data['label_en'] === '') {
+        $needEn = $this->localeMode !== 'ru';
+        $needRu = $this->localeMode !== 'en';
+        if ($needEn && $data['label_en'] === '') {
             return new Response('Labels required', 422);
         }
+        if ($needRu && $data['label_ru'] === '') {
+            return new Response('Labels required', 422);
+        }
+        if ($data['label_en'] === '') { $data['label_en'] = $data['label_ru']; }
+        if ($data['label_ru'] === '') { $data['label_ru'] = $data['label_en']; }
         if ($data['url'] === '' || $data['url'][0] !== '/') {
             return new Response('URL must start with /', 422);
         }

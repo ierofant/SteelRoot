@@ -24,19 +24,25 @@ class AdminUsersController
     public function index(Request $request): Response
     {
         $filters = [
-            'email' => trim($request->query['email'] ?? ''),
-            'role' => trim($request->query['role'] ?? ''),
+            'email'  => trim($request->query['email'] ?? ''),
+            'role'   => trim($request->query['role'] ?? ''),
             'status' => trim($request->query['status'] ?? ''),
         ];
-        $list = $this->users->list($filters);
+        $page    = max(1, (int)($request->query['page'] ?? 1));
+        $perPage = 20;
+        $total   = $this->users->count($filters);
+        $list    = $this->users->list($filters, $perPage, ($page - 1) * $perPage);
         $html = $this->container->get('renderer')->render('users/admin/users_list', [
-            'title' => 'Users',
-            'users' => $list,
-            'filters' => $filters,
-            'csrf' => Csrf::token('admin_users'),
+            'title'      => 'Users',
+            'users'      => $list,
+            'filters'    => $filters,
+            'csrf'       => Csrf::token('admin_users'),
             'blockToken' => Csrf::token('admin_users_block'),
             'resetToken' => Csrf::token('admin_users_reset'),
-            'message' => $request->query['msg'] ?? null,
+            'message'    => $request->query['msg'] ?? null,
+            'page'       => $page,
+            'total'      => $total,
+            'perPage'    => $perPage,
         ]);
         return new Response($html);
     }

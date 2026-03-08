@@ -6,7 +6,7 @@
             <p class="eyebrow"><?= __('docs.title') ?></p>
             <h3><?= __('docs.subtitle') ?></h3>
         </div>
-        <div class="form-actions" style="gap:8px;">
+        <div class="form-actions u-gap-8">
             <a class="btn ghost <?= $currentTab === 'user' ? 'active' : '' ?>" href="?tab=user"><?= __('docs.tab.user') ?></a>
             <a class="btn ghost <?= $currentTab === 'dev' ? 'active' : '' ?>" href="?tab=dev"><?= __('docs.tab.dev') ?></a>
         </div>
@@ -15,7 +15,7 @@
     <?php if ($currentTab === 'user'): ?>
         <div class="stack">
             <div class="muted"><?= __('docs.user.intro') ?></div>
-            <div class="form-actions" style="gap:8px;">
+            <div class="form-actions u-gap-8">
             <a class="btn ghost" href="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/docs/support') ?>"><?= __('docs.support.link') ?></a>
         </div>
             <div class="card soft stack docs-block">

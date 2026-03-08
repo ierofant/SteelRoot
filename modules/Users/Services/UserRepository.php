@@ -91,7 +91,26 @@ class UserRepository
         $this->db->execute("UPDATE users SET password = ?, updated_at = NOW() WHERE id = ?", [$hash, $id]);
     }
 
-    public function list(array $filters = []): array
+    public function count(array $filters = []): int
+    {
+        [$where, $params] = $this->filterWhere($filters);
+        $row = $this->db->fetch("SELECT COUNT(*) as cnt FROM users u {$where}", $params);
+        return (int)($row['cnt'] ?? 0);
+    }
+
+    public function list(array $filters = [], int $limit = 20, int $offset = 0): array
+    {
+        [$where, $params] = $this->filterWhere($filters);
+        return $this->db->fetchAll("
+            SELECT u.*, (SELECT MAX(created_at) FROM login_logs l WHERE l.user_id = u.id) AS last_login
+            FROM users u
+            {$where}
+            ORDER BY u.created_at DESC
+            LIMIT {$limit} OFFSET {$offset}
+        ", $params);
+    }
+
+    private function filterWhere(array $filters): array
     {
         $conds = [];
         $params = [];
@@ -108,13 +127,7 @@ class UserRepository
             $params[':status'] = $filters['status'];
         }
         $where = $conds ? 'WHERE ' . implode(' AND ', $conds) : '';
-        return $this->db->fetchAll("
-            SELECT u.*, (SELECT MAX(created_at) FROM login_logs l WHERE l.user_id = u.id) AS last_login
-            FROM users u
-            {$where}
-            ORDER BY u.created_at DESC
-            LIMIT 200
-        ", $params);
+        return [$where, $params];
     }
 
     public function logLogin(?int $userId, string $ip, string $ua): void
