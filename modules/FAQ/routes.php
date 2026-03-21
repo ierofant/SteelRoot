@@ -17,6 +17,8 @@ return function (Router $router, ?\Core\Container $container = null) {
     $router->get('/faq', [Modules\FAQ\Controllers\FaqController::class, 'index']);
     $router->group($prefix . '/faq', [$guard], function (Router $r) {
         $r->get('/', [Modules\FAQ\Controllers\FaqAdminController::class, 'index']);
+        $r->get('/settings', [Modules\FAQ\Controllers\FaqAdminController::class, 'settings']);
+        $r->post('/settings', [Modules\FAQ\Controllers\FaqAdminController::class, 'saveSettings']);
         $r->get('/create', [Modules\FAQ\Controllers\FaqAdminController::class, 'create']);
         $r->post('/create', [Modules\FAQ\Controllers\FaqAdminController::class, 'store']);
         $r->get('/edit/{id}', [Modules\FAQ\Controllers\FaqAdminController::class, 'edit']);

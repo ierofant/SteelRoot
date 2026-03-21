@@ -64,6 +64,9 @@
                     <?php if (strtolower($slug) === 'news' && !empty($module['enabled'])): ?>
                         <a class="btn ghost" href="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/news/settings') ?>"><?= __('modules.actions.settings') ?></a>
                     <?php endif; ?>
+                    <?php if (strtolower($slug) === 'faq' && !empty($module['enabled'])): ?>
+                        <a class="btn ghost" href="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/faq') ?>"><?= __('modules.actions.settings') ?></a>
+                    <?php endif; ?>
                     <form method="post" action="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/modules/' . (!empty($module['enabled']) ? 'disable' : 'enable') . '/' . rawurlencode($slug)) ?>" class="module-action-form">
                         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
                         <button type="submit" class="btn ghost"><?= !empty($module['enabled']) ? __('modules.actions.disable') : __('modules.actions.enable') ?></button>

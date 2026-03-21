@@ -1,14 +1,19 @@
 <?php
 namespace Modules\Gallery\Controllers;
 
+use App\Services\SlugService;
 use Core\Container;
+use Core\Csrf;
 use Core\Database;
 use Core\Request;
 use Core\Response;
 use Core\ModuleSettings;
 use App\Services\SettingsService;
+use Modules\Comments\Services\CommentService;
 use Modules\Gallery\Services\GalleryCategoryService;
+use Modules\Gallery\Services\MasterLikeService;
 use Modules\Users\Services\Auth;
+use Modules\Users\Services\CollectionService;
 
 class GalleryController
 {
@@ -18,6 +23,7 @@ class GalleryController
     private SettingsService $settings;
     private ModuleSettings $moduleSettings;
     private GalleryCategoryService $galleryCategories;
+    private MasterLikeService $masterLikes;
 
     public function __construct(Container $container)
     {
@@ -40,6 +46,7 @@ class GalleryController
             'seo_desc_ru' => '',
         ]);
         $this->galleryCategories = new GalleryCategoryService($this->db);
+        $this->masterLikes = new MasterLikeService($container);
         $this->uploadPath = APP_ROOT . '/storage/uploads/gallery';
         if (!is_dir($this->uploadPath)) {
             mkdir($this->uploadPath, 0775, true);
@@ -58,7 +65,7 @@ class GalleryController
         $mode = !empty($display['enable_lightbox']) ? $this->settings->get('gallery_open_mode', 'lightbox') : 'page';
 
         if ($tag !== '') {
-            $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items gi JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image') JOIN tags t ON t.id = tg.tag_id WHERE t.slug = ?", [$tag]);
+            $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items gi JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image') JOIN tags t ON t.id = tg.tag_id WHERE t.slug = ?{$this->approvedFilterSql('gi')}", [$tag]);
         } elseif ($category !== '' && $this->hasItemCategoriesTable()) {
             try {
                 $totalRow = $this->db->fetch("
@@ -66,21 +73,21 @@ class GalleryController
                     FROM gallery_items gi
                     JOIN gallery_item_categories gic ON gic.item_id = gi.id
                     JOIN gallery_categories gc ON gc.id = gic.category_id
-                    WHERE gc.slug = ?
+                    WHERE gc.slug = ?{$this->approvedFilterSql('gi')}
                 ", [$category]);
             } catch (\Throwable $e) {
                 $totalRow = ['cnt' => 0];
             }
         } elseif ($category !== '' && $this->hasColumn('category_id')) {
             try {
-                $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items gi JOIN gallery_categories gc ON gc.id = gi.category_id AND gc.slug = ?", [$category]);
+                $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items gi JOIN gallery_categories gc ON gc.id = gi.category_id AND gc.slug = ? WHERE 1=1{$this->approvedFilterSql('gi', true)}", [$category]);
             } catch (\Throwable $e) {
                 $totalRow = ['cnt' => 0];
             }
         } elseif ($category !== '' && $this->hasColumn('category')) {
-            $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items WHERE category = ?", [$category]);
+            $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items WHERE category = ?{$this->approvedFilterSql('gallery_items')}", [$category]);
         } else {
-            $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items");
+            $totalRow = $this->db->fetch("SELECT COUNT(*) as cnt FROM gallery_items WHERE 1=1{$this->approvedFilterSql('gallery_items', true)}");
         }
         $total = (int)($totalRow['cnt'] ?? 0);
         $offset = ($page - 1) * $perPage;
@@ -88,6 +95,7 @@ class GalleryController
         $offsetSql = (int)$offset;
         $orderSql = $this->orderSql($sort, true);
         $items = $this->fetchItems($tag, $category, $orderSql, $limitSql, $offsetSql);
+        $items = $this->decorateMasterLikeEligibility($items);
 
         $canonical = $this->canonical($request);
         $currentLocale = $this->container->get('lang')->current();
@@ -111,12 +119,14 @@ class GalleryController
         $cacheEnabled   = $cacheSettings->get('cache_gallery', '0') === '1';
         $cacheTtl       = max(1, (int)$cacheSettings->get('cache_gallery_ttl', '60')) * 60;
         $lang           = $this->container->get('lang')->current();
+        $viewer         = $this->container->get(Auth::class)->user();
+        $cacheEligible  = $cacheEnabled && $viewer === null;
         $cacheKey       = 'gallery_list_p' . $page . '_' . $lang . '_' . $sort
                         . ($tag !== '' ? '_t' . md5($tag) : '')
                         . ($category !== '' ? '_c' . md5($category) : '');
         /** @var \Core\Cache $cache */
         $cache = $this->container->get('cache');
-        if ($cacheEnabled && ($cached = $cache->get($cacheKey))) {
+        if ($cacheEligible && ($cached = $cache->get($cacheKey))) {
             return new Response($cached);
         }
 
@@ -136,6 +146,8 @@ class GalleryController
                 'category'          => $category,
                 'openMode'          => $mode,
                 'display'           => $display,
+                'masterLikeState'   => $this->masterLikes->viewerState(),
+                'masterLikeToken'   => Csrf::token('gallery_master_like'),
                 'enabledCategories' => $this->galleryCategories->enabled(),
                 'popularTags'       => !empty($display['show_tags']) ? $this->popularTags() : [],
                 'breadcrumbs'       => [
@@ -149,7 +161,7 @@ class GalleryController
                 'image' => $this->defaultOgImage(),
             ]
         );
-        if ($cacheEnabled) {
+        if ($cacheEligible) {
             $cache->set($cacheKey, $html, $cacheTtl);
         }
         return new Response($html);
@@ -158,30 +170,28 @@ class GalleryController
     public function view(Request $request): Response
     {
         $id = (int)($request->query['id'] ?? 0);
-        $slugParam = $request->params['slug'] ?? null;
+        $slugParam = isset($request->params['slug']) ? (string)$request->params['slug'] : null;
         $authorJoin = '';
         $authorSelect = '';
         if ($this->hasColumn('author_id')) {
             $authorJoin = "LEFT JOIN users u ON u.id = gi.author_id";
-            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar";
+            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, u.username AS author_username, u.profile_visibility AS author_profile_visibility, u.signature AS author_signature";
         }
         if ($slugParam) {
-            $item = $this->db->fetch("
-                SELECT gi.*{$authorSelect}
-                FROM gallery_items gi
-                {$authorJoin}
-                WHERE gi.slug = ?
-            ", [$slugParam]);
+            $item = $this->resolveItemBySlug($slugParam, $authorSelect, $authorJoin);
         } else {
             $item = $this->db->fetch("
                 SELECT gi.*{$authorSelect}
                 FROM gallery_items gi
                 {$authorJoin}
-                WHERE gi.id = ?
+                WHERE gi.id = ?{$this->approvedFilterSql('gi')}
             ", [$id]);
         }
         if (!$item) {
             return new Response('Not found', 404);
+        }
+        if ($slugParam && !empty($item['slug']) && $slugParam !== (string)$item['slug']) {
+            return new Response('', 301, ['Location' => '/gallery/photo/' . rawurlencode((string)$item['slug'])]);
         }
         $display = $this->displaySettings();
         $mode = !empty($display['enable_lightbox']) ? $this->settings->get('gallery_open_mode', 'lightbox') : 'page';
@@ -218,11 +228,17 @@ class GalleryController
         }
         $fallbackOg = $this->defaultOgImage();
         $ogToUse = $ogImage ?: $fallbackOg;
-        $authorVisibility = $item['author_profile_visibility'] ?? 'public';
+        $authorVisibility = trim((string)($item['author_profile_visibility'] ?? 'public'));
+        if ($authorVisibility === '') {
+            $authorVisibility = 'public';
+        }
         $authorPrivate = $authorVisibility === 'private';
         $authorBypass = $this->canBypassPrivateProfile((int)($item['author_id'] ?? 0));
         $showSignature = !$authorPrivate || $authorBypass;
         $authorProfileUrl = $this->profileUrl($item['author_id'] ?? null, $item['author_username'] ?? null);
+        $masterLikeState = $this->masterLikes->viewerState($item);
+        $viewer = $this->container->get(Auth::class)->user();
+        $collections = $this->container->get(CollectionService::class);
         $html = $this->container->get('renderer')->render(
             'gallery/item',
             [
@@ -232,9 +248,17 @@ class GalleryController
                 'locale' => $this->container->get('lang')->current(),
                 'display' => $display,
                 'tags' => $tags,
+                'commentsHtml' => $this->renderComments((int)$item['id']),
                 'authorProfileUrl' => $authorProfileUrl,
                 'authorSignature' => $showSignature ? ($item['author_signature'] ?? '') : '',
                 'authorSignatureVisible' => $showSignature && !empty($item['author_signature']),
+                'masterLikeState' => $masterLikeState,
+                'masterLikeToken' => Csrf::token('gallery_master_like'),
+                'collectionToken' => Csrf::token('users_collections'),
+                'collectionsAvailable' => $collections->available(),
+                'viewer' => $viewer,
+                'message' => $request->query['msg'] ?? null,
+                'error' => $request->query['err'] ?? null,
                 'breadcrumbs' => [
                     ['label' => $listTitle, 'url' => '/gallery'],
                     ['label' => $itemTitle ?? 'Image'],
@@ -248,6 +272,47 @@ class GalleryController
             ]
         );
         return new Response($html);
+    }
+
+    private function resolveItemBySlug(string $rawSlug, string $authorSelect, string $authorJoin): ?array
+    {
+        $sql = "
+            SELECT gi.*{$authorSelect}
+            FROM gallery_items gi
+            {$authorJoin}
+            WHERE gi.slug = ?{$this->approvedFilterSql('gi')}
+            LIMIT 1
+        ";
+
+        foreach (SlugService::candidates($rawSlug) as $candidate) {
+            $item = $this->db->fetch($sql, [$candidate]);
+            if ($item) {
+                return $item;
+            }
+        }
+
+        $generated = SlugService::slugify(rawurldecode($rawSlug), '');
+        if ($generated === '') {
+            return null;
+        }
+
+        $rows = $this->db->fetchAll("
+            SELECT gi.*{$authorSelect}
+            FROM gallery_items gi
+            {$authorJoin}
+            WHERE (gi.slug IS NULL OR gi.slug = ''){$this->approvedFilterSql('gi')}
+            ORDER BY gi.id DESC
+            LIMIT 200
+        ");
+
+        foreach ($rows as $row) {
+            $candidate = SlugService::slugify((string)($row['title_en'] ?: ($row['title_ru'] ?: ('photo-' . (int)$row['id']))), '');
+            if ($candidate !== '' && $candidate === $generated) {
+                return $row;
+            }
+        }
+
+        return null;
     }
 
     public function byCategory(Request $request): Response
@@ -277,6 +342,7 @@ class GalleryController
         } else {
             $items = $this->fetchItemsByCategoryIds($categoryIds, $orderSql, $perPage, $offset);
         }
+        $items = $this->decorateMasterLikeEligibility($items);
         $locale = $this->container->get('lang')->current();
         $titleKey = $locale === 'ru' ? 'name_ru' : 'name_en';
         $catTitle = $category[$titleKey] ?: ($category['name_en'] ?: $category['name_ru']);
@@ -305,6 +371,8 @@ class GalleryController
                 'currentCategory'   => $category,
                 'openMode'          => $mode,
                 'display'           => $display,
+                'masterLikeState'   => $this->masterLikes->viewerState(),
+                'masterLikeToken'   => Csrf::token('gallery_master_like'),
                 'enabledCategories' => $this->galleryCategories->enabled(),
                 'popularTags'       => !empty($display['show_tags']) ? $this->popularTags() : [],
                 'breadcrumbs'       => [
@@ -335,7 +403,17 @@ class GalleryController
         $offsetSql = (int)$offset;
         $sort = $this->sanitizeSort($request->query['sort'] ?? 'new');
         $orderSql = $this->orderSql($sort, true);
+        $totalRow = $this->db->fetch(
+            "SELECT COUNT(*) as cnt
+             FROM gallery_items gi
+             JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image')
+             JOIN tags t ON t.id = tg.tag_id
+             WHERE t.slug = ?{$this->approvedFilterSql('gi')}",
+            [$slug]
+        );
+        $total = (int)($totalRow['cnt'] ?? 0);
         $items = $this->fetchItems($slug, '', $orderSql, $limitSql, $offsetSql);
+        $items = $this->decorateMasterLikeEligibility($items);
         $canonical = $this->canonical($request);
         $display = $this->displaySettings();
         $mode = !empty($display['enable_lightbox']) ? $this->settings->get('gallery_open_mode', 'lightbox') : 'page';
@@ -354,13 +432,15 @@ class GalleryController
                 'title' => $tagTitle,
                 'items' => $items,
                 'page' => $page,
-                'total' => count($items),
+                'total' => $total,
                 'perPage' => $perPage,
                 'locale' => $locale,
                 'tag' => $slug,
                 'sort' => $sort,
                 'openMode' => $mode,
                 'display' => $display,
+                'masterLikeState' => $this->masterLikes->viewerState(),
+                'masterLikeToken' => Csrf::token('gallery_master_like'),
                 'popularTags' => !empty($display['show_tags']) ? $this->popularTags() : [],
             ],
             [
@@ -402,7 +482,7 @@ class GalleryController
 
     private function sanitizeSort(string $sort): string
     {
-        $allowed = ['new', 'likes', 'views'];
+        $allowed = ['new', 'likes', 'views', 'master_likes'];
         return in_array($sort, $allowed, true) ? $sort : 'new';
     }
 
@@ -411,7 +491,7 @@ class GalleryController
         $authorSelect = '';
         $authorJoin = '';
         if ($this->hasColumn('author_id')) {
-            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, gi.author_id";
+            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, u.username AS author_username, u.profile_visibility AS author_profile_visibility, u.signature AS author_signature, gi.author_id";
             $authorJoin = "LEFT JOIN users u ON u.id = gi.author_id";
         }
         try {
@@ -421,7 +501,7 @@ class GalleryController
                     JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image')
                     JOIN tags t ON t.id = tg.tag_id
                     {$authorJoin}
-                    WHERE t.slug = :slug
+                    WHERE t.slug = :slug{$this->approvedFilterSql('gi')}
                     ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}
                 ", [':slug' => $tag]);
             }
@@ -431,6 +511,7 @@ class GalleryController
                     JOIN gallery_item_categories gic ON gic.item_id = gi.id
                     JOIN gallery_categories gc ON gc.id = gic.category_id AND gc.slug = :cat
                     {$authorJoin}
+                    WHERE 1=1{$this->approvedFilterSql('gi', true)}
                     ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}
                 ", [':cat' => $category]);
             }
@@ -439,6 +520,7 @@ class GalleryController
                     SELECT gi.*{$authorSelect} FROM gallery_items gi
                     JOIN gallery_categories gc ON gc.id = gi.category_id AND gc.slug = :cat
                     {$authorJoin}
+                    WHERE 1=1{$this->approvedFilterSql('gi', true)}
                     ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}
                 ", [':cat' => $category]);
             }
@@ -446,11 +528,11 @@ class GalleryController
                 return $this->db->fetchAll("
                     SELECT gi.*{$authorSelect} FROM gallery_items gi
                     {$authorJoin}
-                    WHERE gi.category = :cat
+                    WHERE gi.category = :cat{$this->approvedFilterSql('gi')}
                     ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}
                 ", [':cat' => $category]);
             }
-            return $this->db->fetchAll("SELECT gi.*{$authorSelect} FROM gallery_items gi {$authorJoin} ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}");
+            return $this->db->fetchAll("SELECT gi.*{$authorSelect} FROM gallery_items gi {$authorJoin} WHERE 1=1{$this->approvedFilterSql('gi', true)} ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}");
         } catch (\Throwable $e) {
             // Fallback to id-based ordering if custom columns missing
             $fallbackOrder = "id DESC";
@@ -460,11 +542,11 @@ class GalleryController
                     JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image')
                     JOIN tags t ON t.id = tg.tag_id
                     {$authorJoin}
-                    WHERE t.slug = :slug
+                    WHERE t.slug = :slug{$this->approvedFilterSql('gi')}
                     ORDER BY {$fallbackOrder} LIMIT {$limitSql} OFFSET {$offsetSql}
                 ", [':slug' => $tag]);
             }
-            return $this->db->fetchAll("SELECT gi.*{$authorSelect} FROM gallery_items gi {$authorJoin} ORDER BY {$fallbackOrder} LIMIT {$limitSql} OFFSET {$offsetSql}");
+            return $this->db->fetchAll("SELECT gi.*{$authorSelect} FROM gallery_items gi {$authorJoin} WHERE 1=1{$this->approvedFilterSql('gi', true)} ORDER BY {$fallbackOrder} LIMIT {$limitSql} OFFSET {$offsetSql}");
         }
     }
 
@@ -477,7 +559,7 @@ class GalleryController
         $authorSelect = '';
         $authorJoin = '';
         if ($this->hasColumn('author_id')) {
-            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, gi.author_id";
+            $authorSelect = ", u.name AS author_name, u.avatar AS author_avatar, u.username AS author_username, u.profile_visibility AS author_profile_visibility, u.signature AS author_signature, gi.author_id";
             $authorJoin = "LEFT JOIN users u ON u.id = gi.author_id";
         }
 
@@ -488,7 +570,7 @@ class GalleryController
                  FROM gallery_items gi
                  JOIN gallery_item_categories gic ON gic.item_id = gi.id
                  {$authorJoin}
-                 WHERE gic.category_id IN ({$in})
+                 WHERE gic.category_id IN ({$in}){$this->approvedFilterSql('gi')}
                  ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}",
                 $categoryIds
             );
@@ -497,10 +579,19 @@ class GalleryController
             "SELECT gi.*{$authorSelect}
              FROM gallery_items gi
              {$authorJoin}
-             WHERE gi.category_id IN ({$in})
+             WHERE gi.category_id IN ({$in}){$this->approvedFilterSql('gi')}
              ORDER BY {$orderSql} LIMIT {$limitSql} OFFSET {$offsetSql}",
             $categoryIds
         );
+    }
+
+    private function decorateMasterLikeEligibility(array $items): array
+    {
+        foreach ($items as $index => $item) {
+            $items[$index]['can_receive_master_like'] = $this->masterLikes->itemCanReceiveMasterLike($item);
+        }
+
+        return $items;
     }
 
     private function countByCategoryIds(array $categoryIds): int
@@ -515,13 +606,13 @@ class GalleryController
                     "SELECT COUNT(DISTINCT gi.id) AS cnt
                      FROM gallery_items gi
                      JOIN gallery_item_categories gic ON gic.item_id = gi.id
-                     WHERE gic.category_id IN ({$in})",
+                     WHERE gic.category_id IN ({$in}){$this->approvedFilterSql('gi')}",
                     $categoryIds
                 );
                 return (int)($row['cnt'] ?? 0);
             }
             $row = $this->db->fetch(
-                "SELECT COUNT(*) AS cnt FROM gallery_items WHERE category_id IN ({$in})",
+                "SELECT COUNT(*) AS cnt FROM gallery_items WHERE category_id IN ({$in}){$this->approvedFilterSql('gallery_items')}",
                 $categoryIds
             );
             return (int)($row['cnt'] ?? 0);
@@ -533,9 +624,13 @@ class GalleryController
     private function orderSql(string $sort, bool $withAlias = false): string
     {
         $hasLikes = $this->hasColumn('likes');
+        $hasMasterLikes = $this->hasColumn('master_likes_count');
         $hasViews = $this->hasColumn('views');
         $hasCreated = $this->hasColumn('created_at');
         $prefix = $withAlias ? 'gi.' : '';
+        if ($sort === 'master_likes' && $hasMasterLikes) {
+            return "{$prefix}master_likes_count DESC, {$prefix}id DESC";
+        }
         if ($sort === 'likes' && $hasLikes) {
             return "{$prefix}likes DESC, {$prefix}id DESC";
         }
@@ -560,6 +655,14 @@ class GalleryController
             }
         }
         return $cache[$name];
+    }
+
+    private function approvedFilterSql(string $alias, bool $withLeadingAnd = false): string
+    {
+        if (!$this->hasColumn('status')) {
+            return '';
+        }
+        return ($withLeadingAnd ? ' AND ' : ' AND ') . $alias . ".status = 'approved'";
     }
 
     private function hasItemCategoriesTable(): bool
@@ -699,6 +802,15 @@ class GalleryController
             );
         } catch (\Throwable $e) {
             return [];
+        }
+    }
+
+    private function renderComments(int $galleryId): string
+    {
+        try {
+            return $this->container->get(CommentService::class)->renderForEntity('gallery', $galleryId);
+        } catch (\Throwable $e) {
+            return '';
         }
     }
 }

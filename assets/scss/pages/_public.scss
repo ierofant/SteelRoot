@@ -29,6 +29,13 @@ main {
   z-index: 1;
 }
 
+// Поднять main над header когда открыт лайтбокс
+// (main z-index:1 ниже topbar z-index:20 — без этого лайтбокс внутри main
+// рисуется под хедером и кнопка закрыть не видна на мобиле)
+body.no-scroll > main {
+  z-index: 200;
+}
+
 header,
 footer {
   padding: 12px;

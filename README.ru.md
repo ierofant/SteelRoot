@@ -106,6 +106,26 @@ public_html/
 
 ---
 
+## HTTP Prefilter
+
+Все запросы проходят через prefilter до попадания в приложение.
+Он блокирует запрещённые расширения файлов, path traversal и базовые инъекции,
+применяет rate limiting по IP (120 запросов / 60 с), затем передаёт управление `index.php`.
+
+Доступны два варианта:
+
+| Файл | Rate limiting |
+|------|---------------|
+| `prefilter.php` | Файл `storage/tmp/prefilter_rate.json` + flock |
+| `prefilter.redis.php` | Redis через Unix socket (`/run/redis/redis.sock`, db 1) |
+
+**Переключение на Redis-вариант** — измените `auto_prepend_file` в `.htaccess` или настройках
+vhost: укажите `prefilter.redis.php` вместо `prefilter.php`.
+Требует расширение `php-redis`. При недоступности Redis запрос пропускается (fail-open) —
+сайт продолжает работать.
+
+Формат ключа Redis: `prefilter:rate:{ip}`, TTL 60 секунд устанавливается при первом инкременте.
+
 ## Для разработчиков
 
 - DI: `Container::set / singleton / get` (без автосвязывания).

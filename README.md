@@ -89,6 +89,26 @@ public_html/
 - Cache: file cache; sitemap cached 10 min.
 - Module system: `core/ModuleManager`, per-module migrations (`ModuleMigrationRunner`), lang/views/routes providers.
 
+## HTTP Prefilter
+
+Requests are routed through a prefilter before hitting the application.
+The prefilter blocks forbidden file extensions, path traversal, and basic injection patterns,
+then applies per-IP rate limiting (120 req / 60 s) and falls through to `index.php`.
+
+Two variants are provided:
+
+| File | Rate limiting backend |
+|------|-----------------------|
+| `prefilter.php` | File-based (`storage/tmp/prefilter_rate.json`, flock) |
+| `prefilter.redis.php` | Redis via Unix socket (`/run/redis/redis.sock`, db 1) |
+
+**Using the Redis variant** — point your vhost / `.htaccess` `php_value auto_prepend_file` or
+`FallbackResource` entry at `prefilter.redis.php` instead of `prefilter.php`.
+Requires the `php-redis` extension. If Redis is unavailable the filter fails open
+(request is allowed through) so the site stays up.
+
+Redis key format: `prefilter:rate:{ip}` with a 60-second TTL set on the first increment.
+
 ## Development
 - DI via `Container::set/singleton/get`, no autowiring.
 - Router supports middleware/groups; 404 handled by Kernel error views.

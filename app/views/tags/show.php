@@ -1,5 +1,6 @@
 <?php
 $loc          = $locale ?? 'en';
+$tagNameClean = ltrim($tagName ?? $slug ?? '', "# \t\n\r\0\x0B");
 $aPage        = $aPage   ?? 1;
 $gPage        = $gPage   ?? 1;
 $aTotal       = $aTotal  ?? count($articles ?? []);
@@ -14,7 +15,7 @@ $galleryCount = $gTotal;
     <div class="tag-hero__grid">
         <div class="tag-hero__text">
             <p class="eyebrow">Тег</p>
-            <h1>#<?= htmlspecialchars($tagName ?? $slug ?? '') ?></h1>
+            <h1>#<?= htmlspecialchars($tagNameClean) ?></h1>
             <p class="muted">Материалы и изображения с этим тегом.</p>
             <div class="tag-hero__chips">
                 <span class="stat-pill"><span class="dot dot-green"></span><?= $articleCount ?> статей</span>
@@ -52,7 +53,7 @@ $galleryCount = $gTotal;
             <a class="article-card no-image tag-article-card" href="/articles/<?= urlencode($a['slug'] ?? '') ?>">
                 <div class="card-meta">
                     <span class="eyebrow"><?= !empty($a['created_at']) ? htmlspecialchars(date('d.m.Y', strtotime($a['created_at']))) : '' ?></span>
-                    <span class="pill subtle">#<?= htmlspecialchars($tagName ?? $slug ?? '') ?></span>
+                    <span class="pill subtle">#<?= htmlspecialchars($tagNameClean) ?></span>
                 </div>
                 <h3><?= htmlspecialchars($title) ?></h3>
             </a>
@@ -94,7 +95,7 @@ $galleryCount = $gTotal;
             <?php $href = ($openMode ?? 'lightbox') === 'page'
                 ? ($slugG ? '/gallery/photo/' . urlencode($slugG) : '/gallery/view?id=' . (int)$item['id'])
                 : $full; ?>
-            <a class="masonry-item <?= ($openMode ?? 'lightbox') === 'lightbox' ? 'lightbox-trigger' : '' ?>" href="<?= htmlspecialchars($href) ?>" data-id="<?= (int)$item['id'] ?>" <?= ($openMode ?? 'lightbox') === 'lightbox' ? 'data-index="'.(int)$idx.'" data-full="'.htmlspecialchars($full).'" data-title="'.htmlspecialchars($title).'"' : '' ?>>
+            <a class="masonry-item <?= ($openMode ?? 'lightbox') === 'lightbox' ? 'lightbox-trigger' : '' ?>" href="<?= htmlspecialchars($href) ?>" data-id="<?= (int)$item['id'] ?>"<?= $slugG ? ' data-slug="'.htmlspecialchars($slugG).'"' : '' ?><?= ($openMode ?? 'lightbox') === 'lightbox' ? ' data-index="'.(int)$idx.'" data-full="'.htmlspecialchars($full).'" data-title="'.htmlspecialchars($title).'" data-likes="'.$likes.'" data-views="'.$views.'"' : '' ?>>
                 <div class="frame">
                     <img src="<?= htmlspecialchars($thumb) ?>" alt="<?= htmlspecialchars($title) ?>">
                     <div class="meta-floating">
@@ -123,125 +124,57 @@ $galleryCount = $gTotal;
 </section>
 
 <?php if (($openMode ?? 'lightbox') === 'lightbox' && !empty($gallery)): ?>
-<div class="lightbox" id="lightbox" hidden>
+<div class="lightbox" id="lightbox" hidden aria-modal="true" role="dialog">
     <div class="lightbox__backdrop"></div>
-    <div class="lightbox__dialog">
-        <button class="lightbox__close" aria-label="Закрыть">×</button>
-        <button class="lightbox__nav lightbox__prev" aria-label="Предыдущее">‹</button>
-        <button class="lightbox__nav lightbox__next" aria-label="Следующее">›</button>
-        <img src="" alt="" id="lightbox-image">
-        <p class="lightbox__caption" id="lightbox-caption"></p>
+    <button class="lightbox__close" id="lightbox-close" aria-label="Закрыть">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 2l14 14M16 2L2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="lightbox__stage">
+        <button class="lightbox__nav lightbox__prev" id="lightbox-prev" aria-label="Предыдущее">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="lightbox__nav lightbox__next" id="lightbox-next" aria-label="Следующее">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <img src="" alt="" id="lightbox-image" draggable="false">
+    </div>
+    <div class="lightbox__bar">
+        <div class="lightbox__bar-left">
+            <p class="lightbox__caption" id="lightbox-caption"></p>
+            <span class="lightbox__counter" id="lightbox-counter"></span>
+        </div>
+        <div class="lightbox__bar-right">
+            <span class="lightbox__stat">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><ellipse cx="12" cy="12" rx="11" ry="8" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+                <span id="lightbox-views">0</span>
+            </span>
+            <button class="lightbox__like-btn" id="lightbox-like" aria-label="Лайк">
+                <svg class="lightbox__heart" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                <span id="lightbox-likes">0</span>
+            </button>
+            <a class="lightbox__open-link" id="lightbox-open" href="#" aria-label="Открыть страницу" hidden>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 3h6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </a>
+        </div>
     </div>
 </div>
+<script src="/assets/js/gallery-lightbox.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const box = document.getElementById('lightbox');
-    const img = document.getElementById('lightbox-image');
-    const cap = document.getElementById('lightbox-caption');
-    const items = Array.from(document.querySelectorAll('.lightbox-trigger'));
-    let current = -1;
-    const viewed = new Set();
-    async function sendView(id) {
-        if (!id || viewed.has(id)) return;
-        viewed.add(id);
-        try {
-            const res = await fetch('/api/v1/view', {
-                method: 'POST',
-                headers: {'Accept':'application/json'},
-                body: new URLSearchParams({type:'gallery', id})
-            });
-            if (res.ok) {
-                const data = await res.json();
-                document.querySelectorAll(`a[data-id="${id}"] .g-views`).forEach(el => { if (data.views !== undefined) el.textContent = data.views; });
-            }
-        } catch (_) {}
-    }
-    function openAt(idx) {
-        const link = items[idx];
-        if (!link) return;
-        current = idx;
-        img.src = link.dataset.full;
-        img.alt = link.dataset.title || '';
-        cap.textContent = link.dataset.title || '';
-        box.hidden = false;
-        document.body.classList.add('no-scroll');
-        const id = link.closest('a')?.dataset.id;
-        if (id) sendView(id);
-    }
-    function close() {
-        box.hidden = true;
-        img.src = '';
-        cap.textContent = '';
-        current = -1;
-        document.body.classList.remove('no-scroll');
-    }
-    function next() {
-        if (!items.length) return;
-        current = (current + 1) % items.length;
-        openAt(current);
-    }
-    function prev() {
-        if (!items.length) return;
-        current = (current - 1 + items.length) % items.length;
-        openAt(current);
-    }
-    box?.addEventListener('click', (e) => {
-        if (e.target === box || e.target.classList.contains('lightbox__backdrop')) close();
-    });
-    box?.querySelector('.lightbox__close')?.addEventListener('click', close);
-    box?.querySelector('.lightbox__prev')?.addEventListener('click', (e) => { e.preventDefault(); prev(); });
-    box?.querySelector('.lightbox__next')?.addEventListener('click', (e) => { e.preventDefault(); next(); });
-    items.forEach((link, i) => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            openAt(i);
-        });
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !box.hidden) close();
-        if (e.key === 'ArrowRight' && !box.hidden) next();
-        if (e.key === 'ArrowLeft' && !box.hidden) prev();
-    });
-    let touchStartX = 0, touchStartY = 0;
-    box?.addEventListener('touchstart', (e) => {
-        const t = e.changedTouches[0];
-        touchStartX = t.clientX;
-        touchStartY = t.clientY;
-    }, { passive: true });
-    box?.addEventListener('touchmove', (e) => {
-        if (Math.abs((e.changedTouches[0].clientX - touchStartX)) > Math.abs((e.changedTouches[0].clientY - touchStartY))) {
-            e.preventDefault();
-        }
-    }, { passive: false });
-    box?.addEventListener('touchend', (e) => {
-        const t = e.changedTouches[0];
-        const dx = t.clientX - touchStartX;
-        const dy = t.clientY - touchStartY;
-        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-            if (dx < 0) next(); else prev();
-        }
-    });
     document.querySelectorAll('.like-chip').forEach(btn => {
         const id = btn.dataset.id;
-        const storageKey = 'liked_gallery_' + id;
-        if (localStorage.getItem(storageKey) === '1') {
-            btn.classList.add('active');
-        }
+        const key = 'liked_gallery_' + id;
+        if (localStorage.getItem(key) === '1') btn.classList.add('active');
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
             try {
-                const res = await fetch('/api/v1/like', {
-                    method: 'POST',
-                    headers: {'Accept':'application/json'},
-                    body: new URLSearchParams({type:'gallery', id})
-                });
+                const res = await fetch('/api/v1/like', {method:'POST', headers:{'Accept':'application/json'}, body: new URLSearchParams({type:'gallery', id})});
                 if (!res.ok) throw new Error('bad');
                 const data = await res.json();
-                const likes = data.likes ?? parseInt(btn.dataset.likes || '0', 10);
-                document.querySelectorAll(`.like-chip[data-id="${id}"] .g-likes`).forEach(el => el.textContent = likes);
+                document.querySelectorAll('.like-chip[data-id="' + id + '"] .g-likes').forEach(el => el.textContent = data.likes ?? 0);
                 btn.classList.add('active');
-                localStorage.setItem(storageKey, '1');
+                localStorage.setItem(key, '1');
                 if (window.showToast) window.showToast(data.already ? 'Уже лайкнули' : 'Лайк засчитан', 'success');
             } catch (_) {
                 if (window.showToast) window.showToast('Не удалось поставить лайк', 'danger');

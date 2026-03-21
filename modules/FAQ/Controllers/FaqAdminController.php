@@ -4,6 +4,7 @@ namespace Modules\FAQ\Controllers;
 use Core\Container;
 use Core\Csrf;
 use Core\Database;
+use Core\ModuleSettings;
 use Core\Request;
 use Core\Response;
 use Modules\FAQ\Models\FaqModel;
@@ -12,6 +13,7 @@ class FaqAdminController
 {
     private Container $container;
     private Database $db;
+    private ModuleSettings $moduleSettings;
     private FaqModel $model;
     private array $fields = array (
   0 => 
@@ -51,6 +53,7 @@ class FaqAdminController
     {
         $this->container = $container;
         $this->db = $container->get(Database::class);
+        $this->moduleSettings = $container->get(ModuleSettings::class);
         $this->model = new FaqModel($this->db);
     }
 
@@ -58,7 +61,7 @@ class FaqAdminController
     {
         $items = $this->model->all();
         $html = $this->container->get('renderer')->render('@' . strtoupper('faq') . '/admin/index', [
-            'title' => 'Faq',
+            'title' => __('faq.title'),
             'items' => $items,
             'listColumns' => $this->listColumns,
             'schemaFields' => $this->fields,
@@ -70,7 +73,7 @@ class FaqAdminController
     public function create(Request $request): Response
     {
         $html = $this->container->get('renderer')->render('@' . strtoupper('faq') . '/admin/edit', [
-            'title' => 'Create Faq',
+            'title' => __('faq.create'),
             'schemaFields' => $this->fields,
             'formFields' => $this->formFields,
             'csrf' => Csrf::token('faq_admin'),
@@ -98,13 +101,62 @@ class FaqAdminController
         $id = (int)($request->params['id'] ?? 0);
         $item = $this->model->find($id);
         $html = $this->container->get('renderer')->render('@' . strtoupper('faq') . '/admin/edit', [
-            'title' => 'Edit Faq',
+            'title' => __('faq.edit'),
             'schemaFields' => $this->fields,
             'formFields' => $this->formFields,
             'csrf' => Csrf::token('faq_admin'),
             'item' => $item,
         ]);
         return new Response($html);
+    }
+
+    public function settings(Request $request): Response
+    {
+        $defaults = [
+            'seo_title_en' => 'Tattoo FAQ',
+            'seo_title_ru' => 'FAQ о татуировках',
+            'seo_desc_en' => 'Tattoo FAQ about booking, pain, healing, aftercare and safety.',
+            'seo_desc_ru' => 'Частые вопросы о татуировках: запись, боль, заживление, уход и безопасность.',
+            'og_title_en' => 'Tattoo FAQ',
+            'og_title_ru' => 'FAQ о татуировках',
+            'og_desc_en' => 'Answers to the most common tattoo questions before and after your session.',
+            'og_desc_ru' => 'Ответы на самые частые вопросы о татуировках до и после сеанса.',
+            'og_image' => '',
+        ];
+        $settings = array_merge($defaults, $this->moduleSettings->all('faq'));
+
+        $html = $this->container->get('renderer')->render('@FAQ/admin/settings', [
+            'title' => __('faq.settings.page_title'),
+            'csrf' => Csrf::token('faq_settings'),
+            'settings' => $settings,
+        ]);
+
+        return new Response($html);
+    }
+
+    public function saveSettings(Request $request): Response
+    {
+        if (!Csrf::check('faq_settings', $request->body['_token'] ?? null)) {
+            return new Response('Invalid CSRF', 400);
+        }
+
+        $map = [
+            'seo_title_en' => 'faq_seo_title_en',
+            'seo_title_ru' => 'faq_seo_title_ru',
+            'seo_desc_en' => 'faq_seo_desc_en',
+            'seo_desc_ru' => 'faq_seo_desc_ru',
+            'og_title_en' => 'faq_og_title_en',
+            'og_title_ru' => 'faq_og_title_ru',
+            'og_desc_en' => 'faq_og_desc_en',
+            'og_desc_ru' => 'faq_og_desc_ru',
+            'og_image' => 'faq_og_image',
+        ];
+
+        foreach ($map as $key => $field) {
+            $this->moduleSettings->set('faq', $key, trim((string)($request->body[$field] ?? '')));
+        }
+
+        return new Response('', 302, ['Location' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/faq/settings?msg=saved']);
     }
 
     public function update(Request $request): Response

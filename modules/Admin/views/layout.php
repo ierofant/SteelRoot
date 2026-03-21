@@ -10,7 +10,7 @@ $flash = $flash ?? null;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($pageTitle) ?> · SteelRoot Admin</title>
-    <link rel="stylesheet" href="/assets/css/admin-theme.css?v=4">
+    <link rel="stylesheet" href="/assets/css/admin-theme.css?v=5">
 </head>
 <body class="admin-shell" data-theme="<?= htmlspecialchars(($GLOBALS['settingsAll']['theme'] ?? 'dark')) ?>" data-locale="<?= htmlspecialchars($GLOBALS['settingsAll']['locale_mode'] ?? 'multi') ?>">
 <?php if ($showSidebar): ?>

@@ -3,22 +3,32 @@ namespace App\Controllers;
 
 use Core\Container;
 use Core\Database;
+use Core\Asset;
 use Core\Request;
 use Core\Response;
 use Core\Csrf;
+use Core\RateLimiter;
+use App\Services\ProjectMailer;
 use App\Services\SettingsService;
+use App\Services\UserPublicSummaryService;
+use Modules\Gallery\Services\MasterLikeService;
+use Modules\Users\Services\Auth;
 
 class HomeController
 {
     private Container $container;
     private SettingsService $settings;
     private Database $db;
+    private MasterLikeService $masterLikes;
+    private UserPublicSummaryService $userSummaries;
 
     public function __construct(Container $container)
     {
         $this->container = $container;
         $this->settings = $container->get(SettingsService::class);
         $this->db = $container->get(Database::class);
+        $this->masterLikes = new MasterLikeService($container);
+        $this->userSummaries = $container->get(UserPublicSummaryService::class);
     }
 
     public function index(Request $request): Response
@@ -28,15 +38,21 @@ class HomeController
         $cacheTtl     = max(1, (int)$this->settings->get('cache_home_ttl', '10')) * 60;
         $lang         = $this->container->get('lang')->current();
         $cacheKey     = 'home_' . $lang;
+        $viewer       = $this->container->get(Auth::class)->user();
+        $cacheHeaders = ['X-Page-Cache' => 'BYPASS'];
         /** @var \Core\Cache $cache */
         $cache = $this->container->get('cache');
-        if ($cacheEnabled && ($cached = $cache->get($cacheKey))) {
-            return new Response($cached);
+        if ($cacheEnabled && $viewer === null && ($cached = $cache->get($cacheKey))) {
+            return new Response($cached, 200, ['X-Page-Cache' => 'HIT']);
+        }
+        if ($cacheEnabled && $viewer === null) {
+            $cacheHeaders['X-Page-Cache'] = 'MISS';
         }
 
         $canonical = $this->canonical($request);
         $homeCfg = $this->homeConfig();
         $gallery = $homeCfg['show_gallery'] ? $this->latestGallery((int)$homeCfg['gallery_limit']) : [];
+        $gallery = $this->decorateMasterLikeEligibility($gallery);
         $articles = $homeCfg['show_articles'] ? $this->latestArticles((int)$homeCfg['articles_limit']) : [];
         $sections = [];
         if ($homeCfg['show_gallery']) {
@@ -70,6 +86,8 @@ class HomeController
             'sections' => $sections,
             'locale' => $this->container->get('lang')->current(),
             'galleryMode' => $homeCfg['gallery_style'] ?? $this->settings->get('gallery_open_mode', 'lightbox'),
+            'masterLikeState' => $this->masterLikes->viewerState(),
+            'masterLikeToken' => !empty($_SESSION['user_id']) ? Csrf::token('gallery_master_like') : '',
         ], [
             'title' => $metaTitle,
             'description' => $metaDescription,
@@ -81,10 +99,10 @@ class HomeController
                 'url' => $canonical,
             ],
         ]);
-        if ($cacheEnabled) {
+        if ($cacheEnabled && $viewer === null) {
             $cache->set($cacheKey, $html, $cacheTtl);
         }
-        return new Response($html);
+        return new Response($html, 200, $cacheHeaders);
     }
 
     public function contact(Request $request): Response
@@ -96,15 +114,23 @@ class HomeController
         }, false);
         $errors = [];
         $sent = false;
+        $formData = [];
         if ($request->method === 'POST') {
             if (!Csrf::check('contact_form', $request->body['_token'] ?? null)) {
                 $errors[] = 'Неверный CSRF токен';
             } else {
-                $captchaOk = $this->verifyCaptcha($request);
+                $ip = (string)($request->server['REMOTE_ADDR'] ?? 'contact');
+                $limiter = new RateLimiter('contact_form_' . $ip, 5, 900, true);
+                if ($limiter->tooManyAttempts()) {
+                    $errors[] = 'Слишком много попыток. Попробуйте позже.';
+                }
+                $formData['policy_ack'] = !empty($request->body['policy_ack']) ? '1' : '';
+                $captchaOk = $this->verifyCaptcha($request, 'contact_form');
                 if (!$captchaOk) {
                     $errors[] = 'Капча не пройдена';
                 }
                 $data = [];
+                $messageText = '';
                 foreach ($fields as $field) {
                     $name = $field['name'];
                     $value = trim($request->body[$name] ?? '');
@@ -115,16 +141,32 @@ class HomeController
                         }
                         continue;
                     }
+                    $formData[$name] = $value;
+                    if (($field['type'] ?? '') === 'textarea' && $value !== '') {
+                        $messageText .= ($messageText !== '' ? "\n" : '') . $value;
+                    }
                     if (!empty($field['required']) && $value === '') {
                         $errors[] = $field['label'] . ' обязательно для заполнения';
                     }
                     $data[$name] = $value;
                 }
-                if (empty($errors)) {
-                    $this->applyContactGuards($data, $errors);
+                if (!empty($data['email']) && !filter_var((string)$data['email'], FILTER_VALIDATE_EMAIL)) {
+                    $errors[] = 'Укажите корректный email';
+                }
+                if (empty($formData['policy_ack'])) {
+                    $errors[] = 'Подтвердите согласие с политикой обработки данных';
                 }
                 if (empty($errors)) {
-                    $sent = $this->sendMail($data);
+                    $this->applyContactGuards($data, $errors, $messageText);
+                }
+                if (empty($errors)) {
+                    $mailError = $this->sendMail($data);
+                    if ($mailError === null) {
+                        $sent = true;
+                        $limiter->hit();
+                    } else {
+                        $errors[] = $mailError;
+                    }
                 }
             }
         }
@@ -137,12 +179,15 @@ class HomeController
                 'errors' => $errors,
                 'sent' => $sent,
                 'hasFile' => $hasFile,
+                'formData' => $formData,
                 'csrf' => Csrf::token('contact_form'),
+                'settings' => $this->settings->all(),
             ],
             [
                 'title' => \__('contact'),
                 'description' => 'Contact page',
                 'canonical' => $canonical,
+                'styles' => ['/assets/css/contact.css'],
             ]
         );
         return new Response($html);
@@ -175,14 +220,63 @@ class HomeController
         if ($json) {
             $arr = json_decode($json, true);
             if (is_array($arr)) {
-                return $arr;
+                return $this->ensureContactTypeField($arr);
             }
         }
-        return [
+        return $this->ensureContactTypeField([
             ['name' => 'name', 'label' => 'Name', 'type' => 'text', 'required' => true],
             ['name' => 'email', 'label' => 'Email', 'type' => 'email', 'required' => true],
             ['name' => 'message', 'label' => 'Message', 'type' => 'textarea', 'required' => true],
-        ];
+        ]);
+    }
+
+    private function ensureContactTypeField(array $fields): array
+    {
+        foreach ($fields as &$field) {
+            if (($field['name'] ?? '') === 'inquiry_type') {
+                $field['label'] = (string)($field['label'] ?? 'Тема обращения');
+                $field['type'] = 'select';
+                $field['required'] = true;
+                $field['options'] = $this->normalizeSelectOptions($field['options'] ?? [
+                    'Общий вопрос',
+                    'Сотрудничество',
+                    'Создание сайта',
+                    'Реклама',
+                ]);
+                return $fields;
+            }
+        }
+        unset($field);
+
+        array_splice($fields, 2, 0, [[
+            'name' => 'inquiry_type',
+            'label' => 'Тема обращения',
+            'type' => 'select',
+            'required' => true,
+            'options' => [
+                'Общий вопрос',
+                'Сотрудничество',
+                'Создание сайта',
+                'Реклама',
+            ],
+        ]]);
+
+        return $fields;
+    }
+
+    private function normalizeSelectOptions(mixed $options): array
+    {
+        if (is_string($options)) {
+            $options = preg_split('/\r\n|\r|\n|,/', $options) ?: [];
+        }
+
+        if (!is_array($options)) {
+            return [];
+        }
+
+        return array_values(array_filter(array_map(static function ($option): string {
+            return trim((string)$option);
+        }, $options), static fn(string $option): bool => $option !== ''));
     }
 
     private function handleFileUpload(Request $request, string $fieldName, array $field, array &$errors): ?string
@@ -232,26 +326,59 @@ class HomeController
         return '/storage/uploads/forms/' . $safeName;
     }
 
-    private function sendMail(array $data): bool
+    private function sendMail(array $data): ?string
     {
-        $to = $this->settings->get('contact_email', '');
+        $to = trim((string)$this->settings->get('contact_email', ''));
         if ($to === '') {
-            return false;
+            $to = trim((string)$this->settings->get('mail_from', ''));
         }
-        $subject = 'Сообщение с формы';
-        $body = '';
+        if ($to === '') {
+            \Core\Logger::log('Contact form mail skipped: missing contact_email/mail_from setting');
+            return 'Не настроен адрес получателя для формы обратной связи';
+        }
+        $inquiryType = trim((string)($data['inquiry_type'] ?? ''));
+        $subject = $inquiryType !== '' ? 'Сообщение с формы: ' . $inquiryType : 'Сообщение с формы';
+        $bodyLines = [];
         $base = rtrim($this->settings->get('site_url', ''), '/');
-        foreach ($data as $k => $v) {
+        $labelMap = [
+            'name' => 'Name',
+            'email' => 'Email',
+            'inquiry_type' => 'Inquiry type',
+            'message' => 'Message',
+        ];
+
+        foreach ($labelMap as $key => $label) {
+            if (!array_key_exists($key, $data)) {
+                continue;
+            }
+            $v = $data[$key];
             if (is_string($v) && str_starts_with($v, '/storage/') && $base !== '') {
                 $v = $base . $v;
             }
-            $body .= ucfirst($k) . ": " . $v . "\n";
+            $bodyLines[] = $label . ': ' . $v;
         }
-        $headers = 'From: ' . ($data['email'] ?? 'noreply@example.com');
-        return @mail($to, $subject, $body, $headers);
+
+        foreach ($data as $k => $v) {
+            if (array_key_exists($k, $labelMap)) {
+                continue;
+            }
+            if (is_string($v) && str_starts_with($v, '/storage/') && $base !== '') {
+                $v = $base . $v;
+            }
+            $bodyLines[] = ucfirst($k) . ': ' . $v;
+        }
+
+        $body = implode("\n", $bodyLines);
+        try {
+            (new ProjectMailer($this->settings))->sendText((string)$to, $subject, $body);
+            return null;
+        } catch (\Throwable $e) {
+            \Core\Logger::log('Contact form mail failed: ' . $e->getMessage());
+            return 'Не удалось отправить сообщение: ' . $e->getMessage();
+        }
     }
 
-    private function verifyCaptcha(Request $request): bool
+    private function verifyCaptcha(Request $request, string $expectedAction = 'contact_form'): bool
     {
         /** @var \App\Services\CaptchaService $captcha */
         $captcha = $this->container->get(\App\Services\CaptchaService::class);
@@ -259,7 +386,7 @@ class HomeController
         if ($cfg['provider'] === 'none') {
             return true;
         }
-        return $captcha->verify($request);
+        return $captcha->verify($request, $expectedAction);
     }
 
     private function homeConfig(): array
@@ -388,10 +515,31 @@ class HomeController
         if ($this->galleryHasColumn('likes')) {
             $cols .= ", likes";
         }
+        if ($this->galleryHasColumn('master_likes_count')) {
+            $cols .= ", master_likes_count";
+        }
         if ($this->galleryHasColumn('category')) {
             $cols .= ", category";
         }
+        if ($this->galleryHasColumn('author_id')) {
+            $cols .= ", author_id";
+        }
+        if ($this->galleryHasColumn('submitted_by_master')) {
+            $cols .= ", submitted_by_master";
+        }
+        if ($this->galleryHasColumn('status')) {
+            $cols .= ", status";
+        }
         return $this->db->fetchAll("SELECT {$cols} FROM gallery_items ORDER BY created_at DESC LIMIT {$lim}");
+    }
+
+    private function decorateMasterLikeEligibility(array $items): array
+    {
+        foreach ($items as $index => $item) {
+            $items[$index]['can_receive_master_like'] = $this->masterLikes->itemCanReceiveMasterLike($item);
+        }
+
+        return $items;
     }
 
     private function latestArticles(int $limit): array
@@ -400,24 +548,30 @@ class HomeController
             return [];
         }
         $lim = (int)$limit;
-        $select = "slug, title_en, title_ru, created_at";
+        $select = "a.slug, a.title_en, a.title_ru, a.created_at";
+        $join = '';
         $hasImg = $this->hasColumn('image_url');
         $hasPreview = $this->hasColumn('preview_en');
         $hasViews = $this->hasColumn('views');
         $hasLikes = $this->hasColumn('likes');
+        $hasAuthor = $this->hasColumn('author_id');
         if ($hasImg) {
-            $select .= ", image_url";
+            $select .= ", a.image_url";
         }
         if ($hasPreview) {
-            $select .= ", preview_en, preview_ru";
+            $select .= ", a.preview_en, a.preview_ru";
         }
         if ($hasViews) {
-            $select .= ", views";
+            $select .= ", a.views";
         }
         if ($hasLikes) {
-            $select .= ", likes";
+            $select .= ", a.likes";
         }
-        return $this->db->fetchAll("SELECT {$select} FROM articles ORDER BY created_at DESC LIMIT {$lim}");
+        if ($hasAuthor) {
+            $select .= ", a.author_id";
+        }
+        $rows = $this->db->fetchAll("SELECT {$select} FROM articles a{$join} ORDER BY a.created_at DESC LIMIT {$lim}");
+        return $hasAuthor ? $this->userSummaries->hydrateRows($rows) : $rows;
     }
 
     // Auto-discovers home blocks from modules/{name}/home_block.php files.
@@ -482,37 +636,26 @@ class HomeController
         return $cache[$name];
     }
 
-    private function applyContactGuards(array $data, array &$errors): void
+    private function applyContactGuards(array $data, array &$errors, string $messageText = ''): void
     {
         $settings = $this->settings->all();
         $black = array_filter(array_map('trim', preg_split('/\r\n|\r|\n/', (string)($settings['contact_blacklist'] ?? ''))));
-        if (!empty($black)) {
-            foreach ($data as $value) {
-                if (!is_string($value)) {
-                    continue;
-                }
-                foreach ($black as $needle) {
-                    if ($needle !== '' && stripos($value, $needle) !== false) {
-                        $errors[] = 'Сообщение отклонено (blacklist)';
-                        break 2;
-                    }
+        if (!empty($black) && $messageText !== '') {
+            foreach ($black as $needle) {
+                if ($needle !== '' && stripos($messageText, $needle) !== false) {
+                    $errors[] = 'Сообщение отклонено (blacklist)';
+                    break;
                 }
             }
         }
         $regex = trim($settings['contact_block_regex'] ?? '');
-        if ($regex !== '') {
-            foreach ($data as $value) {
-                if (!is_string($value)) {
-                    continue;
-                }
-                $pattern = $regex;
-                if (@preg_match($pattern, '') === false) {
-                    $pattern = '/' . str_replace('/', '\/', $regex) . '/i';
-                }
-                if (@preg_match($pattern, $value)) {
-                    $errors[] = 'Сообщение отклонено (регулярное выражение)';
-                    break;
-                }
+        if ($regex !== '' && $messageText !== '') {
+            $pattern = $regex;
+            if (@preg_match($pattern, '') === false) {
+                $pattern = '/' . str_replace('/', '\/', $regex) . '/i';
+            }
+            if (@preg_match($pattern, $messageText)) {
+                $errors[] = 'Сообщение отклонено (регулярное выражение)';
             }
         }
         $domains = array_filter(array_map('strtolower', array_map('trim', preg_split('/\r\n|\r|\n/', (string)($settings['contact_block_domains'] ?? '')))));
@@ -565,7 +708,6 @@ class HomeController
         if (!is_file($filePath) || file_get_contents($filePath) !== $content) {
             @file_put_contents($filePath, $content, LOCK_EX);
         }
-        $version = @filemtime($filePath) ?: time();
-        return '/storage/cache/home-dynamic.css?v=' . $version;
+        return Asset::url('/storage/cache/home-dynamic.css');
     }
 }

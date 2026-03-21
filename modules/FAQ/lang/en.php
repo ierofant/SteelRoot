@@ -1,6 +1,28 @@
 <?php
-return array (
-  'faq.title' => 'Faq',
-  'faq.create' => 'Create Faq',
-  'faq.edit' => 'Edit Faq',
-);
+return [
+    'faq.title' => 'FAQ',
+    'faq.create' => 'Create FAQ',
+    'faq.edit' => 'Edit FAQ',
+    'faq.empty' => 'No FAQ items yet.',
+    'faq.actions.title' => 'Actions',
+    'faq.actions.add' => 'Add FAQ',
+    'faq.actions.edit' => 'Edit',
+    'faq.actions.delete' => 'Delete',
+    'faq.actions.delete_confirm' => 'Delete FAQ item?',
+    'faq.settings.link' => 'SEO Settings',
+    'faq.settings.title' => 'FAQ SEO',
+    'faq.settings.subtitle' => 'Search and sharing settings for the FAQ page',
+    'faq.settings.description' => 'Control the page title, description and Open Graph fields for /faq.',
+    'faq.settings.page_title' => 'FAQ SEO Settings',
+    'faq.settings.saved' => 'FAQ SEO settings saved.',
+    'faq.settings.save' => 'Save settings',
+    'faq.settings.seo_title_ru' => 'SEO title (RU)',
+    'faq.settings.seo_title_en' => 'SEO title (EN)',
+    'faq.settings.seo_desc_ru' => 'SEO description (RU)',
+    'faq.settings.seo_desc_en' => 'SEO description (EN)',
+    'faq.settings.og_title_ru' => 'OG title (RU)',
+    'faq.settings.og_title_en' => 'OG title (EN)',
+    'faq.settings.og_desc_ru' => 'OG description (RU)',
+    'faq.settings.og_desc_en' => 'OG description (EN)',
+    'faq.settings.og_image' => 'OG image URL',
+];

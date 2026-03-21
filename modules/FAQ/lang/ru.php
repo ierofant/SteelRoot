@@ -1,6 +1,28 @@
 <?php
-return array (
-  'faq.title' => 'Faq',
-  'faq.create' => 'Создать Faq',
-  'faq.edit' => 'Редактировать Faq',
-);
+return [
+    'faq.title' => 'FAQ',
+    'faq.create' => 'Создать FAQ',
+    'faq.edit' => 'Редактировать FAQ',
+    'faq.empty' => 'В модуле FAQ пока нет записей.',
+    'faq.actions.title' => 'Действия',
+    'faq.actions.add' => 'Добавить FAQ',
+    'faq.actions.edit' => 'Редактировать',
+    'faq.actions.delete' => 'Удалить',
+    'faq.actions.delete_confirm' => 'Удалить запись FAQ?',
+    'faq.settings.link' => 'SEO настройки',
+    'faq.settings.title' => 'FAQ SEO',
+    'faq.settings.subtitle' => 'Настройки поиска и шаринга для страницы FAQ',
+    'faq.settings.description' => 'Управляйте title, description и Open Graph полями для страницы /faq.',
+    'faq.settings.page_title' => 'SEO настройки FAQ',
+    'faq.settings.saved' => 'SEO настройки FAQ сохранены.',
+    'faq.settings.save' => 'Сохранить настройки',
+    'faq.settings.seo_title_ru' => 'SEO title (RU)',
+    'faq.settings.seo_title_en' => 'SEO title (EN)',
+    'faq.settings.seo_desc_ru' => 'SEO description (RU)',
+    'faq.settings.seo_desc_en' => 'SEO description (EN)',
+    'faq.settings.og_title_ru' => 'OG title (RU)',
+    'faq.settings.og_title_en' => 'OG title (EN)',
+    'faq.settings.og_desc_ru' => 'OG description (RU)',
+    'faq.settings.og_desc_en' => 'OG description (EN)',
+    'faq.settings.og_image' => 'URL изображения для OG',
+];

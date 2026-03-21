@@ -55,7 +55,7 @@ $loc = $locale ?? 'en';
                 : ($slug ? '/gallery/photo/' . urlencode($slug) : '/gallery?id=' . (int)$item['id']);
             $dataFull = $full ?: $thumb;
         ?>
-        <a class="masonry-item<?= $lightbox ? ' lightbox-trigger' : '' ?>" href="<?= htmlspecialchars($href) ?>" data-id="<?= (int)$item['id'] ?>" <?= $lightbox ? 'data-index="'.(int)$idx.'" data-full="'.htmlspecialchars($dataFull).'" data-title="'.htmlspecialchars($itemTitle).'"' : '' ?>>
+        <a class="masonry-item<?= $lightbox ? ' lightbox-trigger' : '' ?>" href="<?= htmlspecialchars($href) ?>" data-id="<?= (int)$item['id'] ?>"<?= $slug ? ' data-slug="'.htmlspecialchars($slug).'"' : '' ?><?= $lightbox ? ' data-index="'.(int)$idx.'" data-full="'.htmlspecialchars($dataFull).'" data-title="'.htmlspecialchars($itemTitle).'" data-likes="'.$likes.'" data-views="'.$views.'"' : '' ?>>
             <div class="frame">
                 <img src="<?= htmlspecialchars($thumb) ?>" alt="<?= htmlspecialchars($itemTitle) ?>">
                 <div class="meta-floating">
@@ -104,14 +104,38 @@ $currentTag = trim((string)($tag ?? ''));
 </div>
 <?php endif; ?>
 <?php if (($openMode ?? 'lightbox') === 'lightbox' && !empty($items)): ?>
-<div class="lightbox" id="lightbox" hidden>
+<div class="lightbox" id="lightbox" hidden aria-modal="true" role="dialog">
     <div class="lightbox__backdrop"></div>
-    <div class="lightbox__dialog">
-        <button class="lightbox__close" aria-label="Закрыть">×</button>
-        <button class="lightbox__nav lightbox__prev" aria-label="Предыдущее">‹</button>
-        <button class="lightbox__nav lightbox__next" aria-label="Следующее">›</button>
-        <img src="" alt="" id="lightbox-image">
-        <p class="lightbox__caption" id="lightbox-caption"></p>
+    <button class="lightbox__close" id="lightbox-close" aria-label="Закрыть">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 2l14 14M16 2L2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="lightbox__stage">
+        <button class="lightbox__nav lightbox__prev" id="lightbox-prev" aria-label="Предыдущее">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="lightbox__nav lightbox__next" id="lightbox-next" aria-label="Следующее">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <img src="" alt="" id="lightbox-image" draggable="false">
+    </div>
+    <div class="lightbox__bar">
+        <div class="lightbox__bar-left">
+            <p class="lightbox__caption" id="lightbox-caption"></p>
+            <span class="lightbox__counter" id="lightbox-counter"></span>
+        </div>
+        <div class="lightbox__bar-right">
+            <span class="lightbox__stat">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><ellipse cx="12" cy="12" rx="11" ry="8" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+                <span id="lightbox-views">0</span>
+            </span>
+            <button class="lightbox__like-btn" id="lightbox-like" aria-label="Лайк">
+                <svg class="lightbox__heart" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                <span id="lightbox-likes">0</span>
+            </button>
+            <a class="lightbox__open-link" id="lightbox-open" href="#" aria-label="Открыть страницу" hidden>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 3h6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </a>
+        </div>
     </div>
 </div>
 <script src="/assets/js/gallery-lightbox.js"></script>

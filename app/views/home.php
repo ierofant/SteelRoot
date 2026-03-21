@@ -11,8 +11,10 @@ $heroEyebrow = $home['hero_eyebrow_' . $locKey] ?? $home['hero_eyebrow_ru'] ?? '
 $statGalleryLabel = $home['stats_gallery_label_' . $locKey] ?? ($locKey === 'ru' ? 'Галерея' : 'Gallery');
 $statArticlesLabel = $home['stats_articles_label_' . $locKey] ?? ($locKey === 'ru' ? 'Статьи' : 'Articles');
 $galleryTitle = $home['gallery_title_' . $locKey] ?? ($locKey === 'ru' ? 'Галерея' : 'Gallery');
+$gallerySlogan = $home['gallery_slogan_' . $locKey] ?? '';
 $galleryCta = $home['gallery_cta_' . $locKey] ?? ($locKey === 'ru' ? 'Смотреть все →' : 'See all →');
 $articlesTitle = $home['articles_title_' . $locKey] ?? ($locKey === 'ru' ? 'Статьи' : 'Articles');
+$articlesSlogan = $home['articles_slogan_' . $locKey] ?? '';
 $articlesCta = $home['articles_cta_' . $locKey] ?? ($locKey === 'ru' ? 'Все статьи →' : 'All articles →');
 $customBlocksTitle = $home['custom_blocks_title_' . $locKey] ?? ($locKey === 'ru' ? 'Кастомные блоки' : 'Custom blocks');
 $customBlockCta = $home['custom_block_cta_' . $locKey] ?? ($locKey === 'ru' ? 'Подробнее' : 'Read more');
@@ -54,7 +56,10 @@ $sectionPadding = max(0, min(240, $sectionPadding));
     <?php if ($section['type'] === 'gallery' && $gallery): ?>
         <section class="block home-section-padding <?= $layoutClass ?>">
             <div class="block-head">
-                <h2><?= htmlspecialchars($galleryTitle) ?></h2>
+                <div>
+                    <h2><?= htmlspecialchars($galleryTitle) ?></h2>
+                    <?php if ($gallerySlogan): ?><p class="block-slogan"><?= htmlspecialchars($gallerySlogan) ?></p><?php endif; ?>
+                </div>
                 <a class="link" href="/gallery"><?= htmlspecialchars($galleryCta) ?></a>
             </div>
             <div class="masonry">
@@ -67,7 +72,7 @@ $sectionPadding = max(0, min(240, $sectionPadding));
                     <?php $href = ($galleryMode ?? 'lightbox') === 'page'
                         ? ($slug ? '/gallery/photo/' . urlencode($slug) : '/gallery/view?id=' . (int)$g['id'])
                         : ($g['path_medium'] ?? $g['path']); ?>
-                    <a class="masonry-item <?= ($galleryMode ?? 'lightbox') === 'lightbox' ? 'lightbox-trigger' : '' ?>" href="<?= htmlspecialchars($href) ?>" data-id="<?= (int)$g['id'] ?>" <?= ($galleryMode ?? 'lightbox') === 'lightbox' ? 'data-index="'.(int)$idx.'" data-full="'.htmlspecialchars($g['path_medium'] ?? $g['path']).'" data-title="'.htmlspecialchars($title).'"' : '' ?>>
+                    <a class="masonry-item <?= ($galleryMode ?? 'lightbox') === 'lightbox' ? 'lightbox-trigger' : '' ?>" href="<?= htmlspecialchars($href) ?>" data-id="<?= (int)$g['id'] ?>"<?= $slug ? ' data-slug="'.htmlspecialchars($slug).'"' : '' ?><?= ($galleryMode ?? 'lightbox') === 'lightbox' ? ' data-index="'.(int)$idx.'" data-full="'.htmlspecialchars($g['path_medium'] ?? $g['path']).'" data-title="'.htmlspecialchars($title).'" data-likes="'.$likes.'" data-views="'.$views.'"' : '' ?>>
                         <img src="<?= htmlspecialchars($g['path_thumb'] ?? $g['path_medium'] ?? '') ?>" alt="<?= htmlspecialchars($title) ?>">
                         <div class="meta-floating">
                             <span>👁 <?= $views ?></span>
@@ -81,27 +86,44 @@ $sectionPadding = max(0, min(240, $sectionPadding));
     <?php elseif ($section['type'] === 'articles' && $articles): ?>
         <section class="block home-section-padding <?= $layoutClass ?>">
             <div class="block-head">
-                <h2><?= htmlspecialchars($articlesTitle) ?></h2>
+                <div>
+                    <h2><?= htmlspecialchars($articlesTitle) ?></h2>
+                    <?php if ($articlesSlogan): ?><p class="block-slogan"><?= htmlspecialchars($articlesSlogan) ?></p><?php endif; ?>
+                </div>
                 <a class="link" href="/articles"><?= htmlspecialchars($articlesCta) ?></a>
             </div>
-            <div class="cards three-col">
+            <section class="articles-grid articles-grid-cols-3">
                 <?php foreach ($articles as $a): ?>
-                    <?php $tKey = $loc === 'ru' ? 'title_ru' : 'title_en'; ?>
-                    <?php $views = (int)($a['views'] ?? 0); ?>
-                    <?php $likes = (int)($a['likes'] ?? 0); ?>
-                    <a class="card-tile" href="/articles/<?= urlencode($a['slug']) ?>">
-                        <p class="eyebrow"><?= htmlspecialchars(date('d.m.Y', strtotime($a['created_at'] ?? 'now'))) ?></p>
-                        <h3><?= htmlspecialchars($a[$tKey] ?? '') ?></h3>
-                        <p class="muted">👁 <?= $views ?> · ❤ <?= $likes ?></p>
+                    <?php
+                        $tKey    = $loc === 'ru' ? 'title_ru' : 'title_en';
+                        $aTitle  = $a[$tKey] ?? ($a['title_en'] ?? '');
+                        $aDate   = !empty($a['created_at']) ? date('d.m.Y', strtotime($a['created_at'])) : '';
+                        $aViews  = (int)($a['views'] ?? 0);
+                        $aLikes  = (int)($a['likes'] ?? 0);
+                        $aExcerpt = $loc === 'ru' ? ($a['preview_ru'] ?? '') : ($a['preview_en'] ?? '');
+                        $aClass  = 'article-card' . (empty($a['image_url']) ? ' no-image' : '');
+                    ?>
+                    <article class="<?= $aClass ?>">
                         <?php if (!empty($a['image_url'])): ?>
-                            <div class="tile-cover"><img src="<?= htmlspecialchars($a['image_url']) ?>" alt=""></div>
+                            <div class="article-card-bg"><img src="<?= htmlspecialchars($a['image_url']) ?>" alt=""></div>
                         <?php endif; ?>
-                        <?php if (!empty($a['preview_en']) || !empty($a['preview_ru'])): ?>
-                            <p class="muted"><?= htmlspecialchars($loc === 'ru' ? ($a['preview_ru'] ?? '') : ($a['preview_en'] ?? '')) ?></p>
-                        <?php endif; ?>
-                    </a>
+                        <a class="article-card__link" href="/articles/<?= urlencode($a['slug']) ?>">
+                            <div class="card-meta article-card__meta">
+                                <?php if ($aDate): ?><span class="eyebrow"><?= htmlspecialchars($aDate) ?></span><?php endif; ?>
+                                <?php
+                                    $pieces = [];
+                                    if ($aViews) $pieces[] = $aViews . '👁';
+                                    if ($aLikes) $pieces[] = $aLikes . '❤';
+                                    if ($pieces): ?>
+                                    <span class="pill"><?= htmlspecialchars(implode(' · ', $pieces)) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <h3><?= htmlspecialchars($aTitle) ?></h3>
+                            <?php if ($aExcerpt): ?><p class="muted"><?= htmlspecialchars($aExcerpt) ?></p><?php endif; ?>
+                        </a>
+                    </article>
                 <?php endforeach; ?>
-            </div>
+            </section>
         </section>
     <?php elseif ($section['type'] === '__block' && !empty($section['_block']['view'])): ?>
         <?php
@@ -131,115 +153,57 @@ $sectionPadding = max(0, min(240, $sectionPadding));
     </section>
 <?php endif; ?>
 <?php if (($galleryMode ?? 'lightbox') === 'lightbox' && !empty($gallery)): ?>
-<div class="lightbox" id="lightbox" hidden>
+<div class="lightbox" id="lightbox" hidden aria-modal="true" role="dialog">
     <div class="lightbox__backdrop"></div>
-    <div class="lightbox__dialog">
-        <button class="lightbox__close" aria-label="Закрыть">×</button>
-        <img src="" alt="" id="lightbox-image">
-        <p class="lightbox__caption" id="lightbox-caption"></p>
+    <button class="lightbox__close" id="lightbox-close" aria-label="Закрыть">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true"><path d="M2 2l14 14M16 2L2 16" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="lightbox__stage">
+        <button class="lightbox__nav lightbox__prev" id="lightbox-prev" aria-label="Предыдущее">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <button class="lightbox__nav lightbox__next" id="lightbox-next" aria-label="Следующее">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <img src="" alt="" id="lightbox-image" draggable="false">
+    </div>
+    <div class="lightbox__bar">
+        <div class="lightbox__bar-left">
+            <p class="lightbox__caption" id="lightbox-caption"></p>
+            <span class="lightbox__counter" id="lightbox-counter"></span>
+        </div>
+        <div class="lightbox__bar-right">
+            <span class="lightbox__stat">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><ellipse cx="12" cy="12" rx="11" ry="8" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.8"/></svg>
+                <span id="lightbox-views">0</span>
+            </span>
+            <button class="lightbox__like-btn" id="lightbox-like" aria-label="Лайк">
+                <svg class="lightbox__heart" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                <span id="lightbox-likes">0</span>
+            </button>
+            <a class="lightbox__open-link" id="lightbox-open" href="#" aria-label="Открыть страницу" hidden>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M15 3h6v6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10 14L21 3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </a>
+        </div>
     </div>
 </div>
+<script src="/assets/js/gallery-lightbox.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const box = document.getElementById('lightbox');
-    const img = document.getElementById('lightbox-image');
-    const cap = document.getElementById('lightbox-caption');
-    const items = Array.from(document.querySelectorAll('.lightbox-trigger'));
-    let current = -1;
-    const viewed = new Set();
-    function sendView(id) {
-        if (!id || viewed.has(id)) return;
-        viewed.add(id);
-        fetch('/api/v1/view', {
-            method: 'POST',
-            headers: {'Accept': 'application/json'},
-            body: new URLSearchParams({type: 'gallery', id})
-        }).then(r => r.ok ? r.json() : null).then(data => {
-            if (!data || data.views === undefined) return;
-            document.querySelectorAll(`a[data-id="${id}"] .g-views`).forEach(el => el.textContent = data.views);
-        }).catch(() => {});
-    }
-    function openAt(idx) {
-        const link = items[idx];
-        if (!link) return;
-        current = idx;
-        const src = link.dataset.full;
-        const title = link.dataset.title || '';
-        img.src = src;
-        img.alt = title;
-        cap.textContent = title;
-        box.hidden = false;
-        document.body.classList.add('no-scroll');
-        sendView(link.dataset.id);
-    }
-    function close() {
-        box.hidden = true;
-        img.src = '';
-        current = -1;
-        document.body.classList.remove('no-scroll');
-    }
-    function next() {
-        if (!items.length) return;
-        current = (current + 1) % items.length;
-        openAt(current);
-    }
-    function prev() {
-        if (!items.length) return;
-        current = (current - 1 + items.length) % items.length;
-        openAt(current);
-    }
-    box?.addEventListener('click', (e) => {
-        if (e.target === box || e.target.classList.contains('lightbox__backdrop')) close();
-    });
-    box?.querySelector('.lightbox__close')?.addEventListener('click', close);
-    items.forEach((link) => {
-        link.addEventListener('click', (e) => {
-            e.preventDefault();
-            openAt(items.indexOf(link));
-        });
-    });
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && !box.hidden) close();
-        if (e.key === 'ArrowRight' && !box.hidden) next();
-        if (e.key === 'ArrowLeft' && !box.hidden) prev();
-    });
-    let touchStartX = 0;
-    let touchStartY = 0;
-    box?.addEventListener('touchstart', (e) => {
-        const t = e.changedTouches[0];
-        touchStartX = t.clientX;
-        touchStartY = t.clientY;
-    }, { passive: true });
-    box?.addEventListener('touchend', (e) => {
-        const t = e.changedTouches[0];
-        const dx = t.clientX - touchStartX;
-        const dy = t.clientY - touchStartY;
-        if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy)) {
-            if (dx < 0) next(); else prev();
-        }
-    });
-    // Likes inside home gallery
     document.querySelectorAll('.like-chip').forEach(btn => {
         const id = btn.dataset.id;
-        const storageKey = 'liked_gallery_' + id;
-        if (localStorage.getItem(storageKey) === '1') {
-            btn.classList.add('active');
-        }
+        const key = 'liked_gallery_' + id;
+        if (localStorage.getItem(key) === '1') btn.classList.add('active');
         btn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
             try {
-                const res = await fetch('/api/v1/like', {
-                    method: 'POST',
-                    headers: {'Accept':'application/json'},
-                    body: new URLSearchParams({type:'gallery', id})
-                });
+                const res = await fetch('/api/v1/like', {method:'POST', headers:{'Accept':'application/json'}, body: new URLSearchParams({type:'gallery', id})});
                 if (!res.ok) throw new Error('bad');
                 const data = await res.json();
-                const likes = data.likes ?? parseInt(btn.dataset.likes || '0', 10);
-                document.querySelectorAll(`.like-chip[data-id="${id}"] .g-likes`).forEach(el => el.textContent = likes);
+                document.querySelectorAll('.like-chip[data-id="' + id + '"] .g-likes').forEach(el => el.textContent = data.likes ?? 0);
                 btn.classList.add('active');
-                localStorage.setItem(storageKey, '1');
+                localStorage.setItem(key, '1');
                 if (window.showToast) window.showToast(data.already ? 'Уже лайкнули' : 'Лайк засчитан', 'success');
             } catch (_) {
                 if (window.showToast) window.showToast('Не удалось поставить лайк', 'danger');

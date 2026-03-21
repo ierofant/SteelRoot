@@ -1,4 +1,6 @@
 <?php
+// Redis rate limiting. Requires php-redis extension and Redis unix socket.
+
 $appRoot = __DIR__;
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
@@ -36,49 +38,27 @@ foreach ($badPatterns as $pattern) {
     }
 }
 
-$rateFile = $appRoot . '/storage/tmp/prefilter_rate.json';
-if (!is_dir(dirname($rateFile))) {
-    mkdir(dirname($rateFile), 0775, true);
-}
 $ip = $_SERVER['REMOTE_ADDR'] ?? 'cli';
 $window = 60;
 $maxRequests = 120;
-$now = time();
 
-$fp = fopen($rateFile, 'c+');
-if ($fp && flock($fp, LOCK_EX)) {
-    $json = stream_get_contents($fp);
-    $rates = $json ? json_decode($json, true) : [];
-    if (!is_array($rates)) {
-        $rates = [];
+try {
+    $redis = new Redis();
+    $redis->connect('/run/redis/redis.sock');
+    $redis->select(1);
+
+    $key = 'prefilter:rate:' . $ip;
+    $count = $redis->incr($key);
+    if ($count === 1) {
+        $redis->expire($key, $window);
     }
 
-    foreach ($rates as $key => $value) {
-        if (!is_array($value) || $now - ((int)($value['time'] ?? 0)) > $window) {
-            unset($rates[$key]);
-        }
-    }
-
-    $entry = $rates[$ip] ?? ['time' => $now, 'count' => 0];
-    if ($now - ((int)($entry['time'] ?? 0)) > $window) {
-        $entry = ['time' => $now, 'count' => 0];
-    }
-    $entry['count'] = (int)($entry['count'] ?? 0) + 1;
-    $rates[$ip] = $entry;
-
-    ftruncate($fp, 0);
-    rewind($fp);
-    fwrite($fp, json_encode($rates));
-    fflush($fp);
-    flock($fp, LOCK_UN);
-    fclose($fp);
-
-    if ($entry['count'] > $maxRequests) {
+    if ($count > $maxRequests) {
         http_response_code(429);
         exit;
     }
-} elseif (is_resource($fp)) {
-    fclose($fp);
+} catch (Throwable) {
+    // fail-open: Redis unavailable, allow request through
 }
 
 require __DIR__ . '/index.php';

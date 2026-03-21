@@ -23,6 +23,14 @@ class FaqModel
         return $this->db->fetchAll("SELECT * FROM {$this->table} ORDER BY updated_at DESC");
     }
 
+    public function published(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE status = ? ORDER BY updated_at DESC, id DESC",
+            ['published']
+        );
+    }
+
     public function find(int $id): ?array
     {
         return $this->db->fetch("SELECT * FROM {$this->table} WHERE id = ?", [$id]);

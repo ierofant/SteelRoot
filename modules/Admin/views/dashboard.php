@@ -4,22 +4,34 @@
 $baseBlocks = [
     'summary' => __('dashboard.block.summary'),
     'content' => __('dashboard.block.content'),
+    'interface' => __('dashboard.block.interface'),
     'service' => __('dashboard.block.service'),
+    'modules' => __('dashboard.block.modules'),
     'all-modules' => __('dashboard.block.all_modules'),
 ];
+$defaultSpans = [
+    'summary' => 'full',
+    'content' => 'normal',
+    'interface' => 'normal',
+    'service' => 'normal',
+    'modules' => 'normal',
+    'all-modules' => 'full',
+];
 ?>
-<div id="dashboard-blocks" class="stack dashboard-blocks">
+<div id="dashboard-blocks" class="dashboard-blocks">
     <div class="dash-controls">
         <div class="chip-row">
             <span class="pill"><?= __('dashboard.controls.dragdrop') ?></span>
             <span class="pill"><?= __('dashboard.controls.visibility') ?></span>
+            <span class="pill"><?= __('dashboard.controls.layout') ?></span>
         </div>
         <div class="chip-row dash-chip-gap">
             <button class="btn ghost" id="dash-config-toggle"><?= __('dashboard.controls.configure') ?></button>
             <button class="btn ghost" id="dash-reset"><?= __('dashboard.controls.reset') ?></button>
         </div>
     </div>
-    <section class="card glass dash-block" data-block="summary" draggable="true">
+    <div id="dashboard-grid" class="dash-grid">
+    <section class="card glass dash-block dash-block--hero" data-block="summary" data-default-span="full" draggable="true">
         <button type="button" class="remove-block" aria-label="<?= __('dashboard.a11y.remove_block') ?>" data-remove="summary">×</button>
         <div class="dash-hero">
             <div>
@@ -62,31 +74,31 @@ $baseBlocks = [
         </div>
     </section>
 
-    <section class="grid two dash-block" data-block="content" draggable="true">
+    <section class="card stack glass dash-block" data-block="content" data-default-span="normal" draggable="true">
         <button type="button" class="remove-block" aria-label="<?= __('dashboard.a11y.remove_block') ?>" data-remove="content">×</button>
-        <div class="card stack glass">
-            <p class="eyebrow"><?= __('dashboard.content.eyebrow') ?></p>
-            <h3><?= __('dashboard.content.title') ?></h3>
-            <div class="link-list">
-                <a href="<?= htmlspecialchars($ap) ?>/articles"><?= __('dashboard.content.links.articles') ?></a>
-                <a href="<?= htmlspecialchars($ap) ?>/attachments"><?= __('dashboard.content.links.attachments') ?></a>
-                <a href="<?= htmlspecialchars($ap) ?>/gallery/upload"><?= __('dashboard.content.links.gallery') ?></a>
-                <a href="<?= htmlspecialchars($ap) ?>/forms"><?= __('dashboard.content.links.forms') ?></a>
-            </div>
-        </div>
-        <div class="card stack glass">
-            <p class="eyebrow"><?= __('dashboard.interface.eyebrow') ?></p>
-            <h3><?= __('dashboard.interface.title') ?></h3>
-            <div class="link-list">
-                <a href="<?= htmlspecialchars($ap) ?>/homepage"><?= __('dashboard.interface.links.homepage') ?></a>
-                <a href="<?= htmlspecialchars($ap) ?>/pwa"><?= __('dashboard.interface.links.pwa') ?></a>
-                <a href="<?= htmlspecialchars($ap) ?>/settings"><?= __('dashboard.interface.links.settings') ?></a>
-                <a href="<?= htmlspecialchars($ap) ?>/cache"><?= __('dashboard.interface.links.cache') ?></a>
-            </div>
+        <p class="eyebrow"><?= __('dashboard.content.eyebrow') ?></p>
+        <h3><?= __('dashboard.content.title') ?></h3>
+        <div class="link-list">
+            <a href="<?= htmlspecialchars($ap) ?>/articles"><?= __('dashboard.content.links.articles') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/attachments"><?= __('dashboard.content.links.attachments') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/gallery/upload"><?= __('dashboard.content.links.gallery') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/forms"><?= __('dashboard.content.links.forms') ?></a>
         </div>
     </section>
 
-    <section class="card stack glass dash-block" data-block="service" draggable="true">
+    <section class="card stack glass dash-block" data-block="interface" data-default-span="normal" draggable="true">
+        <button type="button" class="remove-block" aria-label="<?= __('dashboard.a11y.remove_block') ?>" data-remove="interface">×</button>
+        <p class="eyebrow"><?= __('dashboard.interface.eyebrow') ?></p>
+        <h3><?= __('dashboard.interface.title') ?></h3>
+        <div class="link-list">
+            <a href="<?= htmlspecialchars($ap) ?>/homepage"><?= __('dashboard.interface.links.homepage') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/pwa"><?= __('dashboard.interface.links.pwa') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/settings"><?= __('dashboard.interface.links.settings') ?></a>
+            <a href="<?= htmlspecialchars($ap) ?>/cache"><?= __('dashboard.interface.links.cache') ?></a>
+        </div>
+    </section>
+
+    <section class="card stack glass dash-block" data-block="service" data-default-span="wide" draggable="true">
         <button type="button" class="remove-block" aria-label="<?= __('dashboard.a11y.remove_block') ?>" data-remove="service">×</button>
         <p class="eyebrow"><?= __('dashboard.service.eyebrow') ?></p>
         <div class="grid three mini-cards">
@@ -108,7 +120,24 @@ $baseBlocks = [
         </div>
     </section>
 
-    <section class="card stack glass dash-block" data-block="all-modules" draggable="true">
+    <section class="card stack glass dash-block" data-block="modules" data-default-span="normal" draggable="true">
+        <button type="button" class="remove-block" aria-label="<?= __('dashboard.a11y.remove_block') ?>" data-remove="modules">×</button>
+        <p class="eyebrow"><?= __('dashboard.modules.eyebrow') ?></p>
+        <h3><?= __('dashboard.modules.title') ?></h3>
+        <div class="module-pills">
+            <?php foreach (($modules ?? []) as $mod): ?>
+                <a class="module-pill <?= !empty($mod['enabled']) ? 'is-enabled' : 'is-disabled' ?>" href="<?= htmlspecialchars($ap) ?>/modules?open=<?= urlencode((string)($mod['slug'] ?? '')) ?>">
+                    <strong><?= htmlspecialchars((string)($mod['name'] ?? 'Module')) ?></strong>
+                    <span><?= !empty($mod['enabled']) ? __('dashboard.modules.enabled') : __('dashboard.modules.disabled') ?></span>
+                </a>
+            <?php endforeach; ?>
+            <?php if (empty($modules ?? [])): ?>
+                <p class="muted"><?= __('dashboard.modules.empty') ?></p>
+            <?php endif; ?>
+        </div>
+    </section>
+
+    <section class="card stack glass dash-block" data-block="all-modules" data-default-span="full" draggable="true">
         <button type="button" class="remove-block" aria-label="<?= __('dashboard.a11y.remove_block') ?>" data-remove="all-modules">×</button>
         <p class="eyebrow"><?= __('dashboard.all.eyebrow') ?></p>
         <h3><?= __('dashboard.all.title') ?></h3>
@@ -168,6 +197,7 @@ $baseBlocks = [
         </div>
     </section>
     <div id="custom-blocks-slot"></div>
+    </div>
     <section id="dash-config" class="card glass dash-config dash-block form-dark" data-block="config" draggable="false">
         <p class="eyebrow"><?= __('dashboard.config.eyebrow') ?></p>
         <h3><?= __('dashboard.config.title') ?></h3>
@@ -215,26 +245,35 @@ $baseBlocks = [
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-    const wrap = document.getElementById('dashboard-blocks');
+    const wrap = document.getElementById('dashboard-grid');
     const configEl = document.getElementById('dash-config');
+    const customSlot = document.getElementById('custom-blocks-slot');
     const baseBlockNames = <?= json_encode($baseBlocks, JSON_UNESCAPED_UNICODE) ?>;
+    const defaultSpans = <?= json_encode($defaultSpans, JSON_UNESCAPED_UNICODE) ?>;
     let customBlocks = loadCustomBlocks();
     let blockNames = Object.assign({}, baseBlockNames, customBlocks.reduce((acc, b) => { acc[b.id] = b.title; return acc; }, {}));
     const orderKey = 'sr_admin_dash_order';
     const hiddenKey = 'sr_admin_dash_hidden';
+    const spanKey = 'sr_admin_dash_spans';
     let defaultOrder = <?= json_encode(array_keys($baseBlocks)) ?>.concat(customBlocks.map(b => b.id));
     const hiddenSet = new Set((localStorage.getItem(hiddenKey) || '').split(',').filter(Boolean));
+    let spanMap = loadBlockSpans();
     const savedOrder = (localStorage.getItem(orderKey) || '').split(',').filter(Boolean);
     const orderToApply = savedOrder.length ? savedOrder : defaultOrder;
     const i18n = {
         blockPrefix: <?= json_encode(__('dashboard.config.block_prefix')) ?>,
         show: <?= json_encode(__('dashboard.config.show')) ?>,
         delete: <?= json_encode(__('dashboard.config.delete')) ?>,
+        width: <?= json_encode(__('dashboard.config.width')) ?>,
+        moveAria: <?= json_encode(__('dashboard.a11y.move_block')) ?>,
         openLabel: <?= json_encode(__('dashboard.form.default_link_label')) ?>,
         openWithTitle: <?= json_encode(__('dashboard.form.default_link_label_with_title')) ?>,
         moduleEnabled: <?= json_encode(__('dashboard.module.enabled_note')) ?>,
         moduleDisabled: <?= json_encode(__('dashboard.module.disabled_note')) ?>,
-        removeAria: <?= json_encode(__('dashboard.a11y.remove_block')) ?>
+        removeAria: <?= json_encode(__('dashboard.a11y.remove_block')) ?>,
+        widthCompact: <?= json_encode(__('dashboard.config.width_compact')) ?>,
+        widthWide: <?= json_encode(__('dashboard.config.width_wide')) ?>,
+        widthFull: <?= json_encode(__('dashboard.config.width_full')) ?>
     };
 
     renderCustomBlocks();
@@ -243,6 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const el = wrap.querySelector(`[data-block="${key}"]`);
         if (el) wrap.appendChild(el);
     });
+    applySpans();
     applyHidden();
     initConfigPanel();
     enableRemoveButtons();
@@ -250,31 +290,75 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function enableDrag() {
         let dragSrc = null;
+        if (!wrap.dataset.dragContainerInit) {
+            wrap.dataset.dragContainerInit = '1';
+            wrap.addEventListener('dragover', function(e) {
+                if (!dragSrc) return;
+                e.preventDefault();
+                const target = getDragTarget(e.clientX, e.clientY, dragSrc);
+                if (!target) {
+                    wrap.appendChild(dragSrc);
+                    return;
+                }
+                if (target !== dragSrc) {
+                    wrap.insertBefore(dragSrc, target);
+                }
+            });
+            wrap.addEventListener('drop', function(e) {
+                if (!dragSrc) return;
+                e.preventDefault();
+                saveOrder();
+            });
+        }
         Array.from(wrap.querySelectorAll('.dash-block')).forEach(el => {
             if (el.dataset.block === 'config' || el.dataset.dragInit) return;
             el.dataset.dragInit = '1';
-            el.setAttribute('draggable', 'true');
+            ensureDragHandle(el);
+            el.setAttribute('draggable', 'false');
             el.addEventListener('dragstart', function(e) {
                 dragSrc = this;
                 this.classList.add('dragging');
+                e.dataTransfer.setData('text/plain', this.dataset.block || '');
                 e.dataTransfer.effectAllowed = 'move';
-            });
-            el.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                const target = this;
-                if (dragSrc && dragSrc !== target) {
-                    const rect = target.getBoundingClientRect();
-                    const before = (e.clientY - rect.top) < (rect.height / 2);
-                    if (before) wrap.insertBefore(dragSrc, target);
-                    else wrap.insertBefore(dragSrc, target.nextSibling);
-                }
             });
             el.addEventListener('dragend', function() {
                 this.classList.remove('dragging');
+                this.setAttribute('draggable', 'false');
                 dragSrc = null;
                 saveOrder();
             });
         });
+    }
+
+    function ensureDragHandle(block) {
+        if (block.querySelector('[data-drag-handle]')) {
+            return;
+        }
+        const handle = document.createElement('button');
+        handle.type = 'button';
+        handle.className = 'drag-handle';
+        handle.dataset.dragHandle = '1';
+        handle.setAttribute('aria-label', i18n.moveAria);
+        handle.setAttribute('title', i18n.moveAria);
+        handle.textContent = '⋮⋮';
+        handle.addEventListener('mousedown', () => block.setAttribute('draggable', 'true'));
+        handle.addEventListener('mouseup', () => block.setAttribute('draggable', 'false'));
+        handle.addEventListener('mouseleave', () => block.setAttribute('draggable', 'false'));
+        block.insertBefore(handle, block.firstChild);
+    }
+
+    function getDragTarget(x, y, dragSrc) {
+        const blocks = Array.from(wrap.querySelectorAll('.dash-block'))
+            .filter(el => el !== dragSrc && !el.classList.contains('hidden-block'));
+        for (const block of blocks) {
+            const rect = block.getBoundingClientRect();
+            const centerY = rect.top + (rect.height / 2);
+            const sameRow = Math.abs(y - centerY) <= (rect.height * 0.35);
+            if (y < centerY || (sameRow && x < rect.left + (rect.width / 2))) {
+                return block;
+            }
+        }
+        return null;
     }
 
     function saveOrder() {
@@ -282,6 +366,31 @@ document.addEventListener('DOMContentLoaded', () => {
             .filter(el => !hiddenSet.has(el.dataset.block) && el.dataset.block !== 'config')
             .map(el => el.dataset.block);
         localStorage.setItem(orderKey, newOrder.join(','));
+    }
+
+    function loadBlockSpans() {
+        try {
+            const raw = localStorage.getItem(spanKey);
+            if (!raw) return {};
+            const parsed = JSON.parse(raw);
+            return parsed && typeof parsed === 'object' ? parsed : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function persistBlockSpans() {
+        localStorage.setItem(spanKey, JSON.stringify(spanMap));
+    }
+
+    function applySpans() {
+        Array.from(wrap.querySelectorAll('.dash-block')).forEach(el => {
+            const key = el.dataset.block;
+            if (key === 'config') return;
+            const span = spanMap[key] || el.dataset.defaultSpan || defaultSpans[key] || 'normal';
+            el.classList.remove('dash-span-normal', 'dash-span-wide', 'dash-span-full');
+            el.classList.add('dash-span-' + span);
+        });
     }
 
     function applyHidden() {
@@ -350,6 +459,26 @@ document.addEventListener('DOMContentLoaded', () => {
             row.appendChild(label);
             const controls = document.createElement('div');
             controls.className = 'chip-row';
+            const size = document.createElement('select');
+            size.className = 'dash-size-select';
+            [
+                { value: 'normal', label: i18n.widthCompact },
+                { value: 'wide', label: i18n.widthWide },
+                { value: 'full', label: i18n.widthFull }
+            ].forEach(optionData => {
+                const option = document.createElement('option');
+                option.value = optionData.value;
+                option.textContent = optionData.label;
+                size.appendChild(option);
+            });
+            size.value = spanMap[key] || defaultSpans[key] || 'normal';
+            size.setAttribute('aria-label', i18n.width + ' ' + (blockNames[key] || key));
+            size.addEventListener('change', () => {
+                spanMap[key] = size.value;
+                persistBlockSpans();
+                applySpans();
+            });
+            controls.appendChild(size);
             const resetBtn = document.createElement('button');
             resetBtn.className = 'btn ghost';
             resetBtn.textContent = i18n.show;
@@ -381,6 +510,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const section = document.createElement('section');
         section.className = 'card stack glass dash-block';
         section.dataset.block = block.id;
+        section.dataset.defaultSpan = 'normal';
         section.setAttribute('draggable', 'true');
         const removeBtn = document.createElement('button');
         removeBtn.type = 'button';
@@ -409,9 +539,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             section.appendChild(list);
         }
-        wrap.insertBefore(section, configEl);
+        if (customSlot && customSlot.parentNode === wrap) {
+            wrap.insertBefore(section, customSlot);
+        } else {
+            wrap.appendChild(section);
+        }
         enableRemoveButtons();
         enableDrag();
+        applySpans();
     }
 
     function removeCustomBlock(key) {
@@ -422,6 +557,10 @@ document.addEventListener('DOMContentLoaded', () => {
         hiddenSet.delete(key);
         defaultOrder = defaultOrder.filter(k => k !== key);
         if (blockNames[key]) delete blockNames[key];
+        if (spanMap[key]) {
+            delete spanMap[key];
+            persistBlockSpans();
+        }
         localStorage.setItem(hiddenKey, Array.from(hiddenSet).join(','));
         renderConfigList();
         saveOrder();
@@ -495,11 +634,13 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('dash-reset')?.addEventListener('click', () => {
         localStorage.removeItem(orderKey);
         localStorage.removeItem(hiddenKey);
+        localStorage.removeItem(spanKey);
         localStorage.removeItem('sr_admin_dash_custom_blocks');
         hiddenSet.clear();
         customBlocks = [];
         defaultOrder = Object.keys(baseBlockNames);
         blockNames = Object.assign({}, baseBlockNames);
+        spanMap = {};
         Array.from(wrap.querySelectorAll('.dash-block')).forEach(el => {
             if (el.dataset.block && el.dataset.block.startsWith('custom-')) {
                 el.remove();
@@ -509,6 +650,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const el = wrap.querySelector(`[data-block="${key}"]`);
             if (el) wrap.appendChild(el);
         });
+        applySpans();
         applyHidden();
         renderConfigList();
         enableDrag();

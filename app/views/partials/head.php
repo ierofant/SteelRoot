@@ -4,6 +4,10 @@ $settings = $settings ?? [];
 $themeVars = $themeVars ?? [];
 $themeHref = $themeHref ?? null;
 $theme = $theme ?? 'light';
+$extraStyles = $meta['styles'] ?? [];
+if (!is_array($extraStyles)) {
+    $extraStyles = [];
+}
 ?>
 <head>
     <meta charset="UTF-8">
@@ -23,11 +27,18 @@ $theme = $theme ?? 'light';
     <meta name="twitter:image" content="<?= htmlspecialchars($meta['twitter']['image'] ?? '') ?>">
     <?php if (!empty($meta['jsonld'])): ?><script type="application/ld+json"><?= $meta['jsonld'] ?></script><?php endif; ?>
     <?php if (!empty($settings['theme_favicon'])): ?><link rel="icon" href="<?= htmlspecialchars($settings['theme_favicon']) ?>"><?php endif; ?>
-    <?php $v = '?v=20260122'; ?>
+    <?php
+        $appCssPath = APP_ROOT . '/assets/css/app.css';
+        $v = '?v=' . (is_file($appCssPath) ? (string) filemtime($appCssPath) : '1');
+    ?>
     <link rel="stylesheet" href="/assets/css/app.css<?= $v ?>">
     <?php if ($themeHref): ?>
         <link rel="stylesheet" href="<?= htmlspecialchars($themeHref) ?><?= str_contains($themeHref, '?') ? '' : $v ?>">
     <?php endif; ?>
+    <?php foreach ($extraStyles as $styleHref): ?>
+        <?php if (!is_string($styleHref) || $styleHref === '') continue; ?>
+        <link rel="stylesheet" href="<?= htmlspecialchars($styleHref) ?>">
+    <?php endforeach; ?>
     <?php if (!empty($themeVars)): ?>
         <?php
             $themeVarsCss = ":root {\n";
