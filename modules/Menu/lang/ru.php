@@ -28,5 +28,10 @@ return [
     'menu.field.image_preview' => 'Текущее изображение',
     'menu.field.parent' => 'Родительский пункт',
     'menu.field.parent_none' => 'Без родителя (верхний уровень)',
+    'menu.field.icon' => 'Иконка',
+    'menu.field.is_anchor' => 'Якорь — без перехода по ссылке',
+    'menu.field.is_anchor_hint' => 'при наведении открывается подменю',
+    'menu.section.main' => 'Основное',
+    'menu.section.seo' => 'SEO и метаданные',
     'menu.preview.default' => 'Изображение темы по умолчанию',
 ];

@@ -12,7 +12,12 @@ $coverUrl = $article['cover_url'] ?? '';
 $lm = $localeMode ?? 'multi';
 $showEn = ($lm !== 'ru');
 $showRu = ($lm !== 'en');
+$commentPolicy = is_array($commentPolicy ?? null) ? $commentPolicy : [];
+$commentGroups = $commentGroups ?? [];
+$commentsMode = (string)($commentPolicy['mode'] ?? 'default');
+$commentsGroupIds = array_map('intval', (array)($commentPolicy['group_ids'] ?? []));
 $returnUrl = $return ?? '';
+$uploadFolder = $uploadFolder ?? '';
 ob_start();
 ?>
 
@@ -69,7 +74,7 @@ $sortIcon = static function(string $col) use ($sort, $dir): string {
             </div>
         </div>
         <form method="get" action="<?= htmlspecialchars($ap) ?>/news" class="stack">
-            <div class="grid two">
+            <div class="grid three">
                 <label class="field">
                     <span><?= __('articles.filter.query') ?></span>
                     <input type="text" name="q" value="<?= htmlspecialchars($queryFilter) ?>" placeholder="<?= __('articles.filter.query_placeholder') ?>">
@@ -287,6 +292,11 @@ $sortIcon = static function(string $col) use ($sort, $dir): string {
                 </select>
             </label>
             <?php endif; ?>
+            <label class="field">
+                <span>Папка загрузки</span>
+                <input type="text" name="upload_folder" value="<?= htmlspecialchars((string)$uploadFolder) ?>" placeholder="например: masters/moscow">
+                <small class="muted">Подпапка внутри `/storage/uploads/news`. Оставьте пустым для корня.</small>
+            </label>
             <div class="grid two">
                 <label class="field">
                     <span><?= __('articles.form.image') ?> <span class="muted u-font-08em">(превью в списке)</span></span>
@@ -344,7 +354,36 @@ $sortIcon = static function(string $col) use ($sort, $dir): string {
             <label class="field">
                 <span><?= __('articles.form.tags') ?></span>
                 <input type="text" name="tags" value="<?= htmlspecialchars(implode(', ', $tagNames)) ?>">
-        </label>
+            </label>
+            <div class="card stack">
+                <div>
+                    <p class="eyebrow">Комментарии</p>
+                    <h4>Доступ к комментированию</h4>
+                </div>
+                <label class="field">
+                    <span>Режим комментариев</span>
+                    <select name="comments_mode">
+                        <option value="default" <?= $commentsMode === 'default' ? 'selected' : '' ?>>По умолчанию модуля</option>
+                        <option value="enabled" <?= $commentsMode === 'enabled' ? 'selected' : '' ?>>Явно включены</option>
+                        <option value="disabled" <?= $commentsMode === 'disabled' ? 'selected' : '' ?>>Отключены</option>
+                    </select>
+                </label>
+                <?php if (!empty($commentGroups)): ?>
+                    <div class="field">
+                        <span>Разрешённые группы</span>
+                        <div class="grid two">
+                            <?php foreach ($commentGroups as $group): ?>
+                                <?php $groupId = (int)($group['id'] ?? 0); ?>
+                                <label class="check">
+                                    <input type="checkbox" name="comments_group_ids[]" value="<?= $groupId ?>" <?= in_array($groupId, $commentsGroupIds, true) ? 'checked' : '' ?>>
+                                    <span><?= htmlspecialchars((string)($group['name'] ?? ('#' . $groupId))) ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
+                        <p class="muted">Если список пустой, действуют обычные правила комментариев.</p>
+                    </div>
+                <?php endif; ?>
+            </div>
         <div class="form-actions">
             <button type="submit" class="btn primary"><?= __('articles.action.save') ?></button>
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/news"><?= __('articles.action.cancel') ?></a>
@@ -363,7 +402,7 @@ $sortIcon = static function(string $col) use ($sort, $dir): string {
             if (!hasEasyMDE) {
                 return null;
             }
-            return new EasyMDE({
+            const instance = new EasyMDE({
                 element: document.getElementById(id),
                 spellChecker: false,
                 autosave: { enabled: false },
@@ -386,6 +425,35 @@ $sortIcon = static function(string $col) use ($sort, $dir): string {
                         .catch(() => onError(<?= json_encode(__('articles.error.upload_error')) ?>));
                 }
             });
+            if (instance && instance.codemirror) {
+                addPostheaderBtns(instance);
+            }
+            return instance;
+        }
+
+        function addPostheaderBtns(instance) {
+            const toolbarEl = instance.element.closest('.EasyMDEContainer')
+                ? instance.element.closest('.EasyMDEContainer').querySelector('.editor-toolbar')
+                : null;
+            if (!toolbarEl) return;
+            const sep = document.createElement('i');
+            sep.className = 'separator';
+            toolbarEl.appendChild(sep);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'mde-btn-ph3';
+            btn.title = 'bd-postheader-3';
+            btn.textContent = '§';
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const tag = (window.prompt('Tag (h1 / h2 / h3 / h4 / p):', 'h4') || '').trim().toLowerCase();
+                if (!tag || !/^(h[1-6]|p)$/.test(tag)) return;
+                const cm = instance.codemirror;
+                const sel = cm.getSelection();
+                cm.replaceSelection('<' + tag + ' class="bd-postheader-3">' + sel + '</' + tag + '>');
+                cm.focus();
+            });
+            toolbarEl.appendChild(btn);
         }
 
         function getBodyTextarea(id) {
@@ -427,7 +495,8 @@ $sortIcon = static function(string $col) use ($sort, $dir): string {
                 {cmd: 'insertImageByUrl', label: 'Img'},
                 {cmd: 'insertHorizontalRule', label: 'HR'},
                 {cmd: 'removeFormat', label: 'Clear'},
-                {cmd: 'unlink', label: '×Link'}
+                {cmd: 'unlink', label: '×Link'},
+                {cmd: 'postheader3', label: '§', title: 'bd-postheader-3'}
             ];
 
             tools.forEach(function (tool) {
@@ -435,6 +504,7 @@ $sortIcon = static function(string $col) use ($sort, $dir): string {
                 btn.type = 'button';
                 btn.className = 'btn ghost small';
                 btn.textContent = tool.label;
+                btn.addEventListener('mousedown', function (e) { e.preventDefault(); });
                 btn.addEventListener('click', function () {
                     area.focus();
                     if (tool.cmd === 'createLink') {
@@ -447,11 +517,26 @@ $sortIcon = static function(string $col) use ($sort, $dir): string {
                         document.execCommand('insertImage', false, imgUrl);
                     } else if (tool.cmd === 'formatBlock') {
                         document.execCommand(tool.cmd, false, tool.value);
+                    } else if (tool.cmd === 'postheader3') {
+                        const sel = window.getSelection();
+                        if (sel && sel.rangeCount) {
+                            let node = sel.getRangeAt(0).commonAncestorContainer;
+                            if (node.nodeType === 3) node = node.parentNode;
+                            const blocks = new Set(['H1','H2','H3','H4','H5','H6','P','DIV','BLOCKQUOTE','LI','PRE']);
+                            while (node && node !== area && !blocks.has(node.nodeName)) {
+                                node = node.parentNode;
+                            }
+                            if (node && node !== area) {
+                                node.classList.toggle('bd-postheader-3');
+                                sync();
+                            }
+                        }
                     } else {
                         document.execCommand(tool.cmd, false, null);
                     }
                     sync();
                 });
+                if (tool.title) btn.title = tool.title;
                 toolbar.appendChild(btn);
             });
 

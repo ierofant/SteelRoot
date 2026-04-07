@@ -31,7 +31,7 @@ class MenuController
         foreach ($items as $row) {
             $parentMap[(int)$row['id']] = trim(($row['label_ru'] ?? '') . ' / ' . ($row['label_en'] ?? ''));
         }
-        $flash = $request->query['msg'] ?? null;
+        $flash = $this->flashMessage((string)($request->query['msg'] ?? ''));
         $csrf = Csrf::token('menu_admin');
         $content = $this->render('admin/index', [
             'items' => $items,
@@ -140,6 +140,8 @@ class MenuController
             'position' => (int)($request->body['position'] ?? 0),
             'canonical_url' => trim($request->body['canonical_url'] ?? ''),
             'image_url' => trim($request->body['image_url'] ?? ''),
+            'icon' => trim($request->body['icon'] ?? ''),
+            'is_anchor' => isset($request->body['is_anchor']) ? 1 : 0,
         ];
         $parentId = (int)($request->body['parent_id'] ?? 0);
         $parentId = $parentId > 0 ? $parentId : null;
@@ -176,8 +178,12 @@ class MenuController
         }
         if ($data['label_en'] === '') { $data['label_en'] = $data['label_ru']; }
         if ($data['label_ru'] === '') { $data['label_ru'] = $data['label_en']; }
-        if ($data['url'] === '' || $data['url'][0] !== '/') {
+        $isAnchor = !empty($data['is_anchor']);
+        if (!$isAnchor && ($data['url'] === '' || $data['url'][0] !== '/')) {
             return new Response('URL must start with /', 422);
+        }
+        if ($isAnchor && $data['url'] === '') {
+            $data['url'] = '#';
         }
         if ($data['position'] === 0) {
             $data['position'] = $this->nextPosition();
@@ -220,6 +226,18 @@ class MenuController
         ob_start();
         include APP_ROOT . '/modules/Admin/views/layout.php';
         return ob_get_clean();
+    }
+
+    private function flashMessage(string $code): ?string
+    {
+        return match ($code) {
+            'created' => 'Menu item created',
+            'updated' => 'Menu item updated',
+            'deleted' => 'Menu item deleted',
+            'toggled' => 'Menu item status updated',
+            'reordered' => 'Menu order saved',
+            default => null,
+        };
     }
 
     private function getParentOptions(?int $excludeId): array

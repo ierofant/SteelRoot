@@ -1,4 +1,4 @@
-# SteelRoot Architecture
+# SteelRoot v2 Architecture
 
 This document describes the core architectural principles of SteelRoot CMS,
 its internal structure, and extension points.
@@ -49,6 +49,10 @@ public_html/
 ├── assets/ # SCSS / CSS / JS
 ├── storage/ # Runtime data (cache, logs, uploads)
 └── installer.php # One-time installer
+
+In v2, `installer.php` is no longer tied to a small hardcoded migration list.
+It bootstraps core migrations from `database/migrations` and auto-discovers
+module migrations from `modules/*/migrations`.
 
 ---
 
@@ -134,6 +138,10 @@ public_html/
 - ERRMODE_EXCEPTION
 - No persistent connections
 - Migrations via `database/MigrationRunner`
+- Install bootstrap via `installer.php`:
+  - runs core migrations in sorted order
+  - creates `migrations_log` for module state
+  - discovers module migrations per selected module automatically
 
 ---
 
@@ -171,6 +179,62 @@ public_html/
 
 ---
 
+### ContentBase Layer
+
+- `modules/ContentBase/Controllers/BaseAdminController`
+- `modules/ContentBase/Controllers/BasePublicController`
+- Shared foundation for content-style modules such as News
+- Keeps cross-module admin/public helpers out of `core/`
+
+---
+
+### News Module
+
+- Dedicated module with own schema and admin area
+- Tables created by `modules/News/migrations/001_create_news_tables.php`
+  - `news`
+  - `news_categories`
+- Routed separately from Articles
+- Participates in homepage blocks, sitemap, comments policy and admin content flow
+
+---
+
+### Comments Module
+
+- Global moderation/settings live in `modules/Comments`
+- Shared entity policy map allows content modules to expose local comment policy selectors
+- Articles, News and Pages use comments only when the global module and section toggles allow it
+
+---
+
+### Menu SEO & Navigation
+
+- Menu entries can carry:
+  - SEO title
+  - description
+  - canonical URL
+  - OG image URL
+  - icon
+  - `is_anchor` pointer flag
+- Public renderer can output non-clickable parent/pointer items for nested navigation patterns
+
+---
+
+### PWA Layer
+
+- `app/Controllers/PwaController` serves:
+  - `manifest.json`
+  - `sw.js`
+  - `/offline`
+- Admin PWA settings manage:
+  - manifest fields
+  - service worker version
+  - cache strategy
+  - offline copy
+- v2 default SW version is `v2`
+
+---
+
 ### Meta & Structured Data
 
 `core/Meta/`
@@ -187,6 +251,15 @@ public_html/
 
 Modules can create schema providers (e.g., `ArticleSchemaProvider`) to generate
 structured data for their content types.
+
+---
+
+### Sitemap Stability
+
+- View/like counters must not mutate `updated_at` for content that feeds sitemap lastmod
+- Interaction updates use `updated_at = updated_at` when a table exposes that column
+- Schema-level `ON UPDATE CURRENT_TIMESTAMP` must be removed by migration where needed
+- v2 hardening covers Articles, News, Gallery and `gallery_items`
 
 ---
 

@@ -1,0 +1,71 @@
+.page-shell {
+    width: min(100%, 1920px);
+    margin: 0 auto;
+    padding: clamp(1rem, 1.2vw, 1.5rem);
+}
+
+.page-content {
+    width: min(100%, 1920px);
+    margin: 0 auto;
+    padding: clamp(1rem, 1.6vw, 2rem);
+    border-radius: 8px;
+    border: 1px solid rgba(180, 38, 30, 0.22);
+    border-left: 2px solid rgba(200, 50, 40, 0.55);
+    background:
+        linear-gradient(rgba(200, 52, 42, 0.28), rgba(200, 52, 42, 0.28)) top left / 24px 1px no-repeat,
+        linear-gradient(rgba(200, 52, 42, 0.28), rgba(200, 52, 42, 0.28)) top left / 1px 24px no-repeat,
+        linear-gradient(rgba(140, 38, 30, 0.16), rgba(140, 38, 30, 0.16)) bottom right / 24px 1px no-repeat,
+        linear-gradient(rgba(140, 38, 30, 0.16), rgba(140, 38, 30, 0.16)) bottom right / 1px 24px no-repeat,
+        radial-gradient(ellipse at top right, rgba(220, 38, 38, 0.09), transparent 40%),
+        radial-gradient(ellipse at bottom left, rgba(180, 30, 20, 0.06), transparent 40%),
+        linear-gradient(135deg, rgba(8, 10, 14, 0.99) 0%, rgba(14, 16, 22, 0.98) 50%, rgba(8, 9, 13, 0.99) 100%);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.36), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.page-content > h1 {
+    margin: 0 0 1.15rem;
+}
+
+.page-tags {
+    clear: both;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin: 1rem 0 1rem;
+}
+
+.page-content .rich-text {
+    color: #e8dfd4;
+}
+
+.page-content .rich-text > :first-child {
+    margin-top: 0;
+}
+
+.page-content .rich-text > :last-child {
+    margin-bottom: 0;
+}
+
+.page-content .rich-text img,
+.page-content .rich-text video,
+.page-content .rich-text iframe,
+.page-content .rich-text table {
+    max-width: 100%;
+}
+
+.page-content .comments-thread,
+.page-content .comments-block,
+.page-content .comments {
+    margin-top: 2rem;
+}
+
+@media (max-width: 900px) {
+    .page-shell {
+        padding: 0.75rem;
+    }
+
+    .page-content {
+        padding: 1rem;
+        border-radius: 6px;
+    }
+}

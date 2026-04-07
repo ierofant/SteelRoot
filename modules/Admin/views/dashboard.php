@@ -18,8 +18,9 @@ $defaultSpans = [
     'all-modules' => 'full',
 ];
 ?>
+<section class="dashboard-shell">
 <div id="dashboard-blocks" class="dashboard-blocks">
-    <div class="dash-controls">
+    <div class="card glass dash-controls">
         <div class="chip-row">
             <span class="pill"><?= __('dashboard.controls.dragdrop') ?></span>
             <span class="pill"><?= __('dashboard.controls.visibility') ?></span>
@@ -34,22 +35,22 @@ $defaultSpans = [
     <section class="card glass dash-block dash-block--hero" data-block="summary" data-default-span="full" draggable="true">
         <button type="button" class="remove-block" aria-label="<?= __('dashboard.a11y.remove_block') ?>" data-remove="summary">×</button>
         <div class="dash-hero">
-            <div>
+            <div class="dash-hero__copy">
                 <p class="eyebrow"><?= __('dashboard.hero.tag') ?></p>
                 <h2><?= __('dashboard.hero.title') ?></h2>
                 <p class="muted"><?= __('dashboard.hero.subtitle') ?></p>
                 <div class="chip-row">
-                    <span class="pill">v<?= htmlspecialchars($settings['theme_version'] ?? '1.0') ?></span>
+                    <span class="pill">v<?= htmlspecialchars($settings['theme_version'] ?? '2.0') ?></span>
                     <span class="pill"><?= __('dashboard.hero.product') ?></span>
                 </div>
             </div>
-            <div class="orb-widget">
+            <div class="orb-widget dash-hero__orb">
                 <div class="orb-core"></div>
                 <div class="orb-ring"></div>
                 <p class="muted"><?= __('dashboard.hero.modules', ['count' => (int)($stats['modules'] ?? 0)]) ?></p>
             </div>
         </div>
-        <div class="grid three mini-cards">
+        <div class="grid three mini-cards dash-metrics">
             <div class="stat-card pulse">
                 <p class="muted"><?= __('dashboard.stats.articles') ?></p>
                 <h3><?= (int)($stats['articles'] ?? 0) ?></h3>
@@ -137,67 +138,130 @@ $defaultSpans = [
         </div>
     </section>
 
-    <section class="card stack glass dash-block" data-block="all-modules" data-default-span="full" draggable="true">
+    <?php
+    $allModuleLinks = [
+        [
+            'href' => $ap . '/settings',
+            'title' => __('dashboard.all.settings.title'),
+            'desc' => __('dashboard.all.settings.desc'),
+            'group' => 'operations',
+        ],
+        [
+            'href' => $ap . '/profile',
+            'title' => __('dashboard.all.profile.title'),
+            'desc' => __('dashboard.all.profile.desc'),
+            'group' => 'operations',
+        ],
+        [
+            'href' => $ap . '/cache',
+            'title' => __('dashboard.all.cache.title'),
+            'desc' => __('dashboard.all.cache.desc'),
+            'group' => 'operations',
+        ],
+        [
+            'href' => $ap . '/articles',
+            'title' => __('dashboard.all.articles.title'),
+            'desc' => __('dashboard.all.articles.desc'),
+            'group' => 'content',
+        ],
+        [
+            'href' => $ap . '/attachments',
+            'title' => __('dashboard.all.attachments.title'),
+            'desc' => __('dashboard.all.attachments.desc'),
+            'group' => 'content',
+        ],
+        [
+            'href' => $ap . '/gallery/upload',
+            'title' => __('dashboard.all.gallery.title'),
+            'desc' => __('dashboard.all.gallery.desc'),
+            'group' => 'content',
+        ],
+        [
+            'href' => $ap . '/files',
+            'title' => __('dashboard.all.files.title'),
+            'desc' => __('dashboard.all.files.desc'),
+            'group' => 'content',
+        ],
+        [
+            'href' => $ap . '/forms',
+            'title' => __('dashboard.all.forms.title'),
+            'desc' => __('dashboard.all.forms.desc'),
+            'group' => 'content',
+        ],
+        [
+            'href' => $ap . '/homepage',
+            'title' => __('dashboard.all.homepage.title'),
+            'desc' => __('dashboard.all.homepage.desc'),
+            'group' => 'platform',
+        ],
+        [
+            'href' => $ap . '/pwa',
+            'title' => __('dashboard.all.pwa.title'),
+            'desc' => __('dashboard.all.pwa.desc'),
+            'group' => 'platform',
+        ],
+        [
+            'href' => $ap . '/sitemap',
+            'title' => __('dashboard.all.sitemap.title'),
+            'desc' => __('dashboard.all.sitemap.desc'),
+            'group' => 'platform',
+        ],
+        [
+            'href' => $ap . '/search',
+            'title' => __('dashboard.all.search.title'),
+            'desc' => __('dashboard.all.search.desc'),
+            'group' => 'platform',
+        ],
+        [
+            'href' => $ap . '/theme',
+            'title' => __('dashboard.all.theme.title'),
+            'desc' => __('dashboard.all.theme.desc'),
+            'group' => 'platform',
+        ],
+    ];
+    $allModuleTabs = [
+        'all' => __('dashboard.all.tabs.all'),
+        'operations' => __('dashboard.all.tabs.operations'),
+        'content' => __('dashboard.all.tabs.content'),
+        'platform' => __('dashboard.all.tabs.platform'),
+    ];
+    ?>
+    <section class="card stack glass dash-block dash-block--directory" data-block="all-modules" data-default-span="full" draggable="true">
         <button type="button" class="remove-block" aria-label="<?= __('dashboard.a11y.remove_block') ?>" data-remove="all-modules">×</button>
-        <p class="eyebrow"><?= __('dashboard.all.eyebrow') ?></p>
-        <h3><?= __('dashboard.all.title') ?></h3>
-        <div class="grid three mini-cards">
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/settings">
-                <h4><?= __('dashboard.all.settings.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.settings.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/articles">
-                <h4><?= __('dashboard.all.articles.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.articles.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/attachments">
-                <h4><?= __('dashboard.all.attachments.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.attachments.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/gallery/upload">
-                <h4><?= __('dashboard.all.gallery.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.gallery.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/files">
-                <h4><?= __('dashboard.all.files.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.files.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/forms">
-                <h4><?= __('dashboard.all.forms.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.forms.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/homepage">
-                <h4><?= __('dashboard.all.homepage.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.homepage.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/pwa">
-                <h4><?= __('dashboard.all.pwa.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.pwa.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/cache">
-                <h4><?= __('dashboard.all.cache.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.cache.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/profile">
-                <h4><?= __('dashboard.all.profile.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.profile.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/sitemap">
-                <h4><?= __('dashboard.all.sitemap.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.sitemap.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/search">
-                <h4><?= __('dashboard.all.search.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.search.desc') ?></p>
-            </a>
-            <a class="card link-card" href="<?= htmlspecialchars($ap) ?>/theme">
-                <h4><?= __('dashboard.all.theme.title') ?></h4>
-                <p class="muted"><?= __('dashboard.all.theme.desc') ?></p>
-            </a>
+        <div class="dash-directory__header">
+            <div class="dash-directory__intro">
+                <p class="eyebrow"><?= __('dashboard.all.eyebrow') ?></p>
+                <h3><?= __('dashboard.all.title') ?></h3>
+                <p class="muted"><?= __('dashboard.all.subtitle') ?></p>
+            </div>
+        </div>
+        <div class="dash-directory__tabs" role="tablist" aria-label="<?= htmlspecialchars(__('dashboard.all.title')) ?>">
+            <?php foreach ($allModuleTabs as $tabKey => $tabLabel): ?>
+                <button
+                    type="button"
+                    class="dash-directory__tab<?= $tabKey === 'all' ? ' is-active' : '' ?>"
+                    data-directory-tab="<?= htmlspecialchars($tabKey) ?>"
+                    role="tab"
+                    aria-selected="<?= $tabKey === 'all' ? 'true' : 'false' ?>"
+                ><?= htmlspecialchars($tabLabel) ?></button>
+            <?php endforeach; ?>
+        </div>
+        <div class="all-modules-grid">
+            <?php foreach ($allModuleLinks as $link): ?>
+                <a
+                    class="card link-card link-card--compact"
+                    href="<?= htmlspecialchars($link['href']) ?>"
+                    data-directory-item="<?= htmlspecialchars($link['group']) ?>"
+                >
+                    <span class="link-card__group"><?= htmlspecialchars($allModuleTabs[$link['group']] ?? $link['group']) ?></span>
+                    <h4><?= htmlspecialchars($link['title']) ?></h4>
+                    <p class="muted"><?= htmlspecialchars($link['desc']) ?></p>
+                </a>
+            <?php endforeach; ?>
         </div>
     </section>
-    <div id="custom-blocks-slot"></div>
     </div>
+    <div id="custom-blocks-slot" class="dash-custom-grid"></div>
     <section id="dash-config" class="card glass dash-config dash-block form-dark" data-block="config" draggable="false">
         <p class="eyebrow"><?= __('dashboard.config.eyebrow') ?></p>
         <h3><?= __('dashboard.config.title') ?></h3>
@@ -243,10 +307,11 @@ $defaultSpans = [
         </div>
     </section>
 </div>
+    </div>
+</section>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
     const wrap = document.getElementById('dashboard-grid');
-    const configEl = document.getElementById('dash-config');
     const customSlot = document.getElementById('custom-blocks-slot');
     const baseBlockNames = <?= json_encode($baseBlocks, JSON_UNESCAPED_UNICODE) ?>;
     const defaultSpans = <?= json_encode($defaultSpans, JSON_UNESCAPED_UNICODE) ?>;
@@ -258,8 +323,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let defaultOrder = <?= json_encode(array_keys($baseBlocks)) ?>.concat(customBlocks.map(b => b.id));
     const hiddenSet = new Set((localStorage.getItem(hiddenKey) || '').split(',').filter(Boolean));
     let spanMap = loadBlockSpans();
+    const baseOrder = <?= json_encode(array_keys($baseBlocks)) ?>;
     const savedOrder = (localStorage.getItem(orderKey) || '').split(',').filter(Boolean);
-    const orderToApply = savedOrder.length ? savedOrder : defaultOrder;
+    const orderSource = savedOrder.length ? savedOrder : defaultOrder;
+    const orderToApply = ['summary'].concat(
+        orderSource.filter(key => key !== 'summary')
+    );
     const i18n = {
         blockPrefix: <?= json_encode(__('dashboard.config.block_prefix')) ?>,
         show: <?= json_encode(__('dashboard.config.show')) ?>,
@@ -279,38 +348,42 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCustomBlocks();
 
     orderToApply.forEach(key => {
-        const el = wrap.querySelector(`[data-block="${key}"]`);
-        if (el) wrap.appendChild(el);
+        const el = document.querySelector(`[data-block="${key}"]`);
+        if (!el) return;
+        wrap.appendChild(el);
     });
     applySpans();
     applyHidden();
     initConfigPanel();
     enableRemoveButtons();
-    enableDrag();
+    enableDrag(wrap);
+    enableDrag(customSlot);
+    initDirectoryTabs();
 
-    function enableDrag() {
+    function enableDrag(container) {
+        if (!container) return;
         let dragSrc = null;
-        if (!wrap.dataset.dragContainerInit) {
-            wrap.dataset.dragContainerInit = '1';
-            wrap.addEventListener('dragover', function(e) {
+        if (!container.dataset.dragContainerInit) {
+            container.dataset.dragContainerInit = '1';
+            container.addEventListener('dragover', function(e) {
                 if (!dragSrc) return;
                 e.preventDefault();
-                const target = getDragTarget(e.clientX, e.clientY, dragSrc);
+                const target = getDragTarget(container, e.clientX, e.clientY, dragSrc);
                 if (!target) {
-                    wrap.appendChild(dragSrc);
+                    container.appendChild(dragSrc);
                     return;
                 }
                 if (target !== dragSrc) {
-                    wrap.insertBefore(dragSrc, target);
+                    container.insertBefore(dragSrc, target);
                 }
             });
-            wrap.addEventListener('drop', function(e) {
+            container.addEventListener('drop', function(e) {
                 if (!dragSrc) return;
                 e.preventDefault();
                 saveOrder();
             });
         }
-        Array.from(wrap.querySelectorAll('.dash-block')).forEach(el => {
+        Array.from(container.querySelectorAll('.dash-block')).forEach(el => {
             if (el.dataset.block === 'config' || el.dataset.dragInit) return;
             el.dataset.dragInit = '1';
             ensureDragHandle(el);
@@ -347,8 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
         block.insertBefore(handle, block.firstChild);
     }
 
-    function getDragTarget(x, y, dragSrc) {
-        const blocks = Array.from(wrap.querySelectorAll('.dash-block'))
+    function getDragTarget(container, x, y, dragSrc) {
+        const blocks = Array.from(container.querySelectorAll('.dash-block'))
             .filter(el => el !== dragSrc && !el.classList.contains('hidden-block'));
         for (const block of blocks) {
             const rect = block.getBoundingClientRect();
@@ -362,10 +435,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function saveOrder() {
-        const newOrder = Array.from(wrap.querySelectorAll('.dash-block'))
+        const currentOrder = Array.from(document.querySelectorAll('#dashboard-grid .dash-block, #custom-blocks-slot .dash-block'))
             .filter(el => !hiddenSet.has(el.dataset.block) && el.dataset.block !== 'config')
             .map(el => el.dataset.block);
-        localStorage.setItem(orderKey, newOrder.join(','));
+        const normalizedOrder = ['summary'].concat(
+            currentOrder.filter(key => key !== 'summary')
+        );
+        localStorage.setItem(orderKey, normalizedOrder.join(','));
     }
 
     function loadBlockSpans() {
@@ -384,7 +460,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applySpans() {
-        Array.from(wrap.querySelectorAll('.dash-block')).forEach(el => {
+        Array.from(document.querySelectorAll('#dashboard-grid .dash-block, #custom-blocks-slot .dash-block')).forEach(el => {
             const key = el.dataset.block;
             if (key === 'config') return;
             const span = spanMap[key] || el.dataset.defaultSpan || defaultSpans[key] || 'normal';
@@ -394,7 +470,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function applyHidden() {
-        Array.from(wrap.querySelectorAll('.dash-block')).forEach(el => {
+        Array.from(document.querySelectorAll('#dashboard-grid .dash-block, #custom-blocks-slot .dash-block')).forEach(el => {
             const key = el.dataset.block;
             if (key === 'config') return;
             if (hiddenSet.has(key)) {
@@ -406,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function enableRemoveButtons() {
-        wrap.querySelectorAll('.remove-block').forEach(btn => {
+        document.querySelectorAll('#dashboard-grid .remove-block, #custom-blocks-slot .remove-block').forEach(btn => {
             if (btn.dataset.removeInit) return;
             btn.dataset.removeInit = '1';
             btn.addEventListener('click', () => {
@@ -422,6 +498,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
         });
+    }
+
+    function initDirectoryTabs() {
+        const tabs = Array.from(document.querySelectorAll('[data-directory-tab]'));
+        const items = Array.from(document.querySelectorAll('[data-directory-item]'));
+        if (!tabs.length || !items.length) {
+            return;
+        }
+        const setActiveTab = function(tabKey) {
+            tabs.forEach(tab => {
+                const active = tab.dataset.directoryTab === tabKey;
+                tab.classList.toggle('is-active', active);
+                tab.setAttribute('aria-selected', active ? 'true' : 'false');
+            });
+            items.forEach(item => {
+                const shouldShow = tabKey === 'all' || item.dataset.directoryItem === tabKey;
+                item.classList.toggle('is-hidden', !shouldShow);
+            });
+        };
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => setActiveTab(tab.dataset.directoryTab || 'all'));
+        });
+        setActiveTab('all');
     }
 
     function initConfigPanel() {
@@ -539,20 +638,16 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             section.appendChild(list);
         }
-        if (customSlot && customSlot.parentNode === wrap) {
-            wrap.insertBefore(section, customSlot);
-        } else {
-            wrap.appendChild(section);
-        }
+        wrap.appendChild(section);
         enableRemoveButtons();
-        enableDrag();
+        enableDrag(wrap);
         applySpans();
     }
 
     function removeCustomBlock(key) {
         customBlocks = customBlocks.filter(b => b.id !== key);
         persistCustomBlocks();
-        const el = wrap.querySelector(`[data-block="${key}"]`);
+        const el = document.querySelector(`[data-block="${key}"]`);
         if (el) el.remove();
         hiddenSet.delete(key);
         defaultOrder = defaultOrder.filter(k => k !== key);
@@ -646,6 +741,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 el.remove();
             }
         });
+        if (customSlot) {
+            customSlot.innerHTML = '';
+        }
         defaultOrder.forEach(key => {
             const el = wrap.querySelector(`[data-block="${key}"]`);
             if (el) wrap.appendChild(el);
@@ -653,7 +751,8 @@ document.addEventListener('DOMContentLoaded', () => {
         applySpans();
         applyHidden();
         renderConfigList();
-        enableDrag();
+        enableDrag(wrap);
+        enableDrag(customSlot);
     });
 });
 </script>

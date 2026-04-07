@@ -1,16 +1,24 @@
 <?php
 namespace Modules\Pages\Controllers;
 
+use App\Services\SettingsService;
+use App\Services\TagService;
+use Core\Asset;
+use Core\Cache;
 use Core\Container;
 use Core\Database;
 use Core\Request;
 use Core\Response;
+use Core\Slot;
+use Modules\Comments\Services\CommentService;
+use Modules\Comments\Services\EntityCommentPolicyService;
 
 class PagesController
 {
     private Container $container;
     private Database $db;
     private \App\Services\EmbedFormService $embedForms;
+    private TagService $tags;
 
     public function __construct(Container $container)
     {
@@ -20,12 +28,31 @@ class PagesController
             $this->db,
             $container->get(\App\Services\SettingsService::class)
         );
+        $this->tags = new TagService($this->db);
     }
 
     public function show(Request $request): Response
     {
         $slug = $request->params['slug'] ?? '';
         $locale = $this->container->get('lang')->current();
+        /** @var SettingsService $settings */
+        $settings = $this->container->get(SettingsService::class);
+        $cacheEnabled = $settings->get('cache_pages', '0') === '1'
+            && empty($_SESSION['user_id'])
+            && empty($_SESSION['admin_auth']);
+        $cacheTtl = max(1, (int)$settings->get('cache_pages_ttl', '60')) * 60;
+        $cacheKey = 'page_' . $slug . '_' . $locale;
+        $cacheHeaders = ['X-Page-Cache' => 'BYPASS'];
+        /** @var Cache $cache */
+        $cache = $this->container->get('cache');
+
+        if ($cacheEnabled && ($cached = $cache->get($cacheKey))) {
+            return new Response($cached, 200, ['X-Page-Cache' => 'HIT']);
+        }
+        if ($cacheEnabled) {
+            $cacheHeaders['X-Page-Cache'] = 'MISS';
+        }
+
         $page = $this->db->fetch("SELECT * FROM pages WHERE slug = ? AND visible = 1", [$slug]);
         if (!$page) {
             return new Response('Not found', 404);
@@ -41,6 +68,8 @@ class PagesController
 
         $contentKey = $contentKey ?? ($locale === 'ru' ? 'content_ru' : 'content_en');
         $page[$contentKey] = $this->renderEmbeds($page[$contentKey] ?? '', $request, $locale);
+        Slot::register('head_end', static fn(): string => Asset::styleTag('/assets/css/pages.css') . "\n");
+        $tags = $this->tags->forEntity('page', (int)$page['id']);
 
         $html = $this->container->get('renderer')->render(
             'frontend/show',
@@ -49,6 +78,11 @@ class PagesController
                 'title' => $title,
                 'page' => $page,
                 'locale' => $locale,
+                'tags' => $tags,
+                'commentsHtml' => $this->renderComments((int)$page['id']),
+                'breadcrumbs' => [
+                    ['label' => $title],
+                ],
             ],
             [
                 'title' => $metaTitle,
@@ -56,7 +90,12 @@ class PagesController
                 'canonical' => $this->canonical($request),
             ]
         );
-        return new Response($html);
+
+        if ($cacheEnabled) {
+            $cache->set($cacheKey, $html, $cacheTtl);
+        }
+
+        return new Response($html, 200, $cacheHeaders);
     }
 
     private function canonical(Request $request): string
@@ -84,5 +123,18 @@ class PagesController
             $formState = $state[$slug] ?? [];
             return $this->embedForms->render($slug, $locale, $formState);
         }, $content);
+    }
+
+    private function renderComments(int $pageId): string
+    {
+        try {
+            $policy = $this->container->get(EntityCommentPolicyService::class)->load('page', $pageId);
+            if (($policy['mode'] ?? 'default') === 'disabled') {
+                return '';
+            }
+            return $this->container->get(CommentService::class)->renderForEntity('page', $pageId);
+        } catch (\Throwable $e) {
+            return '';
+        }
     }
 }

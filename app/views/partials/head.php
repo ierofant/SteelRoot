@@ -8,6 +8,10 @@ $extraStyles = $meta['styles'] ?? [];
 if (!is_array($extraStyles)) {
     $extraStyles = [];
 }
+$pwaEnabled = (($settings['pwa_enabled'] ?? '1') === '1');
+$pwaThemeColor = trim((string)($settings['pwa_theme_color'] ?? '#1f6feb'));
+$pwaIcon192 = trim((string)($settings['pwa_icon_192'] ?? ''));
+$pwaIcon512 = trim((string)($settings['pwa_icon'] ?? ''));
 ?>
 <head>
     <meta charset="UTF-8">
@@ -25,6 +29,19 @@ if (!is_array($extraStyles)) {
     <meta name="twitter:title" content="<?= htmlspecialchars($meta['twitter']['title'] ?? ($meta['title'] ?? '')) ?>">
     <meta name="twitter:description" content="<?= htmlspecialchars($meta['twitter']['description'] ?? ($meta['description'] ?? '')) ?>">
     <meta name="twitter:image" content="<?= htmlspecialchars($meta['twitter']['image'] ?? '') ?>">
+    <?php if ($pwaEnabled): ?>
+    <meta name="theme-color" content="<?= htmlspecialchars($pwaThemeColor) ?>">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="<?= htmlspecialchars((string)($settings['pwa_short_name'] ?? $settings['site_name'] ?? 'SteelRoot')) ?>">
+    <link rel="manifest" href="/manifest.json">
+    <?php if ($pwaIcon192 !== ''): ?>
+    <link rel="icon" sizes="192x192" href="<?= htmlspecialchars($pwaIcon192) ?>">
+    <?php endif; ?>
+    <?php if ($pwaIcon512 !== ''): ?>
+    <link rel="apple-touch-icon" href="<?= htmlspecialchars($pwaIcon512) ?>">
+    <?php endif; ?>
+    <?php endif; ?>
     <?php if (!empty($meta['jsonld'])): ?><script type="application/ld+json"><?= $meta['jsonld'] ?></script><?php endif; ?>
     <?php if (!empty($settings['theme_favicon'])): ?><link rel="icon" href="<?= htmlspecialchars($settings['theme_favicon']) ?>"><?php endif; ?>
     <?php

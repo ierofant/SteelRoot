@@ -6,6 +6,7 @@ use Core\Database;
 use Core\Request;
 use Core\Response;
 use Core\Csrf;
+use App\Services\SettingsService;
 use Modules\Gallery\Services\GalleryCategoryService;
 
 class AdminGalleryCategoriesController
@@ -13,11 +14,13 @@ class AdminGalleryCategoriesController
     private Container $container;
     private GalleryCategoryService $service;
     private string $uploadPath;
+    private string $localeMode;
 
     public function __construct(Container $container)
     {
         $this->container = $container;
-        $this->service = new GalleryCategoryService($container->get(Database::class));
+        $this->service = new GalleryCategoryService($container->get(Database::class), $container->get('cache'));
+        $this->localeMode = $container->get(SettingsService::class)->get('locale_mode', 'multi');
         $this->uploadPath = APP_ROOT . '/storage/uploads/gallery/categories';
         if (!is_dir($this->uploadPath)) {
             mkdir($this->uploadPath, 0775, true);
@@ -32,6 +35,8 @@ class AdminGalleryCategoriesController
             'mode'       => 'list',
             'categories' => $categories,
             'csrf'       => Csrf::token('gallery_admin'),
+            'adminPrefix' => $this->adminPrefix(),
+            'localeMode' => $this->localeMode,
         ]);
         return new Response($html);
     }
@@ -43,6 +48,8 @@ class AdminGalleryCategoriesController
             'mode'     => 'create',
             'category' => null,
             'csrf'     => Csrf::token('gallery_admin'),
+            'adminPrefix' => $this->adminPrefix(),
+            'localeMode' => $this->localeMode,
         ]);
         return new Response($html);
     }
@@ -62,7 +69,11 @@ class AdminGalleryCategoriesController
             'slug'      => trim($request->body['slug'] ?? '') ?: ($nameEn ?: $nameRu),
             'name_en'   => $nameEn,
             'name_ru'   => $nameRu,
+            'meta_title_en' => trim((string)($request->body['meta_title_en'] ?? '')),
+            'meta_title_ru' => trim((string)($request->body['meta_title_ru'] ?? '')),
             'image_url' => $imageUrl,
+            'meta_description_en' => trim((string)($request->body['meta_description_en'] ?? '')),
+            'meta_description_ru' => trim((string)($request->body['meta_description_ru'] ?? '')),
             'position'  => (int)($request->body['position'] ?? 0),
             'enabled'   => !empty($request->body['enabled']),
         ]);
@@ -81,6 +92,8 @@ class AdminGalleryCategoriesController
             'mode'     => 'edit',
             'category' => $category,
             'csrf'     => Csrf::token('gallery_admin'),
+            'adminPrefix' => $this->adminPrefix(),
+            'localeMode' => $this->localeMode,
         ]);
         return new Response($html);
     }
@@ -99,7 +112,11 @@ class AdminGalleryCategoriesController
             'slug'      => trim($request->body['slug'] ?? '') ?: ($nameEn ?: $nameRu),
             'name_en'   => $nameEn,
             'name_ru'   => $nameRu,
+            'meta_title_en' => trim((string)($request->body['meta_title_en'] ?? '')),
+            'meta_title_ru' => trim((string)($request->body['meta_title_ru'] ?? '')),
             'image_url' => $imageUrl,
+            'meta_description_en' => trim((string)($request->body['meta_description_en'] ?? '')),
+            'meta_description_ru' => trim((string)($request->body['meta_description_ru'] ?? '')),
             'position'  => (int)($request->body['position'] ?? 0),
             'enabled'   => !empty($request->body['enabled']),
         ]);

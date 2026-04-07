@@ -66,6 +66,10 @@ class SettingsController
             return new Response('Invalid gallery mode', 422);
         }
         $captchaProvider = $request->body['captcha_provider'] ?? 'none';
+        $captchaGoogleMode = trim((string)($request->body['captcha_google_mode'] ?? 'v2'));
+        if (!in_array($captchaGoogleMode, ['v2', 'v3'], true)) {
+            return new Response('Invalid Google captcha mode', 422);
+        }
         $captchaSiteKey = trim($request->body['captcha_site_key'] ?? '');
         $captchaSecretKey = trim($request->body['captcha_secret_key'] ?? '');
         $captchaLogin = isset($request->body['captcha_login_enabled']) ? '1' : '0';
@@ -80,6 +84,7 @@ class SettingsController
         $redisHost = trim($request->body['session_redis_host'] ?? '127.0.0.1');
         $redisPort = (int)($request->body['session_redis_port'] ?? 6379);
         $redisDb = (int)($request->body['session_redis_db'] ?? 0);
+        $redisPassword = (string)($request->body['session_redis_password'] ?? '');
         $memcachedServers = trim($request->body['session_memcached_servers'] ?? '');
         $mailDriver = $request->body['mail_driver'] ?? 'smtp';
         if (!in_array($mailDriver, ['smtp','sendmail','php'], true)) {
@@ -95,7 +100,12 @@ class SettingsController
         }
         $mailFrom = trim($request->body['mail_from'] ?? '');
         $mailFromName = trim($request->body['mail_from_name'] ?? '');
-        $mailTemplate = $request->body['mail_template'] ?? '';
+        $mailRegistrationSubject = trim((string)($request->body['mail_registration_subject'] ?? ''));
+        $mailRegistrationBody = (string)($request->body['mail_registration_body'] ?? '');
+        $mailResetSubject = trim((string)($request->body['mail_reset_subject'] ?? ''));
+        $mailResetBody = (string)($request->body['mail_reset_body'] ?? '');
+        $mailNotificationSubject = trim((string)($request->body['mail_notification_subject'] ?? ''));
+        $mailNotificationBody = (string)($request->body['mail_notification_body'] ?? '');
         $mailTestTo = trim($request->body['mail_test_to'] ?? '');
         $footerCopy = isset($request->body['footer_copy_enabled']) ? '1' : '0';
         $breadcrumbHome = trim($request->body['breadcrumb_home'] ?? 'Home');
@@ -111,6 +121,32 @@ class SettingsController
         $adminIpRegex = trim($request->body['admin_ip_regex'] ?? '');
         $adminMaxAttempts = max(1, (int)($request->body['admin_max_attempts'] ?? 5));
         $adminLockMinutes = max(1, (int)($request->body['admin_lock_minutes'] ?? 5));
+        $urlQueryPolicyEnabled = isset($request->body['url_query_policy_enabled']) ? '1' : '0';
+        $urlQueryPolicyMode = trim((string)($request->body['url_query_policy_mode'] ?? 'redirect'));
+        if (!in_array($urlQueryPolicyMode, ['redirect', '404', 'ignore'], true)) {
+            return new Response('Invalid URL query policy mode', 422);
+        }
+        $currentSettings = $this->settingsService->all();
+        $redisPasswordValue = $redisPassword !== ''
+            ? $redisPassword
+            : (string)($currentSettings['session_redis_password'] ?? '');
+        $urlQueryPolicyMap = [
+            'url_query_allow_search' => trim((string)($request->body['url_query_allow_search'] ?? '')),
+            'url_query_allow_forum_search' => trim((string)($request->body['url_query_allow_forum_search'] ?? '')),
+            'url_query_allow_forum_topic' => trim((string)($request->body['url_query_allow_forum_topic'] ?? '')),
+            'url_query_allow_tags_index' => trim((string)($request->body['url_query_allow_tags_index'] ?? '')),
+            'url_query_allow_tags_entity' => trim((string)($request->body['url_query_allow_tags_entity'] ?? '')),
+            'url_query_allow_tags_gallery' => trim((string)($request->body['url_query_allow_tags_gallery'] ?? '')),
+            'url_query_allow_gallery_list' => trim((string)($request->body['url_query_allow_gallery_list'] ?? '')),
+            'url_query_allow_articles_list' => trim((string)($request->body['url_query_allow_articles_list'] ?? '')),
+            'url_query_allow_profile' => trim((string)($request->body['url_query_allow_profile'] ?? '')),
+            'url_query_allow_profile_tab' => trim((string)($request->body['url_query_allow_profile_tab'] ?? '')),
+            'url_query_allow_piercing_try_on' => trim((string)($request->body['url_query_allow_piercing_try_on'] ?? '')),
+            'url_query_allow_gallery_view' => trim((string)($request->body['url_query_allow_gallery_view'] ?? '')),
+            'url_query_allow_gallery_photo' => trim((string)($request->body['url_query_allow_gallery_photo'] ?? '')),
+            'url_query_allow_comments_fragment' => trim((string)($request->body['url_query_allow_comments_fragment'] ?? '')),
+            'url_query_allow_reset_password' => trim((string)($request->body['url_query_allow_reset_password'] ?? '')),
+        ];
         $this->settingsService->bulkSet([
             'site_name' => $siteName,
             'theme' => $theme,
@@ -123,6 +159,7 @@ class SettingsController
             'locale_mode' => $localeMode,
             'gallery_open_mode' => $galleryMode,
             'captcha_provider' => $captchaProvider,
+            'captcha_google_mode' => $captchaGoogleMode,
             'captcha_site_key' => $captchaSiteKey,
             'captcha_secret_key' => $captchaSecretKey,
             'captcha_login_enabled' => $captchaLogin,
@@ -131,6 +168,7 @@ class SettingsController
             'session_redis_host' => $redisHost,
             'session_redis_port' => (string)$redisPort,
             'session_redis_db' => (string)$redisDb,
+            'session_redis_password' => $redisPasswordValue,
             'session_memcached_servers' => $memcachedServers,
             'mail_driver' => $mailDriver,
             'mail_host' => $mailHost,
@@ -140,7 +178,12 @@ class SettingsController
             'mail_secure' => $mailSecure,
             'mail_from' => $mailFrom,
             'mail_from_name' => $mailFromName,
-            'mail_template' => $mailTemplate,
+            'mail_registration_subject' => $mailRegistrationSubject,
+            'mail_registration_body' => $mailRegistrationBody,
+            'mail_reset_subject' => $mailResetSubject,
+            'mail_reset_body' => $mailResetBody,
+            'mail_notification_subject' => $mailNotificationSubject,
+            'mail_notification_body' => $mailNotificationBody,
             'footer_copy_enabled' => $footerCopy,
             'breadcrumb_home' => $breadcrumbHome,
             'breadcrumbs_custom' => $breadcrumbsCustom,
@@ -149,11 +192,31 @@ class SettingsController
             'admin_ip_regex' => $adminIpRegex,
             'admin_max_attempts' => (string)$adminMaxAttempts,
             'admin_lock_minutes' => (string)$adminLockMinutes,
+            'url_query_policy_enabled' => $urlQueryPolicyEnabled,
+            'url_query_policy_mode' => $urlQueryPolicyMode,
+            'url_query_allow_search' => $urlQueryPolicyMap['url_query_allow_search'],
+            'url_query_allow_forum_search' => $urlQueryPolicyMap['url_query_allow_forum_search'],
+            'url_query_allow_forum_topic' => $urlQueryPolicyMap['url_query_allow_forum_topic'],
+            'url_query_allow_tags_index' => $urlQueryPolicyMap['url_query_allow_tags_index'],
+            'url_query_allow_tags_entity' => $urlQueryPolicyMap['url_query_allow_tags_entity'],
+            'url_query_allow_tags_gallery' => $urlQueryPolicyMap['url_query_allow_tags_gallery'],
+            'url_query_allow_gallery_list' => $urlQueryPolicyMap['url_query_allow_gallery_list'],
+            'url_query_allow_articles_list' => $urlQueryPolicyMap['url_query_allow_articles_list'],
+            'url_query_allow_profile' => $urlQueryPolicyMap['url_query_allow_profile'],
+            'url_query_allow_profile_tab' => $urlQueryPolicyMap['url_query_allow_profile_tab'],
+            'url_query_allow_piercing_try_on' => $urlQueryPolicyMap['url_query_allow_piercing_try_on'],
+            'url_query_allow_gallery_view' => $urlQueryPolicyMap['url_query_allow_gallery_view'],
+            'url_query_allow_gallery_photo' => $urlQueryPolicyMap['url_query_allow_gallery_photo'],
+            'url_query_allow_reset_password' => $urlQueryPolicyMap['url_query_allow_reset_password'],
+            'url_query_allow_comments_fragment' => $urlQueryPolicyMap['url_query_allow_comments_fragment'],
         ]);
         if ($mailTestTo !== '') {
+            if (!filter_var($mailTestTo, FILTER_VALIDATE_EMAIL)) {
+                return new Response('Invalid test email', 422);
+            }
             try {
                 $mailer = new \App\Services\TestMailer($this->container);
-                $mailer->sendTest($mailTestTo, $mailTemplate ?: 'Test email from SteelRoot');
+                $mailer->sendTest($mailTestTo);
                 $_SESSION['admin_settings_flash'] = 'Test email sent to ' . $mailTestTo;
             } catch (\Throwable $e) {
                 $_SESSION['admin_settings_flash'] = 'Test email failed: ' . $e->getMessage();

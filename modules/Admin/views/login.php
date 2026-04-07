@@ -8,13 +8,13 @@ $errorText = $error ?? '';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SteelRoot Admin Login</title>
-    <link rel="stylesheet" href="/assets/css/admin-login.css?v=1">
+    <title>SteelRoot v2 Admin Login</title>
+    <link rel="stylesheet" href="/assets/css/admin-login.css?v=2">
 </head>
 <body>
 <div class="login-wrapper">
     <div class="login-card">
-        <div class="logo">SteelRoot Admin</div>
+        <div class="logo">SteelRoot v2 Admin</div>
         <form method="POST" action="<?= htmlspecialchars($ap) ?>/login" novalidate>
             <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
             <div class="input-group">
@@ -42,7 +42,7 @@ $errorText = $error ?? '';
             <button class="login-btn" type="submit">Sign In</button>
             <div class="error-message<?= $errorText !== '' ? ' animate' : '' ?>"><?= htmlspecialchars($errorText) ?></div>
         </form>
-        <div class="footer-note">© SteelRoot Framework</div>
+        <div class="footer-note">© SteelRoot v2 Framework</div>
     </div>
 </div>
 <script nonce="<?= htmlspecialchars($cspNonce ?? '') ?>">

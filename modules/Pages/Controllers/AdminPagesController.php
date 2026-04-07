@@ -6,16 +6,21 @@ use Core\Database;
 use Core\Csrf;
 use Core\Request;
 use Core\Response;
+use Core\Cache;
+use App\Services\TagService;
+use Modules\Comments\Services\EntityCommentPolicyService;
 
 class AdminPagesController
 {
     private Container $container;
     private Database $db;
+    private TagService $tags;
 
     public function __construct(Container $container)
     {
         $this->container = $container;
         $this->db = $container->get(Database::class);
+        $this->tags = new TagService($this->db);
     }
 
     public function index(Request $request): Response
@@ -25,6 +30,7 @@ class AdminPagesController
             'title' => __('pages.admin.title'),
             'pages' => $pages,
             'csrf' => Csrf::token('pages_delete'),
+            'adminPrefix' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin'),
         ]);
         return new Response($html);
     }
@@ -47,8 +53,12 @@ class AdminPagesController
                 'visible' => 1,
                 'show_in_menu' => 0,
                 'menu_order' => 0,
+                'comments_mode' => 'default',
             ],
             'isNew' => true,
+            'commentsMode' => 'default',
+            'adminPrefix' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin'),
+            'tagsInput' => '',
         ]);
         return new Response($html);
     }
@@ -66,6 +76,10 @@ class AdminPagesController
             INSERT INTO pages (slug, title_en, title_ru, content_en, content_ru, meta_title_en, meta_title_ru, meta_description_en, meta_description_ru, visible, show_in_menu, menu_order, created_at, updated_at)
             VALUES (:slug, :title_en, :title_ru, :content_en, :content_ru, :meta_title_en, :meta_title_ru, :meta_description_en, :meta_description_ru, :visible, :show_in_menu, :menu_order, NOW(), NOW())
         ", $data);
+        $pageId = (int)$this->db->pdo()->lastInsertId();
+        $this->tags->sync('page', $pageId, $this->tags->normalizeInput((string)($request->body['tags'] ?? '')));
+        $this->commentPolicyService()->save('page', $pageId, (string)($request->body['comments_mode'] ?? 'default'), []);
+        $this->clearPageCache($data['slug']);
         return new Response('', 302, ['Location' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/pages']);
     }
 
@@ -81,6 +95,9 @@ class AdminPagesController
             'csrf' => Csrf::token('pages_save'),
             'page' => $page,
             'isNew' => false,
+            'commentsMode' => $this->commentPolicyService()->load('page', $id)['mode'] ?? 'default',
+            'adminPrefix' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin'),
+            'tagsInput' => $this->tags->formatInput($this->tags->forEntity('page', $id)),
         ]);
         return new Response($html);
     }
@@ -117,6 +134,12 @@ class AdminPagesController
                 updated_at = NOW()
             WHERE id = :id
         ", $data);
+        $this->tags->sync('page', $id, $this->tags->normalizeInput((string)($request->body['tags'] ?? '')));
+        $this->commentPolicyService()->save('page', $id, (string)($request->body['comments_mode'] ?? 'default'), []);
+        $this->clearPageCache($page['slug']);
+        if ($data['slug'] !== $page['slug']) {
+            $this->clearPageCache($data['slug']);
+        }
         return new Response('', 302, ['Location' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/pages']);
     }
 
@@ -126,7 +149,12 @@ class AdminPagesController
             return new Response('Invalid CSRF', 400);
         }
         $id = (int)($request->params['id'] ?? 0);
+        $page = $this->db->fetch("SELECT slug FROM pages WHERE id = ?", [$id]);
         $this->db->execute("DELETE FROM pages WHERE id = ?", [$id]);
+        $this->db->execute("DELETE FROM taggables WHERE entity_type = 'page' AND entity_id = ?", [$id]);
+        if (!empty($page['slug'])) {
+            $this->clearPageCache((string)$page['slug']);
+        }
         return new Response('', 302, ['Location' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/pages']);
     }
 
@@ -159,5 +187,23 @@ class AdminPagesController
         }
         $row = $this->db->fetch("SELECT id FROM pages WHERE slug = ?", [$slug]);
         return (bool)$row;
+    }
+
+    private function clearPageCache(string $slug): void
+    {
+        if ($slug === '') {
+            return;
+        }
+
+        /** @var Cache $cache */
+        $cache = $this->container->get('cache');
+        $cache->delete('page_' . $slug . '_ru');
+        $cache->delete('page_' . $slug . '_en');
+        $cache->delete('sitemap');
+    }
+
+    private function commentPolicyService(): EntityCommentPolicyService
+    {
+        return $this->container->get(EntityCommentPolicyService::class);
     }
 }

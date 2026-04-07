@@ -72,6 +72,14 @@
 .dash-block--hero {
   overflow: hidden;
   min-height: 0;
+
+  .mini-cards {
+    margin-top: 18px;
+  }
+
+  .quick-actions {
+    margin-top: 14px;
+  }
 }
 
 .dash-hero {

@@ -12,7 +12,7 @@ $symPos      = $settings['symbol_position'] ?? 'before';
 
 // Cache list: stored comma-separated → show as one-per-line in textarea
 $cacheLines = implode("\n", array_filter(array_map('trim',
-    explode(',', $settings['pwa_cache_list'] ?? '/,/assets/css/app.css,/manifest.json')
+    explode(',', $settings['pwa_cache_list'] ?? '/,/offline,/assets/css/app.css,/assets/css/pwa-offline.css,/assets/js/pwa-init.js,/assets/js/popup.js,/assets/js/profile-panel.js,/assets/js/gallery-lightbox.js,/modules/Gallery/assets/js/gallery.js,/manifest.json')
 )));
 
 ob_start();
@@ -317,7 +317,7 @@ ob_start();
                     <div class="sw-version-row">
                         <label class="field" style="margin:0">
                             <input type="text" name="pwa_sw_version" id="f-swver"
-                                   value="<?= $s('pwa_sw_version', 'v1') ?>" placeholder="v1" maxlength="32">
+                                   value="<?= $s('pwa_sw_version', 'v2') ?>" placeholder="v2" maxlength="32">
                         </label>
                         <button type="button" class="btn ghost small" id="bump-btn" title="Increment version">+1</button>
                     </div>
@@ -339,8 +339,35 @@ ob_start();
             <label class="field">
                 <span>Pre-cache URLs <small class="muted">one per line — fetched at install time</small></span>
                 <textarea name="pwa_cache_list" id="f-cache" rows="6"
-                          placeholder="/&#10;/assets/css/app.css&#10;/manifest.json"><?= htmlspecialchars($cacheLines) ?></textarea>
+                          placeholder="/&#10;/offline&#10;/assets/css/app.css&#10;/assets/css/pwa-offline.css&#10;/assets/js/pwa-init.js&#10;/assets/js/popup.js&#10;/assets/js/profile-panel.js&#10;/assets/js/gallery-lightbox.js&#10;/modules/Gallery/assets/js/gallery.js&#10;/manifest.json"><?= htmlspecialchars($cacheLines) ?></textarea>
             </label>
+        </div>
+    </details>
+
+    <details class="card" open>
+        <summary><strong>Offline Screen</strong></summary>
+        <div class="stack">
+            <label class="field">
+                <span>Offline Title</span>
+                <input type="text" name="pwa_offline_title"
+                       value="<?= $s('pwa_offline_title', 'Offline mode') ?>"
+                       placeholder="Offline mode" maxlength="120">
+            </label>
+            <label class="field">
+                <span>Offline Message</span>
+                <textarea name="pwa_offline_message" rows="4"
+                          placeholder="The connection is unavailable right now."><?= htmlspecialchars((string)($settings['pwa_offline_message'] ?? 'The connection is unavailable right now.')) ?></textarea>
+            </label>
+            <label class="field">
+                <span>Retry Button Label</span>
+                <input type="text" name="pwa_offline_button"
+                       value="<?= $s('pwa_offline_button', 'Try again') ?>"
+                       placeholder="Try again" maxlength="60">
+            </label>
+            <p class="muted" style="font-size:.8rem">
+                This content is used by the PWA offline fallback page served from <code>/offline</code>.
+                HTML documents stay network-first with offline fallback to avoid stale logged-in pages.
+            </p>
         </div>
     </details>
 
@@ -385,7 +412,11 @@ ob_start();
         </div>
         <div class="pwa-info-row">
             <strong>Version</strong>
-            <span><?= $s('pwa_sw_version', 'v1') ?></span>
+            <span><?= $s('pwa_sw_version', 'v2') ?></span>
+        </div>
+        <div class="pwa-info-row">
+            <strong>Offline</strong>
+            <a href="<?= htmlspecialchars($s('pwa_offline_page', '/offline')) ?>" target="_blank"><?= htmlspecialchars($s('pwa_offline_page', '/offline')) ?> ↗</a>
         </div>
     </div>
 
@@ -510,7 +541,7 @@ ob_start();
                 return String(parseInt(n, 10) + 1);
             });
             if (verInput.value === verInput.defaultValue) {
-                verInput.value = (verInput.value || 'v1') + '-1';
+                verInput.value = (verInput.value || 'v2') + '-1';
             }
             updatePreview();
         });

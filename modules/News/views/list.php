@@ -1,4 +1,6 @@
 <?php
+use App\Services\PublicImageInfoService;
+
 $loc = $locale ?? 'en';
 $enabledCategories = $enabledCategories ?? [];
 $currentCategory = $category ?? null;
@@ -7,6 +9,7 @@ $categoryBaseUrl = $categoryBaseUrl ?? '/news/category';
 $itemBaseUrl = $itemBaseUrl ?? '/news';
 ?>
 <section class="articles-hero">
+    <div class="tt-ornament" aria-hidden="true"><span class="tt-cross"></span><span class="tt-num">01</span></div>
     <div>
         <p class="eyebrow"><?= htmlspecialchars($title ?? 'News') ?></p>
         <h1><?= htmlspecialchars($title ?? 'News') ?></h1>
@@ -33,14 +36,19 @@ $itemBaseUrl = $itemBaseUrl ?? '/news';
 
 <?php $gridCols = max(1, min(6, (int)($gridCols ?? 3))); ?>
 <section class="articles-grid articles-grid-cols-<?= $gridCols ?>">
-    <?php foreach ($articles as $article): ?>
+    <?php foreach ($articles as $idx => $article): ?>
         <?php
             $itemTitle = $loc === 'ru' ? ($article['title_ru'] ?? '') : ($article['title_en'] ?? '');
             $date = !empty($article['created_at']) ? date('d.m.Y', strtotime($article['created_at'])) : '';
             $excerpt = $loc === 'ru' ? ($article['preview_ru'] ?? '') : ($article['preview_en'] ?? '');
+            if (empty($display['description_enabled'])) {
+                $excerpt = '';
+            }
             $views = $article['views'] ?? null;
             $likes = $article['likes'] ?? null;
-            $bg = !empty($article['image_url']) ? "url('" . htmlspecialchars($article['image_url']) . "')" : '';
+            $cardImage = !empty($article['image_url']) ? (string)$article['image_url'] : (string)($article['cover_url'] ?? '');
+            $cardImageDims = PublicImageInfoService::dimensions($cardImage);
+            $bg = $cardImage !== '' ? "url('" . htmlspecialchars($cardImage) . "')" : '';
             $classes = 'article-card';
             if (!$bg) {
                 $classes .= ' no-image';
@@ -50,15 +58,18 @@ $itemBaseUrl = $itemBaseUrl ?? '/news';
             $authorUsername = $article['author_username'] ?? '';
             $profileUrl = $authorUsername ? '/users/' . urlencode($authorUsername) : '/users/' . $authorId;
             $authorAvatar = $article['author_avatar'] ?? '';
-            $letter = strtoupper(substr($authorName ?: ($itemTitle ?: 'A'), 0, 1));
+            $letterSource = (string)($authorName ?: ($itemTitle ?: 'A'));
+            $letter = function_exists('mb_strtoupper') && function_exists('mb_substr')
+                ? mb_strtoupper(mb_substr($letterSource, 0, 1))
+                : strtoupper(substr($letterSource, 0, 1));
             $catSlug = $article['category_slug'] ?? '';
             $catLabel = $loc === 'ru'
                 ? ($article['category_name_ru'] ?? ($article['category_name_en'] ?? ''))
                 : ($article['category_name_en'] ?? ($article['category_name_ru'] ?? ''));
         ?>
         <article class="<?= $classes ?>">
-            <?php if (!empty($article['image_url'])): ?>
-            <div class="article-card-bg"><img src="<?= htmlspecialchars($article['image_url']) ?>" alt=""></div>
+            <?php if ($cardImage !== ''): ?>
+            <div class="article-card-bg"><img src="<?= htmlspecialchars($cardImage) ?>" alt="<?= htmlspecialchars($itemTitle) ?>" loading="<?= $idx < 2 ? 'eager' : 'lazy' ?>" decoding="async"<?= $idx < 2 ? ' fetchpriority="high"' : '' ?><?= $cardImageDims ? (' width="' . (int)$cardImageDims['width'] . '" height="' . (int)$cardImageDims['height'] . '"') : '' ?>></div>
             <?php endif; ?>
             <a class="article-card__link" href="<?= htmlspecialchars($itemBaseUrl) ?>/<?= urlencode($article['slug']) ?>">
                 <div class="card-meta article-card__meta">

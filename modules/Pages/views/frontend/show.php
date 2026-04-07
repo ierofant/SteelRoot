@@ -6,9 +6,19 @@
     $content = $page[$contentKey] ?? '';
     $contentSafe = preg_replace('#<script\b[^>]*>(.*?)</script>#is', '', $content);
 ?>
+<div class="page-shell">
 <article class="page-content">
     <h1><?= htmlspecialchars($title) ?></h1>
     <div class="rich-text">
         <?= $contentSafe ?>
     </div>
+    <?php if (!empty($tags)): ?>
+        <div class="page-tags">
+            <?php foreach ($tags as $tag): ?>
+                <a class="pill" href="/tags/<?= htmlspecialchars($tag['slug'] ?? '') ?>">#<?= htmlspecialchars($tag['name'] ?? '') ?></a>
+            <?php endforeach; ?>
+        </div>
+    <?php endif; ?>
+    <?= $commentsHtml ?? '' ?>
 </article>
+</div>

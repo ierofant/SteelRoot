@@ -15,6 +15,7 @@ class Module
 
     public function register(Container $container, Router $router): void
     {
+        $adminPrefix = $container->get('config')['admin_prefix'] ?? '/admin';
         $router->get('/articles', [Controllers\ArticlesController::class, 'index']);
         $router->get('/articles/page/{page}', [Controllers\ArticlesController::class, 'index']);
         $router->get('/articles/category/{slug}/page/{page}', [Controllers\ArticlesController::class, 'byCategory']);
@@ -24,13 +25,13 @@ class Module
 
         $authMiddleware = function ($req, $next) {
             if (empty($_SESSION['admin_auth'])) {
-                header('Location: /admin/login');
+                header('Location: ' . (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/login');
                 exit;
             }
             return $next($req);
         };
 
-        $router->group('/admin/articles', [$authMiddleware], function (Router $r) {
+        $router->group($adminPrefix . '/articles', [$authMiddleware], function (Router $r) {
             $r->get('/', [Controllers\AdminArticlesController::class, 'index']);
             $r->get('/create', [Controllers\AdminArticlesController::class, 'create']);
             $r->post('/create', [Controllers\AdminArticlesController::class, 'store']);

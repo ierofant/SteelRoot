@@ -1,8 +1,12 @@
 <?php
 $ap = defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin';
 $tagNames = $tags ?? [];
+$tagsInput = $tagsInput ?? '';
+$suggestedTags = $suggestedTags ?? [];
 $categories = $categories ?? [];
-$itemCatId = (int)($item['category_id'] ?? 0);
+$selectedCategoryIds = array_map('intval', $selectedCategoryIds ?? []);
+$returnUrl = $returnUrl ?? ($ap . '/gallery/upload');
+$previewSrc = (string)($item['path_thumb'] ?? ($item['path_medium'] ?? ($item['path'] ?? '')));
 ob_start();
 ?>
 <div class="card stack">
@@ -11,11 +15,12 @@ ob_start();
             <p class="eyebrow">Галерея</p>
             <h3>Редактирование изображения</h3>
         </div>
-        <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/gallery/upload">К загрузкам</a>
+        <a class="btn ghost" href="<?= htmlspecialchars($returnUrl) ?>">К загрузкам</a>
     </div>
     <form method="post" action="<?= htmlspecialchars($ap) ?>/gallery/edit/<?= (int)$item['id'] ?>" class="stack">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
-        <p><img src="<?= htmlspecialchars($item['path']) ?>" alt="" class="thumb"></p>
+        <input type="hidden" name="return" value="<?= htmlspecialchars($returnUrl) ?>">
+        <p><img src="<?= htmlspecialchars($previewSrc) ?>" alt="" class="thumb"></p>
         <div class="grid two">
             <label class="field locale-en">
                 <span>Title (EN)</span>
@@ -37,29 +42,45 @@ ob_start();
             </label>
         </div>
         <label class="field">
-            <span>Tags (comma separated)</span>
-            <input type="text" name="tags" value="<?= htmlspecialchars(implode(', ', array_column($tagNames, 'name'))) ?>">
+            <span>Slug</span>
+            <input type="text" name="slug" value="<?= htmlspecialchars((string)($item['slug'] ?? '')) ?>" placeholder="optional-custom-slug">
+            <span class="muted u-font-085em">Slug больше не синхронизируется автоматически от title при редактировании. Меняется только если вы поменяете его здесь вручную.</span>
         </label>
         <label class="field">
-            <span>Категория</span>
-            <select name="category_id">
-                <option value="">— Без категории —</option>
+            <span>Tags (#tag #tag-two)</span>
+            <input type="text" name="tags" list="gallery-tags-list" value="<?= htmlspecialchars($tagsInput !== '' ? $tagsInput : implode(' ', array_map(static fn(array $tag): string => '#' . ltrim((string)($tag['name'] ?? ''), '#'), $tagNames))) ?>">
+            <span class="muted u-font-085em">Если нужен уже существующий slug, выбирайте canonical тег из подсказок.</span>
+        </label>
+        <?php if ($suggestedTags !== []): ?>
+            <datalist id="gallery-tags-list">
+                <?php foreach ($suggestedTags as $tag): ?>
+                    <?php $tagName = ltrim((string)($tag['name'] ?? $tag['slug'] ?? ''), '#'); ?>
+                    <?php if ($tagName === '') { continue; } ?>
+                    <option value="#<?= htmlspecialchars($tagName) ?>">
+                <?php endforeach; ?>
+            </datalist>
+        <?php endif; ?>
+        <label class="field">
+            <span>Категории (multi)</span>
+            <select name="category_ids[]" multiple size="<?= max(4, min(10, count($categories))) ?>">
                 <?php foreach ($categories as $cat): ?>
-                    <option value="<?= (int)$cat['id'] ?>" <?= $itemCatId === (int)$cat['id'] ? 'selected' : '' ?>>
+                    <?php $catId = (int)$cat['id']; ?>
+                    <option value="<?= $catId ?>" <?= in_array($catId, $selectedCategoryIds, true) ? 'selected' : '' ?>>
                         <?= htmlspecialchars($cat['name_ru'] ?: $cat['name_en']) ?>
                         — /<?= htmlspecialchars($cat['slug']) ?>/
                     </option>
                 <?php endforeach; ?>
             </select>
-            <span class="muted u-font-085em">Изменение категории не перемещает файлы, только меняет принадлежность.</span>
+            <span class="muted u-font-085em">Можно выбрать несколько категорий (Ctrl/Cmd + click). Файлы не перемещаются, меняется только принадлежность.</span>
         </label>
         <div class="form-actions">
             <button type="submit" class="btn primary">Сохранить</button>
-            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/gallery/upload">Отмена</a>
+            <a class="btn ghost" href="<?= htmlspecialchars($returnUrl) ?>">Отмена</a>
         </div>
     </form>
     <form method="post" action="<?= htmlspecialchars($ap) ?>/gallery/delete/<?= (int)$item['id'] ?>" onsubmit="return confirm('Delete image?')" class="form-actions">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
+        <input type="hidden" name="return" value="<?= htmlspecialchars($returnUrl) ?>">
         <button type="submit" class="btn danger">Удалить</button>
     </form>
 </div>

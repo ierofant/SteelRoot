@@ -9,11 +9,12 @@ $s = $settings ?? [];
             <p class="eyebrow"><?= __('users.settings.title') ?></p>
             <h3><?= __('users.settings.subtitle') ?></h3>
         </div>
-        <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/users"><?= __('users.settings.back') ?></a>
+        <div class="users-admin-actions">
+            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/users/groups"><?= __('users.groups.title') ?></a>
+            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/users/plans">Master plans</a>
+            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/users"><?= __('users.settings.back') ?></a>
+        </div>
     </div>
-    <?php if (!empty($saved)): ?>
-        <div class="alert success"><?= __('users.settings.saved') ?></div>
-    <?php endif; ?>
     <form method="post" class="stack">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
 
@@ -39,17 +40,79 @@ $s = $settings ?? [];
         </div>
 
         <div class="card soft stack">
+            <p class="eyebrow"><?= __('users.settings.section.features') ?></p>
+            <div class="users-settings-checks">
+            <?php foreach ([
+                'extended_profiles_enabled' => 'users.settings.extended_profiles_enabled',
+                'groups_enabled' => 'users.settings.groups_enabled',
+                'master_profiles_enabled' => 'users.settings.master_profiles_enabled',
+                'master_uploads_enabled' => 'users.settings.master_uploads_enabled',
+                'verified_masters_only_upload' => 'users.settings.verified_masters_only_upload',
+                'favorites_enabled' => 'users.settings.favorites_enabled',
+                'ratings_enabled' => 'users.settings.ratings_enabled',
+                'reviews_enabled' => 'users.settings.reviews_enabled',
+                'profile_comments_enabled' => 'users.settings.profile_comments_enabled',
+                'cover_enabled' => 'users.settings.cover_enabled',
+                'external_links_enabled' => 'users.settings.external_links_enabled',
+                'contacts_enabled' => 'users.settings.contacts_enabled',
+                'master_contact_enabled' => 'users.settings.master_contact_enabled',
+                'master_plans_enabled' => 'users.settings.master_plans_enabled',
+                'manual_plan_assignment_only' => 'users.settings.manual_plan_assignment_only',
+                'forbid_raw_external_links' => 'users.settings.forbid_raw_external_links',
+                'username_change_disabled' => 'users.settings.username_change_disabled',
+            ] as $key => $label): ?>
+                <label class="field checkbox">
+                    <input type="checkbox" name="users_<?= htmlspecialchars($key) ?>" value="1" <?= !empty($s[$key]) ? 'checked' : '' ?>>
+                    <span><?= __($label) ?></span>
+                </label>
+            <?php endforeach; ?>
+            </div>
+            <label class="field">
+                <span><?= __('users.settings.allowed_social_platforms') ?></span>
+                <input type="text" name="users_allowed_social_platforms" value="<?= htmlspecialchars($s['allowed_social_platforms'] ?? 'telegram,vk,instagram,youtube,tiktok,whatsapp') ?>">
+            </label>
+            <label class="field">
+                <span><?= __('users.settings.master_contact_bot_username') ?></span>
+                <input type="text" name="users_master_contact_bot_username" value="<?= htmlspecialchars($s['master_contact_bot_username'] ?? '') ?>" placeholder="@tattootodaybot">
+            </label>
+        </div>
+
+        <div class="card soft stack">
+            <p class="eyebrow"><?= __('users.settings.section.moderation') ?></p>
+            <div class="users-settings-checks">
+            <?php foreach ([
+                'master_gallery_moderation' => 'users.settings.master_gallery_moderation',
+                'reviews_require_moderation' => 'users.settings.reviews_require_moderation',
+                'links_require_approval' => 'users.settings.links_require_approval',
+                'master_verification_required' => 'users.settings.master_verification_required',
+            ] as $key => $label): ?>
+                <label class="field checkbox">
+                    <input type="checkbox" name="users_<?= htmlspecialchars($key) ?>" value="1" <?= !empty($s[$key]) ? 'checked' : '' ?>>
+                    <span><?= __($label) ?></span>
+                </label>
+            <?php endforeach; ?>
+            </div>
+        </div>
+
+        <div class="card soft stack">
             <p class="eyebrow"><?= __('users.settings.section.email') ?></p>
-            <label class="field">
-                <span><?= __('users.settings.email_domain_blacklist') ?></span>
-                <textarea name="users_email_domain_blacklist" rows="4"><?= htmlspecialchars($s['email_domain_blacklist'] ?? '') ?></textarea>
-                <small class="muted"><?= __('users.settings.email_domain_blacklist_hint') ?></small>
-            </label>
-            <label class="field">
-                <span><?= __('users.settings.email_domain_whitelist') ?></span>
-                <textarea name="users_email_domain_whitelist" rows="4"><?= htmlspecialchars($s['email_domain_whitelist'] ?? '') ?></textarea>
-                <small class="muted"><?= __('users.settings.email_domain_whitelist_hint') ?></small>
-            </label>
+            <div class="grid three">
+                <label class="field">
+                    <span><?= __('users.settings.email_blacklist') ?></span>
+                    <textarea name="users_email_blacklist" rows="4"><?= htmlspecialchars($s['email_blacklist'] ?? '') ?></textarea>
+                    <small class="muted"><?= __('users.settings.email_blacklist_hint') ?></small>
+                </label>
+                <label class="field">
+                    <span><?= __('users.settings.email_domain_blacklist') ?></span>
+                    <textarea name="users_email_domain_blacklist" rows="4"><?= htmlspecialchars($s['email_domain_blacklist'] ?? '') ?></textarea>
+                    <small class="muted"><?= __('users.settings.email_domain_blacklist_hint') ?></small>
+                </label>
+                <label class="field">
+                    <span><?= __('users.settings.email_domain_whitelist') ?></span>
+                    <textarea name="users_email_domain_whitelist" rows="4"><?= htmlspecialchars($s['email_domain_whitelist'] ?? '') ?></textarea>
+                    <small class="muted"><?= __('users.settings.email_domain_whitelist_hint') ?></small>
+                </label>
+            </div>
         </div>
 
         <div class="card soft stack">
@@ -94,7 +157,7 @@ $s = $settings ?? [];
             </label>
         </div>
 
-        <div class="form-actions u-gap-8">
+        <div class="form-actions users-admin-actions">
             <button type="submit" class="btn primary"><?= __('users.settings.save') ?></button>
             <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/users"><?= __('users.settings.cancel') ?></a>
         </div>
@@ -102,4 +165,6 @@ $s = $settings ?? [];
 </div>
 <?php
 $content = ob_get_clean();
+$headHtml = \Core\Asset::styleTag('/modules/Users/assets/css/users-admin.css');
+$flash = $flash ?? null;
 include __DIR__ . '/../../../Admin/views/layout.php';

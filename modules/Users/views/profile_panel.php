@@ -8,7 +8,7 @@ $avatar = $user['avatar'] ?? '/assets/img/avatar-placeholder.png';
 <div id="profilePanel" class="profile-panel">
     <button id="closeProfilePanel" class="profile-panel-close" aria-label="Close">×</button>
     <div class="profile-panel-header">
-        <div class="profile-panel-avatar"><img src="<?= htmlspecialchars($avatar) ?>" alt="<?= htmlspecialchars($name) ?>"></div>
+        <div class="profile-panel-avatar" style="background-image:url('<?= htmlspecialchars($avatar) ?>');"></div>
         <div class="profile-panel-meta">
             <div class="profile-panel-name"><?= htmlspecialchars($name) ?></div>
             <?php if ($email): ?><div class="profile-panel-email"><?= htmlspecialchars($email) ?></div><?php endif; ?>

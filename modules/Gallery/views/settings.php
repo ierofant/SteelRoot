@@ -6,9 +6,6 @@
             <h3><?= __('gallery.settings.subtitle') ?></h3>
         </div>
     </div>
-    <?php if (!empty($_GET['msg']) && $_GET['msg'] === 'saved'): ?>
-        <div class="alert success"><?= __('gallery.settings.saved') ?></div>
-    <?php endif; ?>
     <form method="post" class="stack">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
         <div class="muted"><?= __('gallery.settings.description') ?></div>
@@ -47,6 +44,26 @@
             <input type="number" name="gallery_per_page" min="1" max="100"
                 value="<?= (int)($settings['per_page'] ?? 9) ?>">
         </div>
+        <div class="grid three">
+            <label class="field">
+                <span><?= __('gallery.settings.thumb_width') ?></span>
+                <input type="number" name="gallery_thumb_width" min="160" max="2000"
+                    value="<?= (int)($settings['thumb_width'] ?? 640) ?>">
+            </label>
+            <label class="field">
+                <span><?= __('gallery.settings.medium_width') ?></span>
+                <input type="number" name="gallery_medium_width" min="320" max="4000"
+                    value="<?= (int)($settings['medium_width'] ?? 1600) ?>">
+            </label>
+            <label class="field">
+                <span><?= __('gallery.settings.variants_format') ?></span>
+                <select name="gallery_variants_format">
+                    <option value="webp" <?= (($settings['variants_format'] ?? 'webp') === 'webp') ? 'selected' : '' ?>>WEBP</option>
+                    <option value="source" <?= (($settings['variants_format'] ?? 'webp') === 'source') ? 'selected' : '' ?>>Source format</option>
+                </select>
+            </label>
+        </div>
+        <p class="muted"><?= __('gallery.settings.variants_hint') ?></p>
         <div class="grid two">
             <label class="field">
                 <span>SEO title (RU) for /gallery</span>

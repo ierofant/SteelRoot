@@ -3,22 +3,31 @@ $ap = defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin';
 $s = $settings ?? [];
 ob_start();
 ?>
-<div class="card stack">
-    <div class="card-header">
-        <div>
+<div class="homepage-builder stack">
+    <section class="card glass homepage-builder__hero">
+        <div class="homepage-builder__hero-copy">
             <p class="eyebrow"><?= __('homepage.title') ?></p>
             <h3><?= __('homepage.subtitle') ?></h3>
+            <p class="muted">Hero, локализация, SEO и порядок блоков в одной панели.</p>
         </div>
-        <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>"><?= __('homepage.action.back_admin') ?></a>
-    </div>
+        <div class="homepage-builder__hero-actions">
+            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>"><?= __('homepage.action.back_admin') ?></a>
+        </div>
+    </section>
     <?php if (!empty($saved)): ?><div class="alert success"><?= __('homepage.saved') ?></div><?php endif; ?>
-    <form method="post" class="stack">
+    <form method="post" class="stack homepage-builder__form">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
-        <div class="form-actions">
+        <div class="form-actions homepage-builder__actions">
             <button type="submit" class="btn primary"><?= __('homepage.action.save') ?></button>
         </div>
-        <div class="card subtle stack">
-            <p class="eyebrow"><?= __('homepage.hero.section') ?></p>
+        <section class="card subtle stack homepage-builder__section homepage-builder__section--hero">
+            <div class="homepage-builder__section-head">
+                <div>
+                    <p class="eyebrow"><?= __('homepage.hero.section') ?></p>
+                    <h4>Hero Canvas</h4>
+                </div>
+                <span class="pill subtle">Primary</span>
+            </div>
             <div class="grid two">
                 <label class="field locale-ru">
                     <span><?= __('homepage.hero.eyebrow_ru') ?></span>
@@ -116,76 +125,97 @@ ob_start();
                 <input type="checkbox" name="home_show_stats" value="1" <?= ($s['home_show_stats'] ?? '1') === '1' ? 'checked' : '' ?>>
                 <span><?= __('homepage.hero.show_stats') ?></span>
             </label>
-        </div>
+        </section>
 
-        <div class="grid two">
-            <label class="field checkbox">
-                <input type="checkbox" name="home_show_gallery" value="1" <?= !empty($s['home_show_gallery']) ? 'checked' : '' ?>>
-                <span><?= __('homepage.gallery.show') ?></span>
-            </label>
-            <label class="field">
-                <span><?= __('homepage.gallery.limit') ?></span>
-                <input type="number" name="home_gallery_limit" value="<?= htmlspecialchars($s['home_gallery_limit'] ?? 6) ?>" min="1" max="30">
-            </label>
-        </div>
-        <label class="field">
-            <span><?= __('homepage.gallery.order') ?></span>
-            <input type="number" name="home_order_gallery" value="<?= htmlspecialchars($s['home_order_gallery'] ?? 1) ?>" min="1" max="10">
-        </label>
+        <section class="card subtle stack homepage-builder__section homepage-builder__section--blocks">
+            <div class="homepage-builder__section-head">
+                <div>
+                    <p class="eyebrow">Blocks</p>
+                    <h4>Section Flow</h4>
+                </div>
+                <span class="pill subtle">Ordering</span>
+            </div>
+            <div class="homepage-builder__feature-grid">
+                <div class="homepage-builder__feature-card">
+                    <div class="grid two">
+                        <label class="field checkbox">
+                            <input type="checkbox" name="home_show_gallery" value="1" <?= !empty($s['home_show_gallery']) ? 'checked' : '' ?>>
+                            <span><?= __('homepage.gallery.show') ?></span>
+                        </label>
+                        <label class="field">
+                            <span><?= __('homepage.gallery.limit') ?></span>
+                            <input type="number" name="home_gallery_limit" value="<?= htmlspecialchars($s['home_gallery_limit'] ?? 6) ?>" min="1" max="30">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span><?= __('homepage.gallery.order') ?></span>
+                        <input type="number" name="home_order_gallery" value="<?= htmlspecialchars($s['home_order_gallery'] ?? 1) ?>" min="1" max="10">
+                    </label>
+                </div>
+                <div class="homepage-builder__feature-card">
+                    <div class="grid two">
+                        <label class="field checkbox">
+                            <input type="checkbox" name="home_show_articles" value="1" <?= !empty($s['home_show_articles']) ? 'checked' : '' ?>>
+                            <span><?= __('homepage.articles.show') ?></span>
+                        </label>
+                        <label class="field">
+                            <span><?= __('homepage.articles.limit') ?></span>
+                            <input type="number" name="home_articles_limit" value="<?= htmlspecialchars($s['home_articles_limit'] ?? 3) ?>" min="1" max="20">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span><?= __('homepage.articles.order') ?></span>
+                        <input type="number" name="home_order_articles" value="<?= htmlspecialchars($s['home_order_articles'] ?? 2) ?>" min="1" max="10">
+                    </label>
+                </div>
+                <div class="homepage-builder__feature-card">
+                    <div class="grid two">
+                        <label class="field checkbox">
+                            <input type="checkbox" name="home_show_news" value="1" <?= !empty($s["home_show_news"]) ? "checked" : "" ?>>
+                            <span>Показывать блок «Новости»</span>
+                        </label>
+                        <label class="field">
+                            <span>Кол-во новостей</span>
+                            <input type="number" name="home_news_limit" value="<?= htmlspecialchars($s["home_news_limit"] ?? 6) ?>" min="1" max="30">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span>Порядок блока «Новости»</span>
+                        <input type="number" name="home_order_news" value="<?= htmlspecialchars($s["home_order_news"] ?? 3) ?>" min="1" max="10">
+                    </label>
+                </div>
+                <div class="homepage-builder__feature-card">
+                    <div class="grid two">
+                        <label class="field checkbox">
+                            <input type="checkbox" name="home_show_popular_products" value="1"
+                                   <?= ($s['home_show_popular_products'] ?? '0') === '1' ? 'checked' : '' ?>>
+                            <span>Показывать блок «Популярные товары»</span>
+                        </label>
+                        <label class="field">
+                            <span>Кол-во товаров</span>
+                            <input type="number" name="home_popular_products_limit"
+                                   value="<?= htmlspecialchars($s['home_popular_products_limit'] ?? 4) ?>"
+                                   min="1" max="20">
+                        </label>
+                    </div>
+                    <label class="field">
+                        <span>Порядок блока «Популярные товары»</span>
+                        <input type="number" name="home_order_popular_products"
+                               value="<?= htmlspecialchars($s['home_order_popular_products'] ?? 3) ?>"
+                               min="1" max="10">
+                    </label>
+                </div>
+            </div>
+        </section>
 
-        <div class="grid two">
-            <label class="field checkbox">
-                <input type="checkbox" name="home_show_articles" value="1" <?= !empty($s['home_show_articles']) ? 'checked' : '' ?>>
-                <span><?= __('homepage.articles.show') ?></span>
-            </label>
-            <label class="field">
-                <span><?= __('homepage.articles.limit') ?></span>
-                <input type="number" name="home_articles_limit" value="<?= htmlspecialchars($s['home_articles_limit'] ?? 3) ?>" min="1" max="20">
-            </label>
-        </div>
-        <label class="field">
-            <span><?= __('homepage.articles.order') ?></span>
-            <input type="number" name="home_order_articles" value="<?= htmlspecialchars($s['home_order_articles'] ?? 2) ?>" min="1" max="10">
-        </label>
-
-
-        <div class="grid two">
-            <label class="field checkbox">
-                <input type="checkbox" name="home_show_news" value="1" <?= !empty($s["home_show_news"]) ? "checked" : "" ?>>
-                <span>Показывать блок «Новости»</span>
-            </label>
-            <label class="field">
-                <span>Кол-во новостей</span>
-                <input type="number" name="home_news_limit" value="<?= htmlspecialchars($s["home_news_limit"] ?? 6) ?>" min="1" max="30">
-            </label>
-        </div>
-        <label class="field">
-            <span>Порядок блока «Новости»</span>
-            <input type="number" name="home_order_news" value="<?= htmlspecialchars($s["home_order_news"] ?? 3) ?>" min="1" max="10">
-        </label>
-
-        <div class="grid two">
-            <label class="field checkbox">
-                <input type="checkbox" name="home_show_popular_products" value="1"
-                       <?= ($s['home_show_popular_products'] ?? '0') === '1' ? 'checked' : '' ?>>
-                <span>Показывать блок «Популярные товары»</span>
-            </label>
-            <label class="field">
-                <span>Кол-во товаров</span>
-                <input type="number" name="home_popular_products_limit"
-                       value="<?= htmlspecialchars($s['home_popular_products_limit'] ?? 4) ?>"
-                       min="1" max="20">
-            </label>
-        </div>
-        <label class="field">
-            <span>Порядок блока «Популярные товары»</span>
-            <input type="number" name="home_order_popular_products"
-                   value="<?= htmlspecialchars($s['home_order_popular_products'] ?? 3) ?>"
-                   min="1" max="10">
-        </label>
-
-        <div class="card subtle stack">
-            <p class="eyebrow"><?= __('homepage.localization.section') ?></p>
+        <section class="card subtle stack homepage-builder__section homepage-builder__section--localization">
+            <div class="homepage-builder__section-head">
+                <div>
+                    <p class="eyebrow"><?= __('homepage.localization.section') ?></p>
+                    <h4>Locale Copy</h4>
+                </div>
+                <span class="pill subtle">RU / EN</span>
+            </div>
             <p class="muted"><?= __('homepage.localization.help') ?></p>
 
             <div class="grid two">
@@ -358,10 +388,16 @@ ob_start();
                     <textarea name="home_page_description_en" rows="2" placeholder="<?= __('homepage.defaults.page_description_en') ?>"><?= htmlspecialchars($s['home_page_description_en'] ?? '') ?></textarea>
                 </label>
             </div>
-        </div>
+        </section>
 
-        <div class="card subtle stack">
-            <p class="eyebrow"><?= __('homepage.custom.section') ?></p>
+        <section class="card subtle stack homepage-builder__section homepage-builder__section--custom">
+            <div class="homepage-builder__section-head">
+                <div>
+                    <p class="eyebrow"><?= __('homepage.custom.section') ?></p>
+                    <h4>Custom Payloads</h4>
+                </div>
+                <span class="pill subtle">JSON / CSS</span>
+            </div>
             <p class="muted"><?= __('homepage.custom.help') ?></p>
             <label class="field">
                 <span><?= __('homepage.custom.blocks') ?></span>
@@ -371,9 +407,9 @@ ob_start();
                 <span><?= __('homepage.custom.css') ?></span>
                 <textarea name="home_custom_css" rows="4" placeholder="<?= __('homepage.custom.css_placeholder') ?>"><?= htmlspecialchars($s['home_custom_css'] ?? '') ?></textarea>
             </label>
-        </div>
+        </section>
 
-        <div class="form-actions">
+        <div class="form-actions homepage-builder__actions homepage-builder__actions--footer">
             <button type="submit" class="btn primary"><?= __('homepage.action.save') ?></button>
         </div>
     </form>

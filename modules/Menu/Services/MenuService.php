@@ -96,11 +96,13 @@ class MenuService
             ':description_en' => trim($data['description_en'] ?? ''),
             ':canonical_url' => trim($data['canonical_url'] ?? ''),
             ':image_url' => trim($data['image_url'] ?? ''),
+            ':icon' => trim($data['icon'] ?? ''),
+            ':is_anchor' => !empty($data['is_anchor']) ? 1 : 0,
         ];
         if ($id === null) {
             $this->db->execute("
-                INSERT INTO settings_menu (position, parent_id, depth, url, enabled, admin_only, label_ru, label_en, title_ru, title_en, description_ru, description_en, canonical_url, image_url)
-                VALUES (:position, :parent_id, :depth, :url, :enabled, :admin_only, :label_ru, :label_en, :title_ru, :title_en, :description_ru, :description_en, :canonical_url, :image_url)
+                INSERT INTO settings_menu (position, parent_id, depth, url, enabled, admin_only, label_ru, label_en, title_ru, title_en, description_ru, description_en, canonical_url, image_url, icon, is_anchor)
+                VALUES (:position, :parent_id, :depth, :url, :enabled, :admin_only, :label_ru, :label_en, :title_ru, :title_en, :description_ru, :description_en, :canonical_url, :image_url, :icon, :is_anchor)
             ", $payload);
             return (int)$this->db->pdo()->lastInsertId();
         }
@@ -120,7 +122,9 @@ class MenuService
                 description_ru = :description_ru,
                 description_en = :description_en,
                 canonical_url = :canonical_url,
-                image_url = :image_url
+                image_url = :image_url,
+                icon = :icon,
+                is_anchor = :is_anchor
             WHERE id = :id
         ", $payload);
         return $id;
@@ -183,6 +187,8 @@ class MenuService
             'image_url' => $row['image_url'] ?? '',
             'parent_id' => !empty($row['parent_id']) ? (int)$row['parent_id'] : null,
             'depth' => (int)($row['depth'] ?? 0),
+            'icon' => $row['icon'] ?? '',
+            'is_anchor' => (int)($row['is_anchor'] ?? 0) === 1,
         ];
     }
 
@@ -322,6 +328,8 @@ class MenuService
                 description_en TEXT NULL,
                 canonical_url VARCHAR(1024) NULL,
                 image_url VARCHAR(1024) NULL,
+                icon VARCHAR(64) NULL,
+                is_anchor TINYINT(1) NOT NULL DEFAULT 0,
                 INDEX idx_parent_id (parent_id),
                 INDEX idx_position (position),
                 INDEX idx_enabled (enabled),
@@ -338,6 +346,8 @@ class MenuService
             'depth' => "ADD COLUMN depth TINYINT(1) NOT NULL DEFAULT 0 AFTER parent_id",
             'canonical_url' => "ADD COLUMN canonical_url VARCHAR(1024) NULL AFTER description_en",
             'image_url' => "ADD COLUMN image_url VARCHAR(1024) NULL AFTER canonical_url",
+            'icon' => "ADD COLUMN icon VARCHAR(64) NULL AFTER image_url",
+            'is_anchor' => "ADD COLUMN is_anchor TINYINT(1) NOT NULL DEFAULT 0 AFTER icon",
         ];
         foreach ($cols as $name => $ddl) {
             $exists = $this->db->fetch(

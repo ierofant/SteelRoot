@@ -16,24 +16,24 @@ ob_start();
     <div class="card-header">
         <div>
             <p class="eyebrow">News</p>
-            <h3>Categories</h3>
+            <h3>Категории новостей</h3>
         </div>
         <div class="u-flex u-gap-half">
-            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/news">← News</a>
-            <a class="btn primary" href="<?= htmlspecialchars($ap) ?>/news/categories/create">+ New Category</a>
+            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/news">← К новостям</a>
+            <a class="btn primary" href="<?= htmlspecialchars($ap) ?>/news/categories/create">+ Создать категорию</a>
         </div>
     </div>
     <div class="table-wrap">
         <table class="table">
             <thead>
                 <tr>
-                    <th>Image</th>
+                    <th>Изображение</th>
                     <?php if ($showEn): ?><th>Name EN</th><?php endif; ?>
                     <?php if ($showRu): ?><th>Name RU</th><?php endif; ?>
                     <th>Slug</th>
-                    <th>Position</th>
-                    <th>Enabled</th>
-                    <th>Actions</th>
+                    <th>Позиция</th>
+                    <th>Статус</th>
+                    <th>Действия</th>
                 </tr>
             </thead>
             <tbody>
@@ -52,22 +52,22 @@ ob_start();
                     <td><?= (int)$c['position'] ?></td>
                     <td>
                         <?php if ($c['enabled']): ?>
-                            <span class="pill pill-accent-dark">Yes</span>
+                            <span class="pill pill-accent-dark">Вкл</span>
                         <?php else: ?>
-                            <span class="pill">No</span>
+                            <span class="pill">Выкл</span>
                         <?php endif; ?>
                     </td>
                     <td class="actions">
-                        <a class="btn ghost small" href="<?= htmlspecialchars($ap) ?>/news/categories/edit/<?= (int)$c['id'] ?>">Edit</a>
-                        <form method="post" action="<?= htmlspecialchars($ap) ?>/news/categories/delete/<?= (int)$c['id'] ?>" onsubmit="return confirm('Delete this category?')">
+                        <a class="btn ghost small" href="<?= htmlspecialchars($ap) ?>/news/categories/edit/<?= (int)$c['id'] ?>">Редактировать</a>
+                        <form method="post" action="<?= htmlspecialchars($ap) ?>/news/categories/delete/<?= (int)$c['id'] ?>" onsubmit="return confirm('Удалить эту категорию?')">
                             <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
-                            <button type="submit" class="btn danger small">Delete</button>
+                            <button type="submit" class="btn danger small">Удалить</button>
                         </form>
                     </td>
                 </tr>
                 <?php endforeach; ?>
                 <?php if (empty($categories)): ?>
-                <tr><td colspan="<?= 5 + (int)$showEn + (int)$showRu ?>" class="muted">No categories yet.</td></tr>
+                <tr><td colspan="<?= 5 + (int)$showEn + (int)$showRu ?>" class="muted">Категорий пока нет.</td></tr>
                 <?php endif; ?>
             </tbody>
         </table>
@@ -80,9 +80,9 @@ ob_start();
     <div class="card-header">
         <div>
             <p class="eyebrow">News</p>
-            <h3><?= $isEdit ? 'Edit Category' : 'New Category' ?></h3>
+            <h3><?= $isEdit ? 'Редактировать категорию' : 'Новая категория' ?></h3>
         </div>
-        <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/news/categories">← Back</a>
+        <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/news/categories">← Назад</a>
     </div>
     <form method="post"
           action="<?= $isEdit ? $ap . '/news/categories/edit/' . (int)($cat['id'] ?? 0) : $ap . '/news/categories/create' ?>"
@@ -103,26 +103,26 @@ ob_start();
         </div>
         <?php elseif ($showEn): ?>
         <label class="field">
-            <span>Name</span>
+            <span>Название</span>
             <input type="text" name="name_en" value="<?= htmlspecialchars($cat['name_en'] ?? '') ?>" required>
         </label>
         <?php else: ?>
         <label class="field">
-            <span>Name</span>
+            <span>Название</span>
             <input type="text" name="name_ru" value="<?= htmlspecialchars($cat['name_ru'] ?? '') ?>" required>
         </label>
         <?php endif; ?>
 
         <label class="field">
             <span>Slug</span>
-            <input type="text" name="slug" value="<?= htmlspecialchars($cat['slug'] ?? '') ?>" placeholder="Auto-generated from name if empty">
+            <input type="text" name="slug" value="<?= htmlspecialchars($cat['slug'] ?? '') ?>" placeholder="Если пусто, будет создан автоматически">
         </label>
 
         <label class="field">
-            <span>Image</span>
+            <span>Изображение</span>
             <input type="file" name="image" accept="image/*" onchange="previewCatImage(this)">
             <input type="text" name="image_url" id="cat_image_url"
-                   placeholder="Or paste URL"
+                   placeholder="или вставьте URL"
                    value="<?= htmlspecialchars($cat['image_url'] ?? '') ?>">
             <div id="cat_image_preview" class="<?= empty($cat['image_url']) ? 'u-hide' : '' ?>">
                 <?php if (!empty($cat['image_url'])): ?>
@@ -135,18 +135,18 @@ ob_start();
 
         <div class="grid two">
             <label class="field">
-                <span>Position</span>
+                <span>Позиция</span>
                 <input type="number" name="position" value="<?= (int)($cat['position'] ?? 0) ?>" min="0">
             </label>
             <label class="field category-enabled-field">
                 <input type="checkbox" name="enabled" value="1" <?= ($cat === null || !empty($cat['enabled'])) ? 'checked' : '' ?>>
-                <span>Enabled</span>
+                <span>Включена</span>
             </label>
         </div>
 
         <div class="form-actions">
-            <button type="submit" class="btn primary">Save</button>
-            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/news/categories">Cancel</a>
+            <button type="submit" class="btn primary">Сохранить</button>
+            <a class="btn ghost" href="<?= htmlspecialchars($ap) ?>/news/categories">Отмена</a>
         </div>
     </form>
 </div>
@@ -174,6 +174,6 @@ document.getElementById('cat_image_url')?.addEventListener('input', function() {
 <?php endif; ?>
 
 <?php
-$pageTitle = $title ?? 'News Categories';
+$pageTitle = $title ?? 'Категории новостей';
 $content = ob_get_clean();
 include APP_ROOT . '/modules/Admin/views/layout.php';

@@ -4,6 +4,7 @@ return [
     'auto_activate' => true,
     'block_ips' => [],
     'block_user_agents' => [],
+    'master_contact_bot_username' => '@TattooTodayBot',
     'smtp' => [
         'enabled' => false,
         'from' => 'noreply@example.com',

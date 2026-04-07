@@ -3,6 +3,9 @@ namespace Modules\Users\Services;
 
 class Auth
 {
+    private const REMEMBER_COOKIE = 'tt_remember';
+    private const REMEMBER_TTL = 2592000;
+
     private UserRepository $users;
     private array $config;
     private ?array $cachedUser = null;
@@ -21,22 +24,25 @@ class Auth
         if ($this->cachedUser !== null) {
             return $this->cachedUser;
         }
+
+        $this->ensureSessionForRememberCookie();
+
         $id = $_SESSION['user_id'] ?? null;
-        if (!$id) {
-            return null;
+        if ($id) {
+            $user = $this->users->findFull((int)$id);
+            if ($user && ($user['status'] ?? '') === 'active') {
+                $this->cachedUser = $user;
+                $this->users->touchLastSeen((int)$id);
+                return $user;
+            }
+
+            $this->clearUserSession();
         }
-        $user = $this->users->find((int)$id);
-        if (!$user) {
-            return null;
-        }
-        if (($user['status'] ?? '') !== 'active') {
-            return null;
-        }
-        $this->cachedUser = $user;
-        return $user;
+
+        return $this->restoreRememberedUser();
     }
 
-    public function attempt(string $email, string $password, string $ip = '', string $ua = ''): array
+    public function attempt(string $email, string $password, string $ip = '', string $ua = '', bool $remember = false): array
     {
         $user = $this->users->findByEmail($email);
         if (!$user) {
@@ -56,13 +62,24 @@ class Auth
             return [false, 'Invalid credentials'];
         }
         $this->setSession($user);
+        if ($remember) {
+            $this->issueRememberCookie((int)$user['id'], $ip, $ua);
+        } else {
+            $this->clearRememberCookie();
+        }
         $this->users->logLogin((int)$user['id'], $ip, $ua);
         return [true, ''];
     }
 
     public function logout(): void
     {
-        unset($_SESSION['user_id'], $_SESSION['user_role'], $_SESSION['user_status']);
+        $selector = $this->rememberSelectorFromCookie();
+        if ($selector !== null) {
+            $this->users->deleteRememberToken($selector);
+        }
+
+        $this->clearUserSession();
+        $this->clearRememberCookie();
         $this->cachedUser = null;
     }
 
@@ -95,12 +112,15 @@ class Auth
         return (bool)($this->config['require_email_confirmation'] ?? false);
     }
 
-    public function loginDirect(array $user): void
+    public function loginDirect(array $user, bool $remember = false): void
     {
         if (($user['status'] ?? '') !== 'active') {
             return;
         }
         $this->setSession($user);
+        if ($remember) {
+            $this->issueRememberCookie((int)$user['id'], $_SERVER['REMOTE_ADDR'] ?? '', $_SERVER['HTTP_USER_AGENT'] ?? '');
+        }
         $this->users->logLogin((int)$user['id'], $_SERVER['REMOTE_ADDR'] ?? '', $_SERVER['HTTP_USER_AGENT'] ?? '');
     }
 
@@ -110,5 +130,106 @@ class Auth
         $_SESSION['user_role'] = $user['role'] ?? 'user';
         $_SESSION['user_status'] = $user['status'] ?? 'active';
         $this->cachedUser = $user;
+    }
+
+    private function restoreRememberedUser(): ?array
+    {
+        [$selector, $token] = $this->rememberPartsFromCookie();
+        if ($selector === null || $token === null) {
+            return null;
+        }
+
+        $row = $this->users->findRememberToken($selector);
+        if (!$row) {
+            $this->clearRememberCookie();
+            return null;
+        }
+
+        if (!password_verify($token, (string)($row['token_hash'] ?? ''))) {
+            $this->users->deleteRememberToken($selector);
+            $this->clearRememberCookie();
+            return null;
+        }
+
+        $userId = (int)($row['user_id'] ?? 0);
+        $user = $userId > 0 ? $this->users->findFull($userId) : null;
+        if (!$user || ($user['status'] ?? '') !== 'active') {
+            $this->users->deleteRememberToken($selector);
+            $this->clearRememberCookie();
+            return null;
+        }
+
+        $this->setSession($user);
+        $this->users->touchLastSeen($userId);
+        $this->rotateRememberCookie($selector, $userId, $_SERVER['REMOTE_ADDR'] ?? '', $_SERVER['HTTP_USER_AGENT'] ?? '');
+
+        return $user;
+    }
+
+    private function issueRememberCookie(int $userId, string $ip, string $ua): void
+    {
+        $selector = bin2hex(random_bytes(9));
+        $token = bin2hex(random_bytes(32));
+        $this->users->storeRememberToken($userId, $selector, password_hash($token, PASSWORD_DEFAULT), self::REMEMBER_TTL, $ip, $ua);
+        $this->setRememberCookieValue($selector . ':' . $token, time() + self::REMEMBER_TTL);
+    }
+
+    private function rotateRememberCookie(string $selector, int $userId, string $ip, string $ua): void
+    {
+        $token = bin2hex(random_bytes(32));
+        $this->users->rotateRememberToken($selector, password_hash($token, PASSWORD_DEFAULT), self::REMEMBER_TTL, $ip, $ua);
+        $this->setRememberCookieValue($selector . ':' . $token, time() + self::REMEMBER_TTL);
+    }
+
+    private function clearRememberCookie(): void
+    {
+        unset($_COOKIE[self::REMEMBER_COOKIE]);
+        $this->setRememberCookieValue('', time() - 3600);
+    }
+
+    private function rememberPartsFromCookie(): array
+    {
+        $raw = (string)($_COOKIE[self::REMEMBER_COOKIE] ?? '');
+        if ($raw === '' || strpos($raw, ':') === false) {
+            return [null, null];
+        }
+
+        [$selector, $token] = explode(':', $raw, 2);
+        $selector = preg_match('/^[a-f0-9]{18}$/', $selector) ? $selector : null;
+        $token = preg_match('/^[a-f0-9]{64}$/', $token) ? $token : null;
+
+        return [$selector, $token];
+    }
+
+    private function rememberSelectorFromCookie(): ?string
+    {
+        [$selector] = $this->rememberPartsFromCookie();
+        return $selector;
+    }
+
+    private function clearUserSession(): void
+    {
+        unset($_SESSION['user_id'], $_SESSION['user_role'], $_SESSION['user_status']);
+    }
+
+    private function ensureSessionForRememberCookie(): void
+    {
+        if (!empty($_SESSION) || empty($_COOKIE[self::REMEMBER_COOKIE])) {
+            return;
+        }
+        if (session_status() === PHP_SESSION_NONE) {
+            @session_start();
+        }
+    }
+
+    private function setRememberCookieValue(string $value, int $expires): void
+    {
+        setcookie(self::REMEMBER_COOKIE, $value, [
+            'expires' => $expires,
+            'path' => '/',
+            'secure' => !empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off',
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
     }
 }

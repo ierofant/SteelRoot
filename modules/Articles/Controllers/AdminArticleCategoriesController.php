@@ -19,7 +19,7 @@ class AdminArticleCategoriesController
     public function __construct(Container $container)
     {
         $this->container = $container;
-        $this->service = new ArticleCategoryService($container->get(Database::class));
+        $this->service = new ArticleCategoryService($container->get(Database::class), $container->get('cache'));
         $this->uploadPath = APP_ROOT . '/storage/uploads/articles/categories';
         if (!is_dir($this->uploadPath)) {
             mkdir($this->uploadPath, 0775, true);

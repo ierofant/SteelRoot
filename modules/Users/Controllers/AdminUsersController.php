@@ -1,11 +1,14 @@
 <?php
 namespace Modules\Users\Controllers;
 
+use App\Services\UserPublicSummaryService;
 use Core\Container;
 use Core\Csrf;
 use Core\Request;
 use Core\Response;
 use Core\ModuleSettings;
+use Modules\Users\Services\CommunityPollService;
+use Modules\Users\Services\UserAccessService;
 use Modules\Users\Services\UserRepository;
 
 class AdminUsersController
@@ -13,38 +16,88 @@ class AdminUsersController
     private Container $container;
     private UserRepository $users;
     private ModuleSettings $moduleSettings;
+    private UserAccessService $access;
+    private CommunityPollService $communityPolls;
 
     public function __construct(Container $container)
     {
         $this->container = $container;
         $this->users = $container->get(UserRepository::class);
         $this->moduleSettings = $container->get(ModuleSettings::class);
+        $this->access = $container->get(UserAccessService::class);
+        $this->communityPolls = $container->get(CommunityPollService::class);
     }
 
     public function index(Request $request): Response
     {
         $filters = [
             'email'  => trim($request->query['email'] ?? ''),
+            'username' => trim($request->query['username'] ?? ''),
             'role'   => trim($request->query['role'] ?? ''),
             'status' => trim($request->query['status'] ?? ''),
+            'group' => trim($request->query['group'] ?? ''),
         ];
+        $sort = trim((string)($request->query['sort'] ?? 'created_at'));
+        $dir = strtolower(trim((string)($request->query['dir'] ?? 'desc')));
         $page    = max(1, (int)($request->query['page'] ?? 1));
         $perPage = 20;
         $total   = $this->users->count($filters);
-        $list    = $this->users->list($filters, $perPage, ($page - 1) * $perPage);
+        $list    = $this->users->list($filters, $perPage, ($page - 1) * $perPage, $sort, $dir);
         $html = $this->container->get('renderer')->render('users/admin/users_list', [
             'title'      => 'Users',
             'users'      => $list,
             'filters'    => $filters,
+            'sort'       => $sort,
+            'dir'        => $dir,
             'csrf'       => Csrf::token('admin_users'),
             'blockToken' => Csrf::token('admin_users_block'),
             'resetToken' => Csrf::token('admin_users_reset'),
-            'message'    => $request->query['msg'] ?? null,
+            'deleteToken' => Csrf::token('admin_users_delete'),
+            'flash'      => $this->listMessageFromQuery((string)($request->query['msg'] ?? '')),
             'page'       => $page,
             'total'      => $total,
             'perPage'    => $perPage,
+            'groupOptions' => $this->users->groupOptions(),
+            'planOptions' => $this->users->listMasterPlans(true),
         ]);
         return new Response($html);
+    }
+
+    public function export(Request $request): Response
+    {
+        $filters = [
+            'email'  => trim($request->query['email'] ?? ''),
+            'username' => trim($request->query['username'] ?? ''),
+            'role'   => trim($request->query['role'] ?? ''),
+            'status' => trim($request->query['status'] ?? ''),
+            'group' => trim($request->query['group'] ?? ''),
+        ];
+        $sort = trim((string)($request->query['sort'] ?? 'created_at'));
+        $dir = strtolower(trim((string)($request->query['dir'] ?? 'desc')));
+        $rows = $this->users->export($filters, $sort, $dir);
+
+        $fh = fopen('php://temp', 'r+');
+        if ($fh === false) {
+            return new Response('Unable to generate CSV', 500);
+        }
+
+        fwrite($fh, "\xEF\xBB\xBF");
+        fputcsv($fh, ['email', 'name'], ',', '"', '');
+        foreach ($rows as $row) {
+            fputcsv($fh, [
+                (string)($row['email'] ?? ''),
+                (string)($row['name'] ?? ''),
+            ], ',', '"', '');
+        }
+        rewind($fh);
+        $csv = stream_get_contents($fh);
+        fclose($fh);
+
+        return new Response($csv === false ? '' : $csv, 200, [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="users-export.csv"',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     public function create(Request $request): Response
@@ -54,6 +107,8 @@ class AdminUsersController
             'csrf' => Csrf::token('admin_users'),
             'error' => null,
             'visibilityOptions' => ['public', 'private'],
+            'groupOptions' => $this->visibleGroupOptions(),
+            'planOptions' => $this->users->listMasterPlans(true),
         ]);
         return new Response($html);
     }
@@ -70,7 +125,21 @@ class AdminUsersController
         $pass = (string)($request->body['password'] ?? '');
         $usernameInput = (string)($request->body['username'] ?? $name);
         $visibility = $this->normalizeVisibility((string)($request->body['profile_visibility'] ?? 'public'));
+        $isMaster = !empty($request->body['is_master']) ? 1 : 0;
+        $isVerified = !empty($request->body['is_verified']) ? 1 : 0;
+        if ($isVerified) {
+            $isMaster = 1;
+        }
+        if ($this->forbidRawExternalLinks() && $this->hasRawLinksInProfileText($request->body, (bool)$isMaster)) {
+            return $this->renderCreateError((string)__('users.profile.error.raw_links'));
+        }
         $signature = $this->sanitizeSignature($request->body['signature'] ?? null);
+        $groupIds = array_map('intval', (array)($request->body['group_ids'] ?? []));
+        $primaryGroupId = (int)($request->body['primary_group_id'] ?? 0);
+        $planId = (int)($request->body['plan_id'] ?? 0);
+        $planExpiresAt = trim((string)($request->body['plan_expires_at'] ?? ''));
+        $planStatus = trim((string)($request->body['plan_status'] ?? 'active'));
+        $planNote = trim((string)($request->body['plan_note'] ?? ''));
         if ($name === '' || $email === '' || $pass === '') {
             return $this->renderCreateError('All fields are required');
         }
@@ -90,7 +159,17 @@ class AdminUsersController
         if ($this->users->usernameExists($username)) {
             return $this->renderCreateError('Username already exists');
         }
-        $this->users->create($name, $email, password_hash($pass, PASSWORD_DEFAULT), $role, $status, null, $username, $visibility, $signature);
+        $id = $this->users->create($name, $email, password_hash($pass, PASSWORD_DEFAULT), $role, $status, null, $username, $visibility, $signature);
+        $this->users->upsertProfile($id, [
+            'is_master' => $isMaster,
+            'is_verified' => $isVerified,
+        ]);
+        $this->container->get(UserPublicSummaryService::class)->invalidate($id);
+        [$groupIds, $primaryGroupId] = $this->normalizeGroupSelection($groupIds, $primaryGroupId, $isMaster, $isVerified);
+        $this->users->assignGroups($id, $groupIds, $primaryGroupId > 0 ? $primaryGroupId : null);
+        if ($planId > 0) {
+            $this->users->assignMasterPlan($id, $planId, $planExpiresAt !== '' ? $planExpiresAt . ' 23:59:59' : null, $planStatus, $this->currentAdminUserId(), $planNote);
+        }
         return new Response('', 302, ['Location' => $this->prefix() . '/users?msg=created']);
     }
 
@@ -103,7 +182,7 @@ class AdminUsersController
             'title' => __('users.settings.title'),
             'csrf' => Csrf::token('users_settings'),
             'settings' => $data,
-            'saved' => !empty($request->query['saved']),
+            'flash' => !empty($request->query['saved']) ? 'Saved' : null,
         ]);
         return new Response($html);
     }
@@ -118,6 +197,7 @@ class AdminUsersController
             'email_verification_required' => 'users_email_verification_required',
             'auto_login_after_register' => 'users_auto_login_after_register',
             'default_role' => 'users_default_role',
+            'email_blacklist' => 'users_email_blacklist',
             'email_domain_blacklist' => 'users_email_domain_blacklist',
             'email_domain_whitelist' => 'users_email_domain_whitelist',
             'username_min_length' => 'users_username_min_length',
@@ -127,10 +207,33 @@ class AdminUsersController
             'password_require_special' => 'users_password_require_special',
             'registration_rate_limit' => 'users_registration_rate_limit',
             'blocked_ips' => 'users_blocked_ips',
+            'extended_profiles_enabled' => 'users_extended_profiles_enabled',
+            'groups_enabled' => 'users_groups_enabled',
+            'master_profiles_enabled' => 'users_master_profiles_enabled',
+            'master_uploads_enabled' => 'users_master_uploads_enabled',
+            'verified_masters_only_upload' => 'users_verified_masters_only_upload',
+            'favorites_enabled' => 'users_favorites_enabled',
+            'ratings_enabled' => 'users_ratings_enabled',
+            'reviews_enabled' => 'users_reviews_enabled',
+            'profile_comments_enabled' => 'users_profile_comments_enabled',
+            'cover_enabled' => 'users_cover_enabled',
+            'external_links_enabled' => 'users_external_links_enabled',
+            'contacts_enabled' => 'users_contacts_enabled',
+            'master_contact_enabled' => 'users_master_contact_enabled',
+            'master_gallery_moderation' => 'users_master_gallery_moderation',
+            'reviews_require_moderation' => 'users_reviews_require_moderation',
+            'links_require_approval' => 'users_links_require_approval',
+            'master_verification_required' => 'users_master_verification_required',
+            'master_plans_enabled' => 'users_master_plans_enabled',
+            'manual_plan_assignment_only' => 'users_manual_plan_assignment_only',
+            'allowed_social_platforms' => 'users_allowed_social_platforms',
+            'master_contact_bot_username' => 'users_master_contact_bot_username',
+            'forbid_raw_external_links' => 'users_forbid_raw_external_links',
+            'username_change_disabled' => 'users_username_change_disabled',
         ];
         foreach ($map as $key => $field) {
             $val = $request->body[$field] ?? null;
-            if (in_array($key, ['registration_enabled','email_verification_required','auto_login_after_register','password_require_numbers','password_require_special'], true)) {
+            if (in_array($key, ['registration_enabled','email_verification_required','auto_login_after_register','password_require_numbers','password_require_special','extended_profiles_enabled','groups_enabled','master_profiles_enabled','master_uploads_enabled','verified_masters_only_upload','favorites_enabled','ratings_enabled','reviews_enabled','profile_comments_enabled','cover_enabled','external_links_enabled','contacts_enabled','master_contact_enabled','master_gallery_moderation','reviews_require_moderation','links_require_approval','master_verification_required','master_plans_enabled','manual_plan_assignment_only','forbid_raw_external_links','username_change_disabled'], true)) {
                 $val = !empty($val) ? 1 : 0;
             } elseif (in_array($key, ['username_min_length','username_max_length','password_min_length','registration_rate_limit'], true)) {
                 $val = (int)$val;
@@ -142,6 +245,30 @@ class AdminUsersController
         return new Response('', 302, ['Location' => $this->prefix() . '/users/settings?saved=1']);
     }
 
+    public function communityPoll(Request $request): Response
+    {
+        $audience = trim((string)($request->query['audience'] ?? 'all'));
+        $report = $this->communityPolls->adminReport($audience);
+        $html = $this->container->get('renderer')->render('users/admin/community_poll', [
+            'title' => __('users.community_poll.admin.title'),
+            'csrf' => Csrf::token('users_community_poll_settings'),
+            'report' => $report,
+            'flash' => !empty($request->query['saved']) ? __('users.community_poll.admin.saved') : null,
+        ]);
+        return new Response($html);
+    }
+
+    public function saveCommunityPoll(Request $request): Response
+    {
+        if (!Csrf::check('users_community_poll_settings', $request->body['_token'] ?? null)) {
+            return new Response('Invalid CSRF', 400);
+        }
+
+        $this->communityPolls->saveSurveySettings($request->body);
+
+        return new Response('', 302, ['Location' => $this->prefix() . '/users/community-poll?saved=1']);
+    }
+
     private function defaults(): array
     {
         return [
@@ -149,6 +276,7 @@ class AdminUsersController
             'email_verification_required' => 0,
             'auto_login_after_register' => 0,
             'default_role' => 'user',
+            'email_blacklist' => '',
             'email_domain_blacklist' => '',
             'email_domain_whitelist' => '',
             'username_min_length' => 3,
@@ -158,6 +286,29 @@ class AdminUsersController
             'password_require_special' => 0,
             'registration_rate_limit' => 5,
             'blocked_ips' => '',
+            'extended_profiles_enabled' => 1,
+            'groups_enabled' => 1,
+            'master_profiles_enabled' => 1,
+            'master_uploads_enabled' => 1,
+            'verified_masters_only_upload' => 1,
+            'favorites_enabled' => 1,
+            'ratings_enabled' => 1,
+            'reviews_enabled' => 1,
+            'profile_comments_enabled' => 1,
+            'cover_enabled' => 1,
+            'external_links_enabled' => 1,
+            'contacts_enabled' => 1,
+            'master_contact_enabled' => 1,
+            'master_gallery_moderation' => 1,
+            'reviews_require_moderation' => 1,
+            'links_require_approval' => 1,
+            'master_verification_required' => 0,
+            'master_plans_enabled' => 1,
+            'manual_plan_assignment_only' => 1,
+            'allowed_social_platforms' => 'telegram,vk,instagram,youtube,tiktok,whatsapp',
+            'master_contact_bot_username' => '',
+            'forbid_raw_external_links' => 1,
+            'username_change_disabled' => 1,
         ];
     }
 
@@ -170,11 +321,14 @@ class AdminUsersController
         }
         $html = $this->container->get('renderer')->render('users/admin/user_edit', [
             'title' => 'Edit User',
-            'user' => $user,
+            'user' => $this->users->findFull($id) ?? $user,
             'csrf' => Csrf::token('admin_users'),
+            'deleteToken' => Csrf::token('admin_users_delete'),
             'error' => null,
-            'message' => $request->query['msg'] ?? null,
+            'flash' => $this->editMessageFromQuery((string)($request->query['msg'] ?? '')),
             'visibilityOptions' => ['public', 'private'],
+            'groupOptions' => $this->visibleGroupOptions(),
+            'planOptions' => $this->users->listMasterPlans(true),
         ]);
         return new Response($html);
     }
@@ -197,7 +351,21 @@ class AdminUsersController
         $pass2 = (string)($request->body['password_confirm'] ?? '');
         $usernameInput = (string)($request->body['username'] ?? ($user['username'] ?? $user['name'] ?? ''));
         $visibility = $this->normalizeVisibility((string)($request->body['profile_visibility'] ?? ($user['profile_visibility'] ?? 'public')));
+        $isMaster = !empty($request->body['is_master']) ? 1 : 0;
+        $isVerified = !empty($request->body['is_verified']) ? 1 : 0;
+        if ($isVerified) {
+            $isMaster = 1;
+        }
+        if ($this->forbidRawExternalLinks() && $this->hasRawLinksInProfileText($request->body, (bool)$isMaster)) {
+            return $this->renderEditError($user, (string)__('users.profile.error.raw_links'));
+        }
         $signature = $this->sanitizeSignature($request->body['signature'] ?? null);
+        $groupIds = array_map('intval', (array)($request->body['group_ids'] ?? []));
+        $primaryGroupId = (int)($request->body['primary_group_id'] ?? 0);
+        $planId = (int)($request->body['plan_id'] ?? 0);
+        $planExpiresAt = trim((string)($request->body['plan_expires_at'] ?? ''));
+        $planStatus = trim((string)($request->body['plan_status'] ?? 'active'));
+        $planNote = trim((string)($request->body['plan_note'] ?? ''));
         if ($name === '' || $email === '') {
             return $this->renderEditError($user, 'Name and email required');
         }
@@ -224,6 +392,14 @@ class AdminUsersController
             'signature' => $signature,
         ];
         $this->users->update($id, $data);
+        $this->users->upsertProfile($id, [
+            'is_master' => $isMaster,
+            'is_verified' => $isVerified,
+        ]);
+        $this->container->get(UserPublicSummaryService::class)->invalidate($id);
+        [$groupIds, $primaryGroupId] = $this->normalizeGroupSelection($groupIds, $primaryGroupId, $isMaster, $isVerified);
+        $this->users->assignGroups($id, $groupIds, $primaryGroupId > 0 ? $primaryGroupId : null);
+        $this->users->assignMasterPlan($id, $planId > 0 ? $planId : null, $planExpiresAt !== '' ? $planExpiresAt . ' 23:59:59' : null, $planStatus, $this->currentAdminUserId(), $planNote);
         if ($pass !== '') {
             if ($pass !== $pass2) {
                 return $this->renderEditError($this->users->find($id) ?? $user, 'Passwords do not match');
@@ -256,6 +432,69 @@ class AdminUsersController
         return new Response('', 302, ['Location' => $this->prefix() . '/users?msg=unblocked']);
     }
 
+    public function delete(Request $request): Response
+    {
+        if (!Csrf::check('admin_users_delete', $request->body['_token'] ?? null)) {
+            return new Response('Invalid CSRF token', 400);
+        }
+
+        $id = (int)($request->params['id'] ?? 0);
+        if ($id < 1) {
+            return new Response('Invalid user', 400);
+        }
+
+        if ($this->currentAdminUserId() === $id) {
+            return new Response('', 302, ['Location' => $this->prefix() . '/users/edit/' . $id . '?msg=cannot-delete-self']);
+        }
+
+        $user = $this->users->find($id);
+        if (!$user) {
+            return new Response('Not found', 404);
+        }
+
+        $this->users->deleteUser($id);
+        $this->container->get(UserPublicSummaryService::class)->invalidate($id);
+
+        return new Response('', 302, ['Location' => $this->prefix() . '/users?msg=deleted']);
+    }
+
+    public function bulkDelete(Request $request): Response
+    {
+        if (!Csrf::check('admin_users_delete', $request->body['_token'] ?? null)) {
+            return new Response('Invalid CSRF token', 400);
+        }
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', (array)($request->body['ids'] ?? [])), static function (int $id): bool {
+            return $id > 0;
+        })));
+
+        if ($ids === []) {
+            return new Response('', 302, ['Location' => $this->prefix() . '/users?msg=bulk-delete-empty']);
+        }
+
+        $currentAdminId = $this->currentAdminUserId();
+        $selfSkipped = false;
+
+        foreach ($ids as $id) {
+            if ($currentAdminId !== null && $currentAdminId === $id) {
+                $selfSkipped = true;
+                continue;
+            }
+
+            $user = $this->users->find($id);
+            if (!$user) {
+                continue;
+            }
+
+            $this->users->deleteUser($id);
+            $this->container->get(UserPublicSummaryService::class)->invalidate($id);
+        }
+
+        $message = $selfSkipped ? 'bulk-delete-self-skipped' : 'bulk-deleted';
+
+        return new Response('', 302, ['Location' => $this->prefix() . '/users?msg=' . $message]);
+    }
+
     public function resetPassword(Request $request): Response
     {
         if (!Csrf::check('admin_users_reset', $request->body['_token'] ?? null)) {
@@ -274,8 +513,15 @@ class AdminUsersController
             'csrf' => Csrf::token('admin_users'),
             'error' => $msg,
             'visibilityOptions' => ['public', 'private'],
+            'groupOptions' => $this->visibleGroupOptions(),
+            'planOptions' => $this->users->listMasterPlans(true),
         ]);
         return new Response($html, 400);
+    }
+
+    private function currentAdminUserId(): ?int
+    {
+        return isset($_SESSION['user_id']) ? (int)$_SESSION['user_id'] : null;
     }
 
     private function renderEditError(array $user, string $msg): Response
@@ -285,10 +531,45 @@ class AdminUsersController
             'user' => $user,
             'csrf' => Csrf::token('admin_users'),
             'error' => $msg,
-            'message' => null,
+            'flash' => null,
             'visibilityOptions' => ['public', 'private'],
+            'groupOptions' => $this->visibleGroupOptions(),
+            'planOptions' => $this->users->listMasterPlans(true),
         ]);
         return new Response($html, 400);
+    }
+
+    private function visibleGroupOptions(): array
+    {
+        return $this->users->groupOptions();
+    }
+
+    private function normalizeGroupSelection(array $groupIds, int $primaryGroupId, int $isMaster, int $isVerified): array
+    {
+        $groupIds = array_values(array_unique(array_filter(array_map('intval', $groupIds), static function (int $id): bool {
+            return $id > 0;
+        })));
+
+        $systemGroupIds = [];
+        foreach ($this->users->groupOptions() as $group) {
+            $groupId = (int)($group['id'] ?? 0);
+            $slug = (string)($group['slug'] ?? '');
+            if ($groupId > 0 && in_array($slug, self::SYSTEM_MASTER_GROUP_SLUGS, true)) {
+                $systemGroupIds[$slug] = $groupId;
+            }
+        }
+
+        if ($isMaster && !empty($systemGroupIds['master'])) {
+            $groupIds[] = (int)$systemGroupIds['master'];
+        }
+
+        if ($isVerified && !empty($systemGroupIds['verified_master'])) {
+            $groupIds[] = (int)$systemGroupIds['verified_master'];
+        }
+
+        $groupIds = array_values(array_unique($groupIds));
+
+        return [$groupIds, $primaryGroupId];
     }
 
     private function normalizeRole(string $role): string
@@ -322,6 +603,8 @@ class AdminUsersController
             return null;
         }
         $plain = strip_tags($plain);
+        $plain = preg_replace('~(?:https?://|www\.)\S+~iu', ' ', $plain);
+        $plain = preg_replace('~(?<!@)\b[\p{L}\p{N}][\p{L}\p{N}\-._]*\.[a-z]{2,}(?:/[^\s]*)?~iu', ' ', $plain);
         $plain = preg_replace('/\\s+/', ' ', $plain);
         $plain = trim($plain);
         if ($plain === '') {
@@ -331,6 +614,53 @@ class AdminUsersController
             $plain = mb_substr($plain, 0, 300);
         }
         return $plain;
+    }
+
+    private function hasRawLinksInProfileText(array $body, bool $isMaster): bool
+    {
+        $fields = [
+            'signature',
+            'display_name',
+            'bio',
+            'specialization',
+            'styles',
+            'city',
+            'studio_name',
+            'contacts_text',
+            'photo_copyright_text',
+        ];
+        if ($isMaster) {
+            $fields[] = 'artist_note';
+        }
+
+        foreach ($fields as $field) {
+            if ($this->containsRawLink((string)($body[$field] ?? ''))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function containsRawLink(string $value): bool
+    {
+        $value = trim(strip_tags($value));
+        if ($value === '') {
+            return false;
+        }
+
+        return (bool)preg_match(
+            '~(?:https?://|www\.)\S+|(?<!@)\b[\p{L}\p{N}][\p{L}\p{N}\-._]*\.[a-z]{2,}(?:/[^\s]*)?~iu',
+            $value
+        );
+    }
+
+    private function forbidRawExternalLinks(): bool
+    {
+        $settings = $this->moduleSettings->all('users');
+        return array_key_exists('forbid_raw_external_links', $settings)
+            ? !empty($settings['forbid_raw_external_links'])
+            : true;
     }
 
     private function normalizeUsername(string $value): string
@@ -365,5 +695,36 @@ class AdminUsersController
             $max = $min;
         }
         return $max;
+    }
+
+    private function listMessageFromQuery(string $code): ?string
+    {
+        return match ($code) {
+            'created' => 'User created',
+            'blocked' => 'User blocked',
+            'unblocked' => 'User unblocked',
+            'deleted' => 'User deleted',
+            'bulk-deleted' => 'Selected users deleted',
+            'bulk-delete-empty' => 'Select at least one user to delete',
+            'bulk-delete-self-skipped' => 'Selected users deleted, current admin was skipped',
+            default => null,
+        };
+    }
+
+    private function editMessageFromQuery(string $code): ?string
+    {
+        if ($code === 'updated') {
+            return 'User updated';
+        }
+
+        if (str_starts_with($code, 'Password:')) {
+            return $code;
+        }
+
+        if ($code === 'cannot-delete-self') {
+            return 'You cannot delete your own account';
+        }
+
+        return null;
     }
 }

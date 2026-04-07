@@ -35,6 +35,18 @@ function csrf_token(): string
     return $_SESSION['installer_csrf'];
 }
 
+function installer_module_migrations(string $slug): array
+{
+    $dir = APP_ROOT . '/modules/' . $slug . '/migrations';
+    if (!is_dir($dir)) {
+        return [];
+    }
+
+    $files = glob($dir . '/*.php') ?: [];
+    sort($files, SORT_NATURAL);
+    return array_values(array_filter($files, 'is_file'));
+}
+
 // ─── Self-delete ─────────────────────────────────────────────────────────────
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
@@ -65,9 +77,13 @@ $storageDirs = [
     'storage/uploads/gallery/categories',
     'storage/uploads/articles',
     'storage/uploads/articles/categories',
+    'storage/uploads/news',
+    'storage/uploads/news/categories',
     'storage/uploads/videos',
     'storage/uploads/users',
     'storage/uploads/menu',
+    'storage/uploads/shop',
+    'storage/uploads/shop/brands',
     'storage/tmp',
     'storage/tmp/user_tokens',
     'storage/tmp/sessions',
@@ -87,40 +103,24 @@ $success = false;
 $runLog  = [];
 
 // ─── Module catalogue ────────────────────────────────────────────────────────
-// slug => [label, description, always, migrations[]]
+// slug => [label, description, always]
 
 $moduleCatalogue = [
-    'Admin'     => ['Admin Panel',   'Dashboard, settings, security, file manager, redirects',  true,  []],
-    'Articles'  => ['Articles',      'Blog/news with categories, tags, author, JSON-LD',         true,  []],
-    'News'      => ['News',          'Dedicated news section with own categories and admin',         true,  []],
-    'Gallery'   => ['Gallery',       'Image gallery with categories, subfolders, lightbox',      true,  []],
-    'Pages'     => ['Pages',         'Static pages with menu integration and sitemap',            true,  [
-        APP_ROOT . '/modules/Pages/migrations/create_pages_table.php',
-    ]],
-    'Menu'      => ['Menu',          'Navigation with RU/EN labels, SEO meta, OG images',        true,  [
-        APP_ROOT . '/modules/Menu/migrations/20251220_create_menu_table.php',
-        APP_ROOT . '/modules/Menu/migrations/20260115_add_menu_parent_fields.php',
-    ]],
-    'Search'    => ['Search',        'Full-text search across articles and gallery',              true,  []],
-    'Templates' => ['Templates',     'Custom theme upload and selection',                         true,  []],
-    'Popups'    => ['Popups',        'Cookie consent and adult content warnings (built into layout)', true, []],
-    'Users'     => ['Users',         'Registration, profiles, avatars, roles, login logs',       false, [
-        APP_ROOT . '/modules/Users/migrations/20251211_create_users_table.php',
-        APP_ROOT . '/modules/Users/migrations/20251211_create_login_logs.php',
-        APP_ROOT . '/modules/Users/migrations/20251211_add_author_to_articles.php',
-        APP_ROOT . '/modules/Users/migrations/20251211_add_author_to_gallery_items.php',
-        APP_ROOT . '/modules/Users/migrations/20260224_add_username_signature_visibility.php',
-    ]],
-    'FAQ'       => ['FAQ',           'FAQ section with admin CRUD',                              false, [
-        APP_ROOT . '/modules/FAQ/migrations/001_create_faq_items.php',
-        APP_ROOT . '/modules/FAQ/migrations/002_seed_faq_items.php',
-    ]],
-    'Api'       => ['API',           'REST API keys for external integrations',                  false, [
-        APP_ROOT . '/modules/Api/migrations/001_create_api_keys.php',
-    ]],
-    'Video'     => ['Video Gallery', 'Video gallery with YouTube, Vimeo, MP4 and embed support', false, [
-        APP_ROOT . '/modules/Video/migrations/001_create_video_items.php',
-    ]],
+    'Admin'     => ['Admin Panel',   'Dashboard, settings, security, file manager, redirects', true],
+    'Articles'  => ['Articles',      'Article hub with categories, tags, SEO and comment policy', true],
+    'News'      => ['News',          'Dedicated news section with own categories, settings and admin', true],
+    'Gallery'   => ['Gallery',       'Image gallery with categories, folders, moderation and tags', true],
+    'Pages'     => ['Pages',         'Static pages, embeds, comments mode and sitemap integration', true],
+    'Menu'      => ['Menu',          'Navigation with SEO, OG, icons and non-clickable pointer items', true],
+    'Search'    => ['Search',        'Unified search across content and media with API surface', true],
+    'Templates' => ['Templates',     'Theme uploads, template selection and error-page overrides', true],
+    'Popups'    => ['Popups',        'Cookie consent and adult-content overlays managed in admin', true],
+    'Users'     => ['Users',         'Accounts, profiles, groups, collections, plans and auth flows', false],
+    'Comments'  => ['Comments',      'Global comments settings, moderation and per-entity policy control', false],
+    'FAQ'       => ['FAQ',           'FAQ section with admin CRUD and starter seed data', false],
+    'Api'       => ['API',           'REST API keys and module-managed JSON endpoints', false],
+    'Video'     => ['Video Gallery', 'Video gallery with categories, embeds and frontend listings', false],
+    'Shop'      => ['Shop',          'Catalog, brands, variants and checkout data layer', false],
 ];
 
 // ─── Handle POST ─────────────────────────────────────────────────────────────
@@ -272,7 +272,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array($_POST['action'] ?? '', ['
             ");
 
             foreach ($selectedModules as $slug) {
-                $migs = $moduleCatalogue[$slug][3] ?? [];
+                $migs = installer_module_migrations($slug);
                 foreach ($migs as $file) {
                     if (!file_exists($file)) { continue; }
                     $name = pathinfo($file, PATHINFO_FILENAME);
@@ -366,29 +366,51 @@ function statusBadge(bool $ok): string
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SteelRoot — Installer</title>
-<link rel="stylesheet" href="/assets/css/installer.css?v=1">
+<title>SteelRoot v2 Install</title>
+<link rel="stylesheet" href="/assets/css/installer.css?v=2">
 </head>
 <body>
 <div class="wrap">
-
-  <!-- Logo -->
-  <div class="logo-wrap">
-    <svg width="72" height="72" viewBox="0 0 240 260" xmlns="http://www.w3.org/2000/svg">
-      <path stroke="#22d3ee" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"
-            d="M60 90 L60 200 M60 90 H135 Q170 90 170 125 Q170 160 135 160 H60 M135 160 L175 200"/>
-      <path stroke="#0e7490" stroke-width="8" fill="none" stroke-linecap="round" stroke-linejoin="round"
-            d="M100 200 V240 M100 215 H70 M100 225 H130 M140 200 V240 M140 215 H165 M140 225 H115"/>
-    </svg>
-    <div class="logo-tagline">SteelRoot CMS — Installer</div>
-  </div>
+  <section class="install-hero">
+    <div class="install-hero__brand">
+      <div class="install-badge">SteelRoot v2</div>
+      <h1>Premium install flow for the full CMS stack.</h1>
+      <p>
+        One installer now prepares configs, storage, core migrations, and every selected module migration,
+        including News, Menu, Pages, Users, Comments, PWA, and the updated content stack.
+      </p>
+      <div class="hero-pills">
+        <span class="pill">Core + modules</span>
+        <span class="pill">Shared-hosting ready</span>
+        <span class="pill">Admin seeded</span>
+      </div>
+    </div>
+    <div class="install-hero__panel">
+      <div class="install-stat">
+        <span class="install-stat__label">Engine</span>
+        <strong>SteelRoot v2</strong>
+      </div>
+      <div class="install-stat">
+        <span class="install-stat__label">Migration mode</span>
+        <strong>Auto-discovery</strong>
+      </div>
+      <div class="install-stat">
+        <span class="install-stat__label">Locale control</span>
+        <strong>EN / RU / Multi</strong>
+      </div>
+      <div class="install-stat">
+        <span class="install-stat__label">Target</span>
+        <strong>Production-safe bootstrap</strong>
+      </div>
+    </div>
+  </section>
 
   <?php if ($success): ?>
   <!-- ── SUCCESS ── -->
-  <div class="card">
-    <div class="card-title">🎉 Installation complete</div>
+  <div class="card card-success">
+    <div class="card-title">Installation complete</div>
     <div class="alert success">
-      SteelRoot installed successfully. Delete this file before going live.
+      SteelRoot v2 installed successfully. Delete this file before going live.
     </div>
     <div class="run-log">
       <?php foreach ($runLog as [$type, $line]): ?>
@@ -403,14 +425,16 @@ function statusBadge(bool $ok): string
       <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
       <input type="hidden" name="action" value="delete">
       <input type="hidden" name="admin_prefix" value="<?= esc($adminPrefix ?? '/admin') ?>">
-      <button type="submit" class="btn btn-danger">Delete installer.php &amp; go to admin</button>
+      <button type="submit" class="btn btn-danger">Delete installer.php &amp; open admin</button>
     </form>
   </div>
 
   <?php else: ?>
+  <section class="install-shell">
+  <div class="install-main">
   <!-- ── ENV CHECK ── -->
   <div class="card">
-    <div class="card-title">Environment <span>PHP <?= PHP_VERSION ?></span></div>
+    <div class="card-title">Environment check <span>PHP <?= PHP_VERSION ?></span></div>
     <div class="check-grid">
       <?php foreach ($requirements as $label => $ok): ?>
         <div class="check-item"><?= statusBadge($ok) ?> <?= esc($label) ?></div>
@@ -443,7 +467,7 @@ function statusBadge(bool $ok): string
   <?php endif; ?>
 
   <!-- ── FORM ── -->
-  <form method="post" id="installer-form">
+  <form method="post" id="installer-form" class="installer-form">
     <input type="hidden" name="csrf" value="<?= esc(csrf_token()) ?>">
 
     <!-- Language -->
@@ -539,6 +563,9 @@ function statusBadge(bool $ok): string
     <!-- Modules -->
     <div class="card">
       <div class="card-title">Modules</div>
+      <p class="installer-card-intro">
+        Core modules are locked in. Optional modules run their own discovered migrations automatically during install.
+      </p>
       <div class="module-grid" id="module-grid">
         <?php foreach ($moduleCatalogue as $slug => $meta): ?>
           <?php
@@ -566,10 +593,41 @@ function statusBadge(bool $ok): string
         Test DB connection
       </button>
       <button type="submit" name="action" value="install" class="btn btn-primary" <?= $envOk ? '' : 'disabled' ?>>
-        Install SteelRoot
+        Install SteelRoot v2
       </button>
     </div>
   </form>
+  </div>
+
+  <aside class="install-sidebar">
+    <div class="card install-sidebar-card">
+      <div class="card-title">What this installer does</div>
+      <ul class="installer-list">
+        <li>Creates config files and writable runtime directories.</li>
+        <li>Runs core migrations from <code>database/migrations</code>.</li>
+        <li>Discovers and runs module migrations from <code>modules/*/migrations</code>.</li>
+        <li>Seeds the admin user, locale mode, site URL and enabled modules.</li>
+      </ul>
+    </div>
+    <div class="card install-sidebar-card">
+      <div class="card-title">Included in v2</div>
+      <ul class="installer-list">
+        <li>News module with dedicated tables and categories.</li>
+        <li>Menu SEO/OG fields, icons and pointer items.</li>
+        <li>Pages comments mode and upgraded PWA/offline flow.</li>
+        <li>Users, Comments, FAQ, API, Video and Shop module migrations on demand.</li>
+      </ul>
+    </div>
+    <div class="card install-sidebar-card">
+      <div class="card-title">Post-install</div>
+      <ul class="installer-list">
+        <li>Delete <code>installer.php</code> immediately.</li>
+        <li>Open the admin panel and verify enabled modules.</li>
+        <li>Rebuild PWA cache version after asset changes.</li>
+      </ul>
+    </div>
+  </aside>
+  </section>
 
   <?php endif; ?>
 

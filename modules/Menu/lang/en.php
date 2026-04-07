@@ -28,5 +28,10 @@ return [
     'menu.field.image_preview' => 'Current image',
     'menu.field.parent' => 'Parent item',
     'menu.field.parent_none' => 'No parent (top level)',
+    'menu.field.icon' => 'Icon',
+    'menu.field.is_anchor' => 'Anchor — no navigation on click',
+    'menu.field.is_anchor_hint' => 'dropdown opens on hover',
+    'menu.section.main' => 'Main',
+    'menu.section.seo' => 'SEO & metadata',
     'menu.preview.default' => 'Default theme image',
 ];

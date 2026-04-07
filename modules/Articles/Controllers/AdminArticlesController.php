@@ -7,9 +7,12 @@ use Core\Request;
 use Core\Response;
 use Core\Csrf;
 use Core\ModuleSettings;
+use App\Services\SlugService;
+use App\Services\SearchIndexService;
 use App\Services\TagService;
 use App\Services\SettingsService;
 use Modules\Articles\Services\ArticleCategoryService;
+use Modules\Comments\Services\EntityCommentPolicyService;
 
 class AdminArticlesController
 {
@@ -31,7 +34,7 @@ class AdminArticlesController
         $this->tags = new TagService($this->db);
         $this->settings = $container->get(SettingsService::class);
         $this->moduleSettings = $container->get(ModuleSettings::class);
-        $this->articleCategories = new ArticleCategoryService($this->db);
+        $this->articleCategories = new ArticleCategoryService($this->db, $container->get('cache'));
         $this->localeMode = $this->settings->get('locale_mode', 'multi');
         $this->uploadPath = APP_ROOT . '/storage/uploads/articles';
         if (!is_dir($this->uploadPath)) {
@@ -44,6 +47,7 @@ class AdminArticlesController
             'show_views' => true,
             'show_tags' => true,
             'description_enabled' => true,
+            'default_upload_folder' => '',
         ]);
     }
 
@@ -54,9 +58,10 @@ class AdminArticlesController
 
         $hasCategory = $this->hasColumn('category_id') && $this->tableExists('article_categories');
         $hasAuthor = $this->hasColumn('author_id') && $this->tableExists('users');
+        $restrictedAuthorId = $this->restrictedAuthorId();
         $filters = [
             'category_id' => $hasCategory ? max(0, (int)($request->query['category_id'] ?? 0)) : 0,
-            'author_id'   => $hasAuthor ? max(0, (int)($request->query['author_id'] ?? 0)) : 0,
+            'author_id'   => $restrictedAuthorId ?? ($hasAuthor ? max(0, (int)($request->query['author_id'] ?? 0)) : 0),
             'q'           => trim((string)($request->query['q'] ?? '')),
         ];
 
@@ -147,6 +152,10 @@ class AdminArticlesController
             'categories' => $this->articleCategories->all(),
             'localeMode' => $this->localeMode,
             'users'      => $this->loadUsers(),
+            'commentGroups' => $this->loadCommentGroups(),
+            'commentPolicy' => ['mode' => 'default', 'group_ids' => []],
+            'commentsUi' => $this->commentsUiState('article'),
+            'uploadFolder' => $this->defaultUploadFolder(),
             'return'     => $this->resolveReturnUrl($request),
         ]);
         return new Response($html);
@@ -193,7 +202,8 @@ class AdminArticlesController
         if ($hasAuthor) {
             $cols[] = 'author_id';
             $vals[] = ':author_id';
-            $authorId = (int)($request->body['author_id'] ?? 0) ?: null;
+            $restrictedAuthorId = $this->restrictedAuthorId();
+            $authorId = $restrictedAuthorId ?? ((int)($request->body['author_id'] ?? 0) ?: null);
             $params[':author_id'] = $authorId;
         }
         if ($hasPreview) {
@@ -233,20 +243,31 @@ class AdminArticlesController
         $this->db->execute($sql, $params);
         $articleId = (int)$this->db->pdo()->lastInsertId();
         $this->tags->sync('article', $articleId, $this->tags->normalizeInput($request->body['tags'] ?? ''));
+        $commentsUi = $this->commentsUiState('article');
+        $this->commentPolicyService()->save(
+            'article',
+            $articleId,
+            !empty($commentsUi['available']) ? (string)($request->body['comments_mode'] ?? 'default') : 'default',
+            !empty($commentsUi['available']) ? (array)($request->body['comments_group_ids'] ?? []) : []
+        );
+        $this->container->get(SearchIndexService::class)->upsertEntity('article', $articleId);
         try {
             $this->container->get('events')->dispatch('article.saved', ['id' => $articleId, 'slug' => $slug]);
         } catch (\Throwable $e) {
             \Core\Logger::log('Event dispatch failed: ' . $e->getMessage());
         }
         $this->clearCache($slug);
-        $prefix = $this->container->get('config')['admin_prefix'] ?? '/admin';
-        return new Response('', 302, ['Location' => $this->resolveReturnUrl($request) ?? ($prefix . '/articles')]);
+        return new Response('', 302, ['Location' => $this->resolvePostSaveUrl($request, $slug)]);
     }
 
     public function edit(Request $request): Response
     {
         $slug = $request->params['slug'] ?? '';
         $article = $this->db->fetch("SELECT * FROM articles WHERE slug = ?", [$slug]);
+        $restrictedAuthorId = $this->restrictedAuthorId();
+        if ($restrictedAuthorId !== null && (int)($article['author_id'] ?? 0) !== $restrictedAuthorId) {
+            return new Response('Access denied', 403);
+        }
         $html = $this->container->get('renderer')->render('articles/form', [
             'title'      => 'Edit Article',
             'mode'       => 'edit',
@@ -257,6 +278,10 @@ class AdminArticlesController
             'categories' => $this->articleCategories->all(),
             'localeMode' => $this->localeMode,
             'users'      => $this->loadUsers(),
+            'commentGroups' => $this->loadCommentGroups(),
+            'commentPolicy' => $this->commentPolicyService()->load('article', (int)($article['id'] ?? 0)),
+            'commentsUi' => $this->commentsUiState('article'),
+            'uploadFolder' => $this->detectUploadFolder($article) ?: $this->defaultUploadFolder(),
             'return'     => $this->resolveReturnUrl($request),
         ]);
         return new Response($html);
@@ -275,6 +300,7 @@ class AdminArticlesController
             'seo_title_ru' => '',
             'seo_desc_en' => '',
             'seo_desc_ru' => '',
+            'default_upload_folder' => '',
         ];
         $merged = array_merge($defaults, $settings);
         $html = $this->container->get('renderer')->render('articles/settings', [
@@ -309,6 +335,7 @@ class AdminArticlesController
         $this->moduleSettings->set('articles', 'seo_title_ru', trim((string)($request->body['articles_seo_title_ru'] ?? '')));
         $this->moduleSettings->set('articles', 'seo_desc_en', trim((string)($request->body['articles_seo_desc_en'] ?? '')));
         $this->moduleSettings->set('articles', 'seo_desc_ru', trim((string)($request->body['articles_seo_desc_ru'] ?? '')));
+        $this->moduleSettings->set('articles', 'default_upload_folder', $this->normalizeUploadFolder((string)($request->body['articles_default_upload_folder'] ?? '')));
         return new Response('', 302, ['Location' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/articles/settings?msg=saved']);
     }
 
@@ -319,6 +346,10 @@ class AdminArticlesController
         }
         $slug = $request->params['slug'] ?? '';
         $article = $this->db->fetch("SELECT * FROM articles WHERE slug = ?", [$slug]);
+        $restrictedAuthorId = $this->restrictedAuthorId();
+        if ($restrictedAuthorId !== null && (int)($article['author_id'] ?? 0) !== $restrictedAuthorId) {
+            return new Response('Access denied', 403);
+        }
         $slugInput = trim($request->body['slug'] ?? '');
         $slugSource = $slugInput !== '' ? $slugInput : ($request->body['title_en'] ?? $request->body['title_ru'] ?? $slug);
         $newSlug = $this->slugify($slugSource);
@@ -351,7 +382,7 @@ class AdminArticlesController
         ];
         if ($hasAuthor) {
             $sets[] = 'author_id = :author_id';
-            $params[':author_id'] = (int)($request->body['author_id'] ?? 0) ?: null;
+            $params[':author_id'] = $restrictedAuthorId ?? ((int)($request->body['author_id'] ?? 0) ?: null);
         }
         if ($hasPreview) {
             $sets[] = 'preview_en = :preview_en';
@@ -381,9 +412,21 @@ class AdminArticlesController
         }
         $sql = "UPDATE articles SET " . implode(', ', $sets) . " WHERE slug = :current";
         $this->db->execute($sql, $params);
+        if (is_array($article)) {
+            $this->deleteReplacedLocalUpload((string)($article['image_url'] ?? ''), (string)($imageUrl ?? ''));
+            $this->deleteReplacedLocalUpload((string)($article['cover_url'] ?? ''), (string)($coverUrl ?? ''));
+        }
         $article = $this->db->fetch("SELECT id FROM articles WHERE slug = ?", [$newSlug]);
         if ($article) {
             $this->tags->sync('article', (int)$article['id'], $this->tags->normalizeInput($request->body['tags'] ?? ''));
+            $commentsUi = $this->commentsUiState('article');
+            $this->commentPolicyService()->save(
+                'article',
+                (int)$article['id'],
+                !empty($commentsUi['available']) ? (string)($request->body['comments_mode'] ?? 'default') : 'default',
+                !empty($commentsUi['available']) ? (array)($request->body['comments_group_ids'] ?? []) : []
+            );
+            $this->container->get(SearchIndexService::class)->upsertEntity('article', (int)$article['id']);
             try {
                 $this->container->get('events')->dispatch('article.saved', ['id' => (int)$article['id'], 'slug' => $newSlug]);
             } catch (\Throwable $e) {
@@ -392,8 +435,7 @@ class AdminArticlesController
         }
         $this->clearCache($slug);
         $this->clearCache($newSlug);
-        $prefix = $this->container->get('config')['admin_prefix'] ?? '/admin';
-        return new Response('', 302, ['Location' => $this->resolveReturnUrl($request) ?? ($prefix . '/articles')]);
+        return new Response('', 302, ['Location' => $this->resolvePostSaveUrl($request, $newSlug)]);
     }
 
     public function delete(Request $request): Response
@@ -402,10 +444,36 @@ class AdminArticlesController
             return new Response('Invalid CSRF', 400);
         }
         $slug = $request->params['slug'] ?? '';
-        $article = $this->db->fetch("SELECT id FROM articles WHERE slug = ?", [$slug]);
+        $restrictedAuthorId = $this->restrictedAuthorId();
+        if ($restrictedAuthorId !== null) {
+            $ownerCheck = $this->db->fetch("SELECT author_id FROM articles WHERE slug = ?", [$slug]);
+            if (!$ownerCheck || (int)($ownerCheck['author_id'] ?? 0) !== $restrictedAuthorId) {
+                return new Response('Access denied', 403);
+            }
+        }
+        $select = ['id'];
+        if ($this->hasColumn('image_url')) {
+            $select[] = 'image_url';
+        }
+        if ($this->hasColumn('cover_url')) {
+            $select[] = 'cover_url';
+        }
+        $article = $this->db->fetch("SELECT " . implode(', ', $select) . " FROM articles WHERE slug = ?", [$slug]);
         $this->db->execute("DELETE FROM articles WHERE slug = ?", [$slug]);
         if ($article) {
+            $this->deleteLocalUpload((string)($article['image_url'] ?? ''));
+            $this->deleteLocalUpload((string)($article['cover_url'] ?? ''));
             $this->db->execute("DELETE FROM taggables WHERE entity_type = 'article' AND entity_id = ?", [(int)$article['id']]);
+            if ($this->tableExists('comment_entity_group_map')) {
+                $this->db->execute("DELETE FROM comment_entity_group_map WHERE entity_type = 'article' AND entity_id = ?", [(int)$article['id']]);
+            }
+            if ($this->tableExists('comments')) {
+                $this->db->execute("DELETE FROM comments WHERE entity_type = 'article' AND entity_id = ?", [(int)$article['id']]);
+            }
+            if ($this->tableExists('likes')) {
+                $this->db->execute("DELETE FROM likes WHERE entity_type = 'article' AND entity_id = ?", [(int)$article['id']]);
+            }
+            $this->container->get(SearchIndexService::class)->deleteEntity('article', (int)$article['id']);
         }
         $this->clearCache($slug);
         $prefix = $this->container->get('config')['admin_prefix'] ?? '/admin';
@@ -414,15 +482,14 @@ class AdminArticlesController
 
     private function slugify(string $string): string
     {
-        $source = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $string);
-        $slug = strtolower(trim(preg_replace('/[^a-z0-9]+/i', '-', $source), '-'));
-        return $slug ?: 'item';
+        return SlugService::slugify($string, 'item');
     }
 
     private function clearCache(string $slug): void
     {
         $cache = $this->container->get('cache');
         $cache->delete('article_' . $slug);
+        $cache->delete('article_public_payload_' . sha1($slug));
     }
 
     private function handleUpload(Request $request, string $field, ?string $existing = null): ?string
@@ -432,19 +499,24 @@ class AdminArticlesController
         }
         $cfg = $this->settings->all();
         $maxSize = (int)($cfg['upload_max_bytes'] ?? 5 * 1024 * 1024);
-        if ($request->files['image']['size'] > $maxSize) {
+        if (($request->files[$field]['size'] ?? 0) > $maxSize) {
             return $existing;
         }
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
-        $mime = $finfo->file($request->files['image']['tmp_name']);
+        $mime = $finfo->file($request->files[$field]['tmp_name']);
         $allowed = ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'];
         if (!isset($allowed[$mime])) {
             return $existing;
         }
         $ext = $allowed[$mime];
-        $name = uniqid('article_', true) . '.' . $ext;
-        $target = $this->uploadPath . '/' . $name;
-        if (!move_uploaded_file($request->files['image']['tmp_name'], $target)) {
+        $name = uniqid($field . '_', true) . '.' . $ext;
+        $relativeFolder = $this->resolveUploadFolder((string)($request->body['upload_folder'] ?? ''));
+        $targetDir = $this->uploadPath . ($relativeFolder !== '' ? '/' . $relativeFolder : '');
+        if (!is_dir($targetDir)) {
+            mkdir($targetDir, 0775, true);
+        }
+        $target = $targetDir . '/' . $name;
+        if (!move_uploaded_file($request->files[$field]['tmp_name'], $target)) {
             return $existing;
         }
         $maxW = (int)($cfg['upload_max_width'] ?? 8000);
@@ -454,7 +526,85 @@ class AdminArticlesController
             @unlink($target);
             return $existing;
         }
-        return '/storage/uploads/articles/' . $name;
+        return '/storage/uploads/articles/' . ($relativeFolder !== '' ? ($relativeFolder . '/') : '') . $name;
+    }
+
+    private function normalizeUploadFolder(string $folder): string
+    {
+        $folder = trim(str_replace('\\', '/', $folder));
+        if ($folder === '') {
+            return '';
+        }
+
+        $parts = preg_split('~/+~', $folder) ?: [];
+        $safe = [];
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if ($part === '' || $part === '.' || $part === '..') {
+                continue;
+            }
+            $part = preg_replace('~[^a-zA-Z0-9._-]+~', '-', $part) ?? '';
+            $part = trim($part, '-.');
+            if ($part !== '') {
+                $safe[] = $part;
+            }
+        }
+
+        return implode('/', $safe);
+    }
+
+    private function detectUploadFolder(?array $article): string
+    {
+        foreach (['image_url', 'cover_url'] as $field) {
+            $path = trim((string)($article[$field] ?? ''));
+            if ($path === '' || !str_starts_with($path, '/storage/uploads/articles/')) {
+                continue;
+            }
+
+            $relative = trim(substr($path, strlen('/storage/uploads/articles/')), '/');
+            if ($relative === '' || !str_contains($relative, '/')) {
+                return '';
+            }
+
+            return trim(dirname($relative), '/.');
+        }
+
+        return '';
+    }
+
+    private function defaultUploadFolder(): string
+    {
+        return $this->normalizeUploadFolder((string)$this->moduleSettings->get('articles', 'default_upload_folder', ''));
+    }
+
+    private function resolveUploadFolder(string $rawFolder): string
+    {
+        $folder = $this->normalizeUploadFolder($rawFolder);
+        return $folder !== '' ? $folder : $this->defaultUploadFolder();
+    }
+
+    private function deleteLocalUpload(string $path): void
+    {
+        $path = trim($path);
+        if ($path === '' || !str_starts_with($path, '/storage/uploads/articles/')) {
+            return;
+        }
+
+        $absolutePath = APP_ROOT . $path;
+        if (is_file($absolutePath)) {
+            @unlink($absolutePath);
+        }
+    }
+
+    private function deleteReplacedLocalUpload(string $oldPath, string $newPath): void
+    {
+        $oldPath = trim($oldPath);
+        $newPath = trim($newPath);
+        if ($oldPath === '' || $oldPath === $newPath) {
+            return;
+        }
+
+        $this->deleteLocalUpload($oldPath);
     }
 
     private function currentAuthorId(): ?int
@@ -468,12 +618,57 @@ class AdminArticlesController
         }
     }
 
+    /**
+     * Returns author_id to restrict access to own articles only, or null for full access.
+     * Restriction applies when user is logged in via frontend session with admin.articles.own
+     * but without admin.articles (full access).
+     */
+    private function restrictedAuthorId(): ?int
+    {
+        if (!empty($_SESSION['admin_auth'])) {
+            return null;
+        }
+        try {
+            $auth = $this->container->get(\Modules\Users\Services\Auth::class);
+            $user = $auth->user();
+            if (!$user) {
+                return null;
+            }
+            $access = $this->container->get(\Modules\Users\Services\UserAccessService::class);
+            if ($access->can($user, 'admin.articles')) {
+                return null;
+            }
+            return (int)$user['id'];
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
     private function loadUsers(): array
     {
         if (!$this->hasColumn('author_id')) {
             return [];
         }
         return $this->db->fetchAll("SELECT id, name FROM users ORDER BY name ASC");
+    }
+
+    private function loadCommentGroups(): array
+    {
+        return $this->commentPolicyService()->groups();
+    }
+
+    private function commentsUiState(string $entityType): array
+    {
+        $settings = $this->moduleSettings->all('comments');
+        $enabled = !empty($settings['enabled']);
+        $entityEnabled = in_array($entityType, (array)($settings['enabled_entity_types'] ?? []), true);
+
+        return [
+            'available' => $enabled && $entityEnabled,
+            'enabled' => $enabled,
+            'entity_enabled' => $entityEnabled,
+            'settings_url' => (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/comments/settings',
+        ];
     }
 
     private function hasColumn(string $name): bool
@@ -494,6 +689,11 @@ class AdminArticlesController
         return $this->tableCache[$name];
     }
 
+    private function commentPolicyService(): EntityCommentPolicyService
+    {
+        return $this->container->get(EntityCommentPolicyService::class);
+    }
+
     private function resolveReturnUrl(Request $request): ?string
     {
         $prefix = $this->container->get('config')['admin_prefix'] ?? '/admin';
@@ -512,5 +712,21 @@ class AdminArticlesController
             return null;
         }
         return $candidate;
+    }
+
+    private function resolvePostSaveUrl(Request $request, string $slug): string
+    {
+        $prefix = $this->container->get('config')['admin_prefix'] ?? '/admin';
+        $saveMode = (string)($request->body['save_mode'] ?? 'close');
+        if ($saveMode === 'stay') {
+            $location = $prefix . '/articles/edit/' . rawurlencode($slug);
+            $returnUrl = $this->resolveReturnUrl($request);
+            if ($returnUrl !== null) {
+                $location .= '?return=' . rawurlencode($returnUrl);
+            }
+            return $location;
+        }
+
+        return $this->resolveReturnUrl($request) ?? ($prefix . '/articles');
     }
 }

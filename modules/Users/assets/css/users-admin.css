@@ -1,0 +1,391 @@
+.users-admin-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.users-admin-directory {
+    gap: 18px;
+}
+
+.users-admin-directory__header {
+    align-items: flex-start;
+}
+
+.users-admin-directory .users-admin-actions {
+    gap: 10px;
+}
+
+.users-admin-directory .users-admin-actions .btn {
+    min-height: 40px;
+    padding: 0.65rem 1rem;
+}
+
+.users-admin-filters {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    align-items: end;
+    padding: 14px 16px;
+    border: 1px solid rgba(220, 38, 38, 0.12);
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(14, 16, 22, 0.82), rgba(10, 12, 18, 0.78));
+    gap: 10px;
+}
+
+.users-admin-filters__field {
+    min-width: 150px;
+}
+
+.users-admin-filters__field--wide {
+    grid-column: span 3;
+}
+
+.users-admin-filters__field span {
+    font-size: 0.76rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgba(240, 236, 228, 0.62);
+}
+
+.users-admin-filters__actions {
+    grid-column: 6;
+    align-self: end;
+    justify-self: start;
+}
+
+.users-admin-filters__actions .btn {
+    min-width: 96px;
+    min-height: 40px;
+    padding: 0.6rem 0.9rem;
+}
+
+.users-admin-table thead th {
+    font-size: 0.76rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: rgba(240, 236, 228, 0.62);
+}
+
+.users-admin-sort {
+    color: inherit;
+    text-decoration: none;
+}
+
+.users-admin-sort.is-active {
+    color: #f6efeb;
+}
+
+.users-admin-table tbody tr {
+    background: linear-gradient(180deg, rgba(10, 12, 17, 0.72), rgba(8, 10, 14, 0.82));
+}
+
+.users-admin-table tbody tr:hover {
+    background: linear-gradient(180deg, rgba(16, 18, 24, 0.94), rgba(10, 12, 18, 0.94));
+}
+
+.users-admin-chip,
+.users-admin-last-login {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 1.95rem;
+    padding: 0 0.7rem;
+    border-radius: 999px;
+    border: 1px solid rgba(220, 38, 38, 0.14);
+    background: rgba(20, 16, 24, 0.64);
+    color: #ece5e1;
+    font-size: 0.82rem;
+    white-space: nowrap;
+}
+
+.users-admin-chip--id {
+    font-family: "UsersMono", monospace;
+}
+
+.users-admin-chip--group {
+    max-width: 14rem;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.35;
+    padding-top: 0.35rem;
+    padding-bottom: 0.35rem;
+}
+
+.users-admin-chip--empty {
+    color: rgba(240, 236, 228, 0.48);
+    border-color: rgba(120, 129, 156, 0.16);
+}
+
+.users-admin-chip--status.is-success {
+    border-color: rgba(90, 199, 142, 0.22);
+    color: #9df2c5;
+    background: rgba(21, 48, 34, 0.55);
+}
+
+.users-admin-chip--status.is-warning {
+    border-color: rgba(217, 119, 6, 0.24);
+    color: #f8c46f;
+    background: rgba(63, 35, 10, 0.55);
+}
+
+.users-admin-chip--status.is-danger {
+    border-color: rgba(239, 68, 68, 0.24);
+    color: #ffb0b0;
+    background: rgba(65, 18, 18, 0.55);
+}
+
+.users-admin-usercell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.users-admin-usermeta {
+    display: grid;
+    gap: 2px;
+}
+
+.users-admin-usermeta strong {
+    color: #f4eeea;
+    font-size: 0.95rem;
+}
+
+.users-admin-usermeta span {
+    color: rgba(240, 236, 228, 0.5);
+    font-size: 0.8rem;
+}
+
+.avatar.tiny {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2f365f, #1f243a);
+    color: #d8e0ff;
+    display: grid;
+    place-items: center;
+    font-weight: 700;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background-size: cover;
+    background-position: center;
+}
+
+.avatar.tiny img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    display: block;
+}
+
+.row-actions form {
+    display: inline;
+}
+
+.users-admin-table .row-actions {
+    display: flex;
+    gap: 7px;
+    flex-wrap: wrap;
+}
+
+.users-admin-table .row-actions .btn {
+    min-height: 34px;
+    padding: 0.5rem 0.85rem;
+}
+
+.users-admin-table .row-actions form {
+    margin: 0;
+}
+
+.users-admin-permissions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.users-admin-permissions--compact {
+    grid-template-columns: repeat(2, minmax(220px, 320px));
+}
+
+.users-admin-panel {
+    grid-column: 1 / -1;
+    padding: 18px 20px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    background:
+        linear-gradient(180deg, rgba(18, 20, 34, 0.92), rgba(11, 13, 26, 0.94));
+}
+
+.users-admin-panel .eyebrow {
+    margin: 0 0 12px;
+}
+
+.users-admin-choice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.users-admin-choice input {
+    flex: 0 0 auto;
+}
+
+.users-admin-choice span {
+    line-height: 1.35;
+}
+
+.users-admin-groups-field {
+    grid-column: 1 / -1;
+}
+
+.users-admin-poll__layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 380px) minmax(0, 1fr);
+    gap: 18px;
+}
+
+.users-admin-poll__settings,
+.users-admin-poll__filters,
+.users-admin-poll__group,
+.users-admin-poll__other {
+    display: grid;
+    gap: 14px;
+}
+
+.users-admin-poll__filters {
+    grid-template-columns: minmax(220px, 320px) auto;
+    align-items: end;
+    margin-bottom: 14px;
+}
+
+.users-admin-poll__stats {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.users-admin-poll__summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 10px;
+}
+
+.users-admin-poll__summary-item {
+    display: grid;
+    gap: 8px;
+    padding: 14px 16px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.users-admin-poll__summary-item strong {
+    font-size: 1.4rem;
+    color: #fff1eb;
+}
+
+.users-admin-poll__summary-item span,
+.users-admin-poll__text {
+    color: rgba(240, 236, 228, 0.72);
+    line-height: 1.5;
+}
+
+.users-admin-poll__group + .users-admin-poll__group {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+@media (max-width: 900px) {
+    .users-admin-permissions {
+        grid-template-columns: 1fr;
+    }
+
+    .users-admin-permissions--compact {
+        grid-template-columns: 1fr;
+    }
+
+    .users-admin-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .users-admin-filters__field--wide {
+        grid-column: auto;
+    }
+
+    .users-admin-filters__actions {
+        grid-column: auto;
+    }
+
+    .users-admin-poll__layout,
+    .users-admin-poll__filters {
+        grid-template-columns: 1fr;
+    }
+
+    .users-admin-table .row-actions .btn {
+        width: 100%;
+    }
+
+}
+
+
+.users-admin-bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border: 1px solid rgba(220, 38, 38, 0.12);
+    border-radius: 16px;
+    background: linear-gradient(180deg, rgba(14, 16, 22, 0.82), rgba(10, 12, 18, 0.78));
+}
+
+.users-admin-bulk-actions__hint {
+    color: rgba(240, 236, 228, 0.58);
+    font-size: 0.82rem;
+}
+
+.users-admin-table__select {
+    width: 52px;
+    text-align: center;
+}
+
+.users-admin-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: #dc2626;
+    cursor: pointer;
+}
+
+.users-admin-table tbody tr.is-selected {
+    background: linear-gradient(180deg, rgba(52, 14, 14, 0.94), rgba(26, 10, 12, 0.96));
+}
+
+.users-settings-checks {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px 16px;
+}
+
+@media (max-width: 1100px) {
+    .users-settings-checks {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 640px) {
+    .users-settings-checks {
+        grid-template-columns: 1fr;
+    }
+}
+
+.users-admin-bulk-actions .btn[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+}

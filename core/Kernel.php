@@ -30,7 +30,6 @@ class Kernel
         $this->registerServices();
         $this->registerCoreRoutes();
         $this->loadModules();
-        $this->loadSearchProviders();
         $this->router->setNotFound(function (Request $request) {
             try {
                 $redirects = $this->container->get(RedirectService::class);
@@ -125,11 +124,22 @@ class Kernel
         $this->container->singleton(SettingsService::class, function () {
             return new SettingsService($this->container->get(Database::class));
         });
+        $this->container->singleton(\App\Services\UserPublicSummaryService::class, function () {
+            return new \App\Services\UserPublicSummaryService(
+                $this->container->get(Database::class),
+                $this->container->get('cache')
+            );
+        });
         $this->container->singleton(\App\Services\CaptchaService::class, function () {
             return new \App\Services\CaptchaService($this->container->get(SettingsService::class));
         });
         $this->container->singleton(\App\Services\SearchIndexService::class, function () {
             return new \App\Services\SearchIndexService($this->container->get(Database::class));
+        });
+        $this->container->singleton(\Modules\Comments\Services\EntityCommentPolicyService::class, function () {
+            return new \Modules\Comments\Services\EntityCommentPolicyService(
+                $this->container->get(Database::class)
+            );
         });
         $this->container->singleton(\App\Services\RedirectService::class, function () {
             return new \App\Services\RedirectService(
@@ -180,6 +190,7 @@ class Kernel
         $this->router->get('/api/v1/search', [\App\Controllers\Api\V1\SearchApiController::class, 'search']);
         $this->router->get('/api/v1/autocomplete', [\App\Controllers\Api\V1\SearchApiController::class, 'autocomplete']);
         $this->router->post('/api/v1/attachments', [\App\Controllers\AttachmentController::class, 'upload']);
+        $this->router->get('/offline', [\App\Controllers\PwaController::class, 'offline']);
         $this->router->get('/manifest.json', [\App\Controllers\PwaController::class, 'manifest']);
         $this->router->get('/sw.js', [\App\Controllers\PwaController::class, 'serviceWorker']);
     }

@@ -8,14 +8,15 @@ class Module {
 
     public function register(Container $container, Router $router): void
     {
+        $adminPrefix = $container->get('config')['admin_prefix'] ?? '/admin';
         $router->get('/news',                              [Controllers\NewsController::class, 'index']);
         $router->get('/news/page/{page}',                  [Controllers\NewsController::class, 'index']);
         $router->get('/news/category/{slug}',              [Controllers\NewsController::class, 'byCategory']);
         $router->get('/news/category/{slug}/page/{page}',  [Controllers\NewsController::class, 'byCategory']);
         $router->get('/news/{slug}',                       [Controllers\NewsController::class, 'view']);
 
-        $auth = fn($req, $next) => empty($_SESSION['admin_auth']) ? (header('Location: /admin/login') ?: exit()) : $next($req);
-        $router->group('/admin/news', [$auth], function (Router $r) {
+        $auth = fn($req, $next) => empty($_SESSION['admin_auth']) ? (header('Location: ' . (defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/login') ?: exit()) : $next($req);
+        $router->group($adminPrefix . '/news', [$auth], function (Router $r) {
             $r->get('/',              [Controllers\AdminNewsController::class, 'index']);
             $r->get('/create',        [Controllers\AdminNewsController::class, 'create']);
             $r->post('/create',       [Controllers\AdminNewsController::class, 'store']);

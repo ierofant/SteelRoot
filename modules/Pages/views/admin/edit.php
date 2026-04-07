@@ -1,13 +1,17 @@
 <?php ob_start(); ?>
-<div class="card stack">
-    <div class="card-header">
-        <div>
+<section class="pages-editor stack">
+<div class="card stack pages-editor__shell">
+    <div class="card-header pages-editor__header">
+        <div class="pages-editor__headline">
             <p class="eyebrow"><?= __('pages.admin.title') ?></p>
             <h3><?= $isNew ? __('pages.admin.action.create') : __('pages.admin.action.edit') ?></h3>
         </div>
-        <div class="header-actions">
+        <div class="header-actions pages-editor__actions">
+            <?php if (!$isNew && !empty($page['slug'])): ?>
+                <a class="btn ghost" href="/<?= htmlspecialchars($page['slug']) ?>" target="_blank" rel="noopener"><?= __('pages.admin.action.open') ?></a>
+            <?php endif; ?>
             <button type="submit" form="pages-form" class="btn primary"><?= __('pages.admin.action.save') ?></button>
-            <a class="btn ghost" href="<?= htmlspecialchars((defined('ADMIN_PREFIX') ? ADMIN_PREFIX : '/admin') . '/pages') ?>"><?= __('pages.admin.action.cancel') ?></a>
+            <a class="btn ghost" href="<?= htmlspecialchars($adminPrefix . '/pages') ?>"><?= __('pages.admin.action.cancel') ?></a>
         </div>
     </div>
     <form method="post" id="pages-form" class="stack">
@@ -56,6 +60,10 @@
                     <textarea name="content_ru" rows="7"><?= htmlspecialchars($page['content_ru'] ?? '') ?></textarea>
                 </label>
             </div>
+            <label class="field">
+                <span><?= __('pages.admin.fields.tags') ?> (#tag #tag-two)</span>
+                <input type="text" name="tags" value="<?= htmlspecialchars($tagsInput ?? '') ?>" placeholder="#tattoo #guide #faq">
+            </label>
         </section>
 
         <section class="form-section">
@@ -86,7 +94,7 @@
         </section>
 
         <section class="form-section">
-            <div class="grid two">
+            <div class="grid two pages-editor__flags">
                 <label class="field checkbox">
                     <input type="checkbox" name="visible" value="1" <?= !empty($page['visible']) ? 'checked' : '' ?>>
                     <span><?= __('pages.admin.fields.visible') ?></span>
@@ -97,8 +105,24 @@
                 </label>
             </div>
         </section>
+
+        <section class="form-section">
+            <header>
+                <p class="eyebrow"><?= __('pages.admin.section.comments') ?></p>
+                <h4><?= __('pages.admin.section.comments_sub') ?></h4>
+            </header>
+            <label class="field">
+                <span><?= __('pages.admin.fields.comments_mode') ?></span>
+                <select name="comments_mode">
+                    <option value="default" <?= ($commentsMode ?? 'default') === 'default' ? 'selected' : '' ?>><?= __('pages.admin.comments_mode.default') ?></option>
+                    <option value="enabled" <?= ($commentsMode ?? 'default') === 'enabled' ? 'selected' : '' ?>><?= __('pages.admin.comments_mode.enabled') ?></option>
+                    <option value="disabled" <?= ($commentsMode ?? 'default') === 'disabled' ? 'selected' : '' ?>><?= __('pages.admin.comments_mode.disabled') ?></option>
+                </select>
+            </label>
+        </section>
     </form>
 </div>
+</section>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../../../Admin/views/layout.php';

@@ -6,9 +6,6 @@
             <h3><?= __('articles.settings.subtitle') ?></h3>
         </div>
     </div>
-    <?php if (!empty($_GET['msg']) && $_GET['msg'] === 'saved'): ?>
-        <div class="alert success"><?= __('articles.settings.saved') ?></div>
-    <?php endif; ?>
     <form method="post" class="stack">
         <input type="hidden" name="_token" value="<?= htmlspecialchars($csrf ?? '') ?>">
         <div class="muted"><?= __('articles.settings.description') ?></div>
@@ -76,6 +73,11 @@
                 <textarea name="articles_seo_desc_en" rows="3" placeholder="Short description for articles page"><?= htmlspecialchars((string)($settings['seo_desc_en'] ?? '')) ?></textarea>
             </label>
         </div>
+        <label class="field">
+            <span>Папка загрузки по умолчанию</span>
+            <input type="text" name="articles_default_upload_folder" value="<?= htmlspecialchars((string)($settings['default_upload_folder'] ?? '')) ?>" placeholder="например: masters/moscow">
+            <small class="muted">Подпапка внутри `/storage/uploads/articles`, которая будет подставляться в форму статьи автоматически.</small>
+        </label>
         <div class="form-actions">
             <button type="submit" class="btn primary"><?= __('articles.settings.save') ?></button>
         </div>
@@ -84,4 +86,5 @@
 <?php
 $content = ob_get_clean();
 $title = __('articles.settings.page_title');
+$flash = (($_GET['msg'] ?? '') === 'saved') ? 'Saved' : null;
 include APP_ROOT . '/modules/Admin/views/layout.php';

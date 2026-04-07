@@ -1,6 +1,7 @@
 <?php
 namespace Modules\Gallery\Controllers;
 
+use App\Services\SecurityLog;
 use App\Services\SlugService;
 use Core\Container;
 use Core\Csrf;
@@ -8,6 +9,8 @@ use Core\Database;
 use Core\Request;
 use Core\Response;
 use Core\ModuleSettings;
+use Core\Meta\JsonLdRenderer;
+use Core\Meta\CommonSchemas;
 use App\Services\SettingsService;
 use Modules\Comments\Services\CommentService;
 use Modules\Gallery\Services\GalleryCategoryService;
@@ -45,7 +48,7 @@ class GalleryController
             'seo_desc_en' => '',
             'seo_desc_ru' => '',
         ]);
-        $this->galleryCategories = new GalleryCategoryService($this->db);
+        $this->galleryCategories = new GalleryCategoryService($this->db, $container->get('cache'));
         $this->masterLikes = new MasterLikeService($container);
         $this->uploadPath = APP_ROOT . '/storage/uploads/gallery';
         if (!is_dir($this->uploadPath)) {
@@ -58,9 +61,211 @@ class GalleryController
         $page = max(1, (int)($request->params['page'] ?? 1));
         $seoSettings = $this->moduleSettings->all('gallery');
         $perPage = max(1, (int)($seoSettings['per_page'] ?? 9));
-        $tag = trim($request->query['tag'] ?? '');
+        $tagInput = trim((string)($request->query['tag'] ?? ''));
+        $tag = $tagInput !== '' ? $this->resolveTagSlug($tagInput) : '';
+        if ($tagInput !== '' && $tag !== '' && $tag !== $tagInput) {
+            $query = $request->query;
+            $query['tag'] = $tag;
+            $location = '/gallery';
+            if ($query !== []) {
+                $location .= '?' . http_build_query($query);
+            }
+
+            return new Response('', 301, ['Location' => $location]);
+        }
         $category = trim($request->query['cat'] ?? '');
         $sort = $this->sanitizeSort($request->query['sort'] ?? 'new');
+        $payload = $this->loadPublicListPayload($page, $perPage, $tag, $category, $sort);
+        $display = $payload['display'];
+        $mode = $payload['open_mode'];
+        $total = $payload['total'];
+        $items = $this->decorateMasterLikeEligibility($payload['items']);
+        $enabledCategories = $payload['enabled_categories'];
+        $popularTags = $payload['popular_tags'];
+
+        $canonical = $this->canonical($request);
+        $currentLocale = $this->container->get('lang')->current();
+        $defaultTitle = $currentLocale === 'ru' ? 'Галерея' : 'Gallery';
+        $defaultDesc = $currentLocale === 'ru'
+            ? 'Подборка изображений и альбомов.'
+            : 'Collection of images and albums.';
+        $titlePrimary = trim((string)($currentLocale === 'ru' ? ($seoSettings['seo_title_ru'] ?? '') : ($seoSettings['seo_title_en'] ?? '')));
+        $titleFallback = trim((string)($currentLocale === 'ru' ? ($seoSettings['seo_title_en'] ?? '') : ($seoSettings['seo_title_ru'] ?? '')));
+        $descPrimary = trim((string)($currentLocale === 'ru' ? ($seoSettings['seo_desc_ru'] ?? '') : ($seoSettings['seo_desc_en'] ?? '')));
+        $descFallback = trim((string)($currentLocale === 'ru' ? ($seoSettings['seo_desc_en'] ?? '') : ($seoSettings['seo_desc_ru'] ?? '')));
+        $listTitle = $titlePrimary !== '' ? $titlePrimary : ($titleFallback !== '' ? $titleFallback : $defaultTitle);
+        $listDesc = $descPrimary !== '' ? $descPrimary : ($descFallback !== '' ? $descFallback : $defaultDesc);
+        $seoListTitle = $listTitle;
+        $galleryOgImage = $this->galleryRootMenuImage();
+        if ($page > 1) {
+            $seoListTitle .= $currentLocale === 'ru' ? (' | Страница ' . $page) : (' | Page ' . $page);
+        }
+        $jsonld = ($tag === '' && $category === '')
+            ? $this->galleryIndexJsonLd($items, $canonical, $seoListTitle, $listDesc, $total, $page, $perPage, $currentLocale)
+            : '';
+
+        $html = $this->container->get('renderer')->render(
+            'gallery/list',
+            [
+                '_layout' => true,
+                'title' => $listTitle,
+                'description' => $listDesc,
+                'items' => $items,
+                'page' => $page,
+                'total' => $total,
+                'perPage' => $perPage,
+                'locale' => $this->container->get('lang')->current(),
+                'tag'               => $tag,
+                'sort'              => $sort,
+                'category'          => $category,
+                'openMode'          => $mode,
+                'display'           => $display,
+                'masterLikeState'   => $this->masterLikes->viewerState(),
+                'masterLikeToken'   => !empty($_SESSION['user_id']) ? Csrf::token('gallery_master_like') : '',
+                'enabledCategories' => $enabledCategories,
+                'popularTags'       => $popularTags,
+                'breadcrumbs'       => [
+                    ['label' => $listTitle],
+                ],
+            ],
+            [
+                'title' => $seoListTitle,
+                'description' => $listDesc,
+                'canonical' => $canonical,
+                'image' => ($tag === '' && $category === '') ? $galleryOgImage : '/icon/tags_og.jpg',
+                'jsonld' => $jsonld,
+            ]
+        );
+        return new Response($html);
+    }
+
+    private function galleryIndexJsonLd(
+        array $items,
+        string $canonical,
+        string $title,
+        string $description,
+        int $total,
+        int $page,
+        int $perPage,
+        string $locale
+    ): string {
+        $siteUrl = $this->siteBaseUrl();
+        $siteName = trim((string)$this->settings->get('site_name', 'TattooToday'));
+        if ($siteName === '') {
+            $siteName = 'TattooToday';
+        }
+
+        $logo = $this->absoluteUrl((string)$this->settings->get('theme_logo', ''));
+        $website = CommonSchemas::webSite([
+            'name' => $siteName,
+            'url' => $siteUrl,
+        ]);
+        $organization = CommonSchemas::organization([
+            'name' => $siteName,
+            'url' => $siteUrl,
+            'logo' => $logo,
+        ]);
+
+        $itemListElements = [];
+        foreach (array_values($items) as $index => $item) {
+            $itemUrl = $this->galleryItemPublicUrl($item);
+            $itemTitle = $this->galleryItemSeoTitle($item, $locale);
+            $itemImage = trim((string)($item['image_url'] ?? $item['path_medium'] ?? $item['path_thumb'] ?? $item['path'] ?? ''));
+
+            $listItem = [
+                '@type' => 'ListItem',
+                'position' => (($page - 1) * max(1, $perPage)) + $index + 1,
+                'url' => $siteUrl . $itemUrl,
+            ];
+
+            $work = [
+                '@type' => 'ImageObject',
+                'url' => $this->absoluteUrl($itemImage),
+            ];
+
+            if ($itemTitle !== '') {
+                $work['name'] = $itemTitle;
+                $listItem['name'] = $itemTitle;
+            }
+
+            if (!empty($item['created_at'])) {
+                $timestamp = strtotime((string)$item['created_at']);
+                if ($timestamp !== false) {
+                    $work['datePublished'] = date('c', $timestamp);
+                }
+            }
+
+            $listItem['item'] = $work;
+            $itemListElements[] = $listItem;
+        }
+
+        $itemListSchema = [
+            '@type' => 'ItemList',
+            'name' => $locale === 'ru' ? 'Фотографии галереи' : 'Gallery photos',
+            'numberOfItems' => max($total, count($itemListElements)),
+            'itemListElement' => $itemListElements,
+        ];
+
+        $collectionPage = [
+            '@context' => 'https://schema.org',
+            '@type' => 'CollectionPage',
+            'name' => $title,
+            'description' => $description,
+            'url' => $canonical,
+            'isPartOf' => [
+                '@type' => 'WebSite',
+                'name' => $siteName,
+                'url' => $siteUrl,
+            ],
+            'about' => [
+                '@type' => 'Thing',
+                'name' => $locale === 'ru' ? 'Галерея татуировок' : 'Tattoo gallery',
+            ],
+            'mainEntity' => $itemListSchema,
+        ];
+
+        $defaultImage = $this->galleryRootMenuImage() ?: $this->defaultOgImage();
+        if (!empty($defaultImage)) {
+            $collectionPage['primaryImageOfPage'] = [
+                '@type' => 'ImageObject',
+                'url' => $this->absoluteUrl((string)$defaultImage),
+            ];
+        }
+
+        $breadcrumbSchema = CommonSchemas::breadcrumbList([
+            ['name' => $locale === 'ru' ? 'Галерея' : 'Gallery', 'url' => $siteUrl . '/gallery'],
+        ]);
+
+        return JsonLdRenderer::render(
+            JsonLdRenderer::merge($website, $organization, $collectionPage, $breadcrumbSchema)
+        );
+    }
+
+    private function loadPublicListPayload(int $page, int $perPage, string $tag, string $category, string $sort): array
+    {
+        $cache = $this->container->get('cache');
+        $cacheAllowedForSort = !in_array($sort, ['likes', 'views', 'master_likes', 'comments'], true);
+        $enabled = $cacheAllowedForSort && $this->settings->get('cache_gallery_public_list', '1') === '1';
+        $ttl = max(1, (int)$this->settings->get('cache_gallery_public_list_ttl', '10')) * 60;
+        $cacheKey = 'gallery_public_list_' . sha1(json_encode([
+            'page' => $page,
+            'per_page' => $perPage,
+            'tag' => $tag,
+            'category' => $category,
+            'sort' => $sort,
+            'locale' => $this->container->get('lang')->current(),
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+
+        if ($enabled) {
+            $cached = $cache->get($cacheKey);
+            if (is_array($cached)) {
+                if (isset($cached['items']) && is_array($cached['items'])) {
+                    $cached['items'] = $this->refreshItemCounters($cached['items']);
+                }
+                return $cached;
+            }
+        }
+
         $display = $this->displaySettings();
         $mode = !empty($display['enable_lightbox']) ? $this->settings->get('gallery_open_mode', 'lightbox') : 'page';
 
@@ -95,76 +300,86 @@ class GalleryController
         $offsetSql = (int)$offset;
         $orderSql = $this->orderSql($sort, true);
         $items = $this->fetchItems($tag, $category, $orderSql, $limitSql, $offsetSql);
-        $items = $this->decorateMasterLikeEligibility($items);
+        $payload = [
+            'display' => $display,
+            'open_mode' => $mode,
+            'total' => $total,
+            'items' => $this->refreshItemCounters($items),
+            'enabled_categories' => $this->galleryCategories->enabled(),
+            'popular_tags' => !empty($display['show_tags']) ? $this->popularTags() : [],
+        ];
 
-        $canonical = $this->canonical($request);
-        $currentLocale = $this->container->get('lang')->current();
-        $defaultTitle = $currentLocale === 'ru' ? 'Галерея' : 'Gallery';
-        $defaultDesc = $currentLocale === 'ru'
-            ? 'Подборка изображений и альбомов.'
-            : 'Collection of images and albums.';
-        $titlePrimary = trim((string)($currentLocale === 'ru' ? ($seoSettings['seo_title_ru'] ?? '') : ($seoSettings['seo_title_en'] ?? '')));
-        $titleFallback = trim((string)($currentLocale === 'ru' ? ($seoSettings['seo_title_en'] ?? '') : ($seoSettings['seo_title_ru'] ?? '')));
-        $descPrimary = trim((string)($currentLocale === 'ru' ? ($seoSettings['seo_desc_ru'] ?? '') : ($seoSettings['seo_desc_en'] ?? '')));
-        $descFallback = trim((string)($currentLocale === 'ru' ? ($seoSettings['seo_desc_en'] ?? '') : ($seoSettings['seo_desc_ru'] ?? '')));
-        $listTitle = $titlePrimary !== '' ? $titlePrimary : ($titleFallback !== '' ? $titleFallback : $defaultTitle);
-        $listDesc = $descPrimary !== '' ? $descPrimary : ($descFallback !== '' ? $descFallback : $defaultDesc);
-        $seoListTitle = $listTitle;
-        if ($page > 1) {
-            $seoListTitle .= $currentLocale === 'ru' ? (' | Страница ' . $page) : (' | Page ' . $page);
+        if ($enabled) {
+            $cache->set($cacheKey, $payload, $ttl);
         }
 
-        // Cache check (только первая страница без фильтров)
-        $cacheSettings  = $this->container->get(\App\Services\SettingsService::class);
-        $cacheEnabled   = $cacheSettings->get('cache_gallery', '0') === '1';
-        $cacheTtl       = max(1, (int)$cacheSettings->get('cache_gallery_ttl', '60')) * 60;
-        $lang           = $this->container->get('lang')->current();
-        $viewer         = $this->container->get(Auth::class)->user();
-        $cacheEligible  = $cacheEnabled && $viewer === null;
-        $cacheKey       = 'gallery_list_p' . $page . '_' . $lang . '_' . $sort
-                        . ($tag !== '' ? '_t' . md5($tag) : '')
-                        . ($category !== '' ? '_c' . md5($category) : '');
-        /** @var \Core\Cache $cache */
-        $cache = $this->container->get('cache');
-        if ($cacheEligible && ($cached = $cache->get($cacheKey))) {
-            return new Response($cached);
+        return $payload;
+    }
+
+    private function refreshItemCounters(array $items): array
+    {
+        if ($items === []) {
+            return $items;
         }
 
-        $html = $this->container->get('renderer')->render(
-            'gallery/list',
-            [
-                '_layout' => true,
-                'title' => $listTitle,
-                'description' => $listDesc,
-                'items' => $items,
-                'page' => $page,
-                'total' => $total,
-                'perPage' => $perPage,
-                'locale' => $this->container->get('lang')->current(),
-                'tag'               => $tag,
-                'sort'              => $sort,
-                'category'          => $category,
-                'openMode'          => $mode,
-                'display'           => $display,
-                'masterLikeState'   => $this->masterLikes->viewerState(),
-                'masterLikeToken'   => Csrf::token('gallery_master_like'),
-                'enabledCategories' => $this->galleryCategories->enabled(),
-                'popularTags'       => !empty($display['show_tags']) ? $this->popularTags() : [],
-                'breadcrumbs'       => [
-                    ['label' => $listTitle],
-                ],
-            ],
-            [
-                'title' => $seoListTitle,
-                'description' => $listDesc,
-                'canonical' => $canonical,
-                'image' => $this->defaultOgImage(),
-            ]
-        );
-        if ($cacheEligible) {
-            $cache->set($cacheKey, $html, $cacheTtl);
+        $ids = [];
+        foreach ($items as $item) {
+            $id = (int)($item['id'] ?? 0);
+            if ($id > 0) {
+                $ids[] = $id;
+            }
         }
-        return new Response($html);
+
+        $ids = array_values(array_unique($ids));
+        if ($ids === []) {
+            return $items;
+        }
+
+        $select = 'id';
+        if ($this->hasColumn('likes')) {
+            $select .= ', likes';
+        }
+        if ($this->hasColumn('views')) {
+            $select .= ', views';
+        }
+        if ($this->hasColumn('master_likes_count')) {
+            $select .= ', master_likes_count';
+        }
+
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        try {
+            $rows = $this->db->fetchAll(
+                "SELECT {$select} FROM gallery_items WHERE id IN ({$placeholders})",
+                $ids
+            );
+        } catch (\Throwable $e) {
+            return $items;
+        }
+
+        $statsById = [];
+        foreach ($rows as $row) {
+            $statsById[(int)($row['id'] ?? 0)] = $row;
+        }
+
+        foreach ($items as $index => $item) {
+            $id = (int)($item['id'] ?? 0);
+            if ($id <= 0 || !isset($statsById[$id])) {
+                continue;
+            }
+
+            $stats = $statsById[$id];
+            if (array_key_exists('likes', $stats)) {
+                $items[$index]['likes'] = (int)$stats['likes'];
+            }
+            if (array_key_exists('views', $stats)) {
+                $items[$index]['views'] = (int)$stats['views'];
+            }
+            if (array_key_exists('master_likes_count', $stats)) {
+                $items[$index]['master_likes_count'] = (int)$stats['master_likes_count'];
+            }
+        }
+
+        return $items;
     }
 
     public function view(Request $request): Response
@@ -198,7 +413,7 @@ class GalleryController
         if (($mode === 'page') && empty($slugParam) && !empty($item['slug'] ?? '')) {
             return new Response('', 302, ['Location' => '/gallery/photo/' . urlencode($item['slug'])]);
         }
-        $this->db->execute("UPDATE gallery_items SET views = views + 1 WHERE id = ?", [$item['id']]);
+        $this->db->execute("UPDATE gallery_items SET views = views + 1, updated_at = updated_at WHERE id = ?", [$item['id']]);
         $canonical = $this->canonical($request);
         $ogImage = $item['path_medium'] ?? $item['path'] ?? '';
         $tags = [];
@@ -223,9 +438,7 @@ class GalleryController
         if ($itemDesc === '') {
             $itemDesc = $listDesc ?? '';
         }
-        if (!isset($listTitle)) {
-            $listTitle = $this->container->get('lang')->current() === 'ru' ? 'Галерея' : 'Gallery';
-        }
+        $listTitle = $this->container->get('lang')->current() === 'ru' ? 'Галерея' : 'Gallery';
         $fallbackOg = $this->defaultOgImage();
         $ogToUse = $ogImage ?: $fallbackOg;
         $authorVisibility = trim((string)($item['author_profile_visibility'] ?? 'public'));
@@ -239,6 +452,60 @@ class GalleryController
         $masterLikeState = $this->masterLikes->viewerState($item);
         $viewer = $this->container->get(Auth::class)->user();
         $collections = $this->container->get(CollectionService::class);
+        $shareTargets = $this->buildShareTargets($item);
+        $primaryCategory = $this->resolvePrimaryCategoryForItem($item);
+        $categoryBreadcrumbs = $this->categoryBreadcrumbs($primaryCategory, $this->container->get('lang')->current());
+        $pageBreadcrumbs = array_merge(
+            [['label' => $listTitle, 'url' => '/gallery']],
+            $categoryBreadcrumbs,
+            [['label' => $itemTitle ?? 'Image']]
+        );
+
+        // ── JSON-LD ───────────────────────────────────────────────────────────
+        $siteBase  = $this->siteBaseUrl();
+        $imageSchema = [
+            '@context'      => 'https://schema.org',
+            '@type'         => 'ImageObject',
+            'name'          => $itemTitle,
+            'contentUrl'    => $this->absoluteUrl($ogImage),
+            'url'           => $canonical,
+            'datePublished' => !empty($item['created_at'])
+                ? date('c', strtotime((string)$item['created_at']))
+                : null,
+        ];
+        if ($itemDesc !== '') {
+            $imageSchema['description'] = $itemDesc;
+        }
+        if (!empty($item['author_name'])) {
+            $authorEntry = [
+                '@type' => 'Person',
+                'name'  => $item['author_name'],
+                'url'   => $siteBase . $this->profileUrl($item['author_id'] ?? null, $item['author_username'] ?? null),
+            ];
+            if (!empty($item['author_avatar'])) {
+                $authorEntry['image'] = $this->absoluteUrl((string)$item['author_avatar']);
+            }
+            $imageSchema['author']  = $authorEntry;
+            $imageSchema['creator'] = $authorEntry;
+        }
+        $breadcrumbItems = [['name' => $listTitle, 'url' => $siteBase . '/gallery']];
+        foreach ($categoryBreadcrumbs as $crumb) {
+            $breadcrumbItems[] = [
+                'name' => (string)($crumb['label'] ?? ''),
+                'url' => $siteBase . (string)($crumb['url'] ?? '/gallery'),
+            ];
+        }
+        $ownerBreadcrumb = $this->ownerBreadcrumb($item, $siteBase);
+        if ($ownerBreadcrumb !== null) {
+            $breadcrumbItems[] = $ownerBreadcrumb;
+        }
+        $breadcrumbItems[] = ['name' => $itemTitle];
+        $breadcrumbSchema = CommonSchemas::breadcrumbList($breadcrumbItems);
+        $jsonld = JsonLdRenderer::render(
+            JsonLdRenderer::merge($imageSchema, $breadcrumbSchema)
+        );
+        // ─────────────────────────────────────────────────────────────────────
+
         $html = $this->container->get('renderer')->render(
             'gallery/item',
             [
@@ -253,25 +520,223 @@ class GalleryController
                 'authorSignature' => $showSignature ? ($item['author_signature'] ?? '') : '',
                 'authorSignatureVisible' => $showSignature && !empty($item['author_signature']),
                 'masterLikeState' => $masterLikeState,
-                'masterLikeToken' => Csrf::token('gallery_master_like'),
-                'collectionToken' => Csrf::token('users_collections'),
+                'masterLikeToken' => !empty($_SESSION['user_id']) ? Csrf::token('gallery_master_like') : '',
+                'collectionToken' => $viewer ? Csrf::token('users_collections') : '',
                 'collectionsAvailable' => $collections->available(),
+                'collectionSaved' => $viewer ? $collections->isSaved((int)$viewer['id'], 'gallery', (int)$item['id']) : false,
                 'viewer' => $viewer,
+                'shareTargets' => $shareTargets,
+                'shareCopyUrl' => $canonical,
                 'message' => $request->query['msg'] ?? null,
                 'error' => $request->query['err'] ?? null,
-                'breadcrumbs' => [
-                    ['label' => $listTitle, 'url' => '/gallery'],
-                    ['label' => $itemTitle ?? 'Image'],
-                ],
+                'breadcrumbs' => $pageBreadcrumbs,
             ],
             [
-                'title' => $itemTitle,
+                'title'       => $itemTitle,
                 'description' => $itemDesc,
-                'canonical' => $canonical,
-                'image' => $ogToUse,
+                'canonical'   => $canonical,
+                'image'       => $ogToUse,
+                'jsonld'      => $jsonld,
             ]
         );
         return new Response($html);
+    }
+
+    public function share(Request $request): Response
+    {
+        $id = (int)($request->params['id'] ?? 0);
+        $platform = strtolower(trim((string)($request->params['platform'] ?? '')));
+        if ($id < 1 || $platform === '') {
+            SecurityLog::log('gallery.share_invalid', ['item_id' => $id, 'platform' => $platform, 'reason' => 'missing_params']);
+            return new Response('Not found', 404);
+        }
+
+        $item = $this->db->fetch("
+            SELECT id, slug, title_ru, title_en
+            FROM gallery_items
+            WHERE id = ?{$this->approvedFilterSql('gallery_items')}
+            LIMIT 1
+        ", [$id]);
+        if (!$item) {
+            SecurityLog::log('gallery.share_invalid', ['item_id' => $id, 'platform' => $platform, 'reason' => 'item_not_found']);
+            return new Response('Not found', 404);
+        }
+
+        $redirectUrl = $this->shareRedirectUrl($platform, $item);
+        if ($redirectUrl === null) {
+            SecurityLog::log('gallery.share_invalid', ['item_id' => $id, 'platform' => $platform, 'reason' => 'platform_rejected']);
+            return new Response('Not found', 404);
+        }
+
+        return new Response('', 302, ['Location' => $redirectUrl]);
+    }
+
+    private function siteBaseUrl(): string
+    {
+        $cfg = include APP_ROOT . '/app/config/app.php';
+        return rtrim($cfg['url'] ?? '', '/');
+    }
+
+    private function absoluteUrl(string $path): string
+    {
+        if ($path === '' || str_starts_with($path, 'http')) {
+            return $path;
+        }
+        return $this->siteBaseUrl() . (str_starts_with($path, '/') ? '' : '/') . $path;
+    }
+
+    private function buildShareTargets(array $item): array
+    {
+        $labels = [
+            'telegram' => __('gallery.share.telegram'),
+            'whatsapp' => __('gallery.share.whatsapp'),
+            'vk' => __('gallery.share.vk'),
+        ];
+        $targets = [];
+
+        foreach ($this->allowedSharePlatforms() as $platform) {
+            if (!isset($labels[$platform])) {
+                continue;
+            }
+            $targets[] = [
+                'platform' => $platform,
+                'label' => (string)$labels[$platform],
+                'href' => '/gallery/share/' . (int)($item['id'] ?? 0) . '/' . rawurlencode($platform),
+            ];
+        }
+
+        return $targets;
+    }
+
+    private function allowedSharePlatforms(): array
+    {
+        $settings = $this->settings->all();
+        $raw = trim((string)($settings['allowed_social_platforms'] ?? 'telegram,vk,instagram,youtube,tiktok,whatsapp'));
+        $platforms = array_values(array_unique(array_filter(array_map(static function (string $value): string {
+            return strtolower(trim($value));
+        }, explode(',', $raw)))));
+        $supported = ['telegram', 'whatsapp', 'vk'];
+
+        return array_values(array_intersect($supported, $platforms));
+    }
+
+    private function shareRedirectUrl(string $platform, array $item): ?string
+    {
+        if (!in_array($platform, $this->allowedSharePlatforms(), true)) {
+            return null;
+        }
+
+        $sharePath = !empty($item['slug'])
+            ? '/gallery/photo/' . rawurlencode((string)$item['slug'])
+            : '/gallery/view?id=' . (int)($item['id'] ?? 0);
+        $shareUrl = $this->siteBaseUrl() . $sharePath;
+        $titleKey = $this->container->get('lang')->current() === 'ru' ? 'title_ru' : 'title_en';
+        $fallbackKey = $titleKey === 'title_ru' ? 'title_en' : 'title_ru';
+        $title = trim((string)($item[$titleKey] ?? ''));
+        if ($title === '') {
+            $title = trim((string)($item[$fallbackKey] ?? ''));
+        }
+        if ($title === '') {
+            $title = (string)__('gallery.title');
+        }
+
+        return match ($platform) {
+            'telegram' => 'https://t.me/share/url?url=' . rawurlencode($shareUrl) . '&text=' . rawurlencode($title),
+            'whatsapp' => 'https://wa.me/?text=' . rawurlencode($title . ' ' . $shareUrl),
+            'vk' => 'https://vk.com/share.php?url=' . rawurlencode($shareUrl) . '&title=' . rawurlencode($title),
+            default => null,
+        };
+    }
+
+    private function resolvePrimaryCategoryForItem(array $item): ?array
+    {
+        if ($this->hasItemCategoriesTable()) {
+            $row = $this->db->fetch(
+                "SELECT gc.*
+                 FROM gallery_categories gc
+                 JOIN gallery_item_categories gic ON gic.category_id = gc.id
+                 WHERE gic.item_id = ? AND gc.enabled = 1
+                 ORDER BY gc.position ASC, gc.id ASC
+                 LIMIT 1",
+                [(int)($item['id'] ?? 0)]
+            );
+            if ($row) {
+                return $row;
+            }
+        }
+
+        $categoryId = (int)($item['category_id'] ?? 0);
+        if ($categoryId > 0) {
+            $row = $this->galleryCategories->find($categoryId);
+            if ($row && !empty($row['enabled'])) {
+                return $row;
+            }
+        }
+
+        $categorySlug = trim((string)($item['category'] ?? ''));
+        if ($categorySlug !== '') {
+            $row = $this->galleryCategories->findBySlug($categorySlug);
+            if ($row && !empty($row['enabled'])) {
+                return $row;
+            }
+        }
+
+        return null;
+    }
+
+    private function categoryBreadcrumbs(?array $category, string $locale): array
+    {
+        if (!$category) {
+            return [];
+        }
+
+        $trail = [$category];
+        if ($this->hasCategoryParentColumn()) {
+            $seen = [(int)($category['id'] ?? 0) => true];
+            $parentId = (int)($category['parent_id'] ?? 0);
+            while ($parentId > 0 && !isset($seen[$parentId])) {
+                $parent = $this->galleryCategories->find($parentId);
+                if (!$parent || empty($parent['enabled'])) {
+                    break;
+                }
+                $trail[] = $parent;
+                $seen[$parentId] = true;
+                $parentId = (int)($parent['parent_id'] ?? 0);
+            }
+        }
+
+        $trail = array_reverse($trail);
+        $items = [];
+        foreach ($trail as $row) {
+            $label = $locale === 'ru'
+                ? ((string)($row['name_ru'] ?: $row['name_en']))
+                : ((string)($row['name_en'] ?: $row['name_ru']));
+            $slug = trim((string)($row['slug'] ?? ''));
+            if ($label === '' || $slug === '') {
+                continue;
+            }
+            $items[] = [
+                'label' => $label,
+                'url' => '/gallery/category/' . rawurlencode($slug),
+            ];
+        }
+
+        return $items;
+    }
+
+    private function ownerBreadcrumb(array $item, string $siteBase): ?array
+    {
+        if (!empty($item['submitted_by_master']) && !empty($item['author_name'])) {
+            return [
+                'name' => (string)$item['author_name'],
+                'url' => $siteBase . $this->profileUrl($item['author_id'] ?? null, $item['author_username'] ?? null),
+            ];
+        }
+
+        return [
+            'name' => 'TattooRoot',
+            'url' => $siteBase !== '' ? $siteBase . '/' : '/',
+        ];
     }
 
     private function resolveItemBySlug(string $rawSlug, string $authorSelect, string $authorJoin): ?array
@@ -347,13 +812,32 @@ class GalleryController
         $titleKey = $locale === 'ru' ? 'name_ru' : 'name_en';
         $catTitle = $category[$titleKey] ?: ($category['name_en'] ?: $category['name_ru']);
         $canonical = $this->canonical($request);
-        $seoTitle = $locale === 'ru' ? ($catTitle . ' — галерея') : ($catTitle . ' — gallery');
+        $seoTitlePrimary = trim((string)($locale === 'ru'
+            ? ($category['meta_title_ru'] ?? '')
+            : ($category['meta_title_en'] ?? '')));
+        $seoTitleFallback = trim((string)($locale === 'ru'
+            ? ($category['meta_title_en'] ?? '')
+            : ($category['meta_title_ru'] ?? '')));
+        $seoDescPrimary = trim((string)($locale === 'ru'
+            ? ($category['meta_description_ru'] ?? '')
+            : ($category['meta_description_en'] ?? '')));
+        $seoDescFallback = trim((string)($locale === 'ru'
+            ? ($category['meta_description_en'] ?? '')
+            : ($category['meta_description_ru'] ?? '')));
+
+        $seoTitle = $seoTitlePrimary !== ''
+            ? $seoTitlePrimary
+            : ($seoTitleFallback !== '' ? $seoTitleFallback : ($locale === 'ru' ? ($catTitle . ' — галерея') : ($catTitle . ' — gallery')));
         if ($page > 1) {
             $seoTitle .= $locale === 'ru' ? (' | Страница ' . $page) : (' | Page ' . $page);
         }
-        $seoDesc = $locale === 'ru'
-            ? ('Фотографии в категории «' . $catTitle . '». Подборка работ и изображений.')
-            : ('Photos in "' . $catTitle . '" category. A curated gallery of works.');
+        $seoDesc = $seoDescPrimary !== ''
+            ? $seoDescPrimary
+            : ($seoDescFallback !== ''
+                ? $seoDescFallback
+                : ($locale === 'ru'
+                    ? ('Фотографии в категории «' . $catTitle . '». Подборка работ и изображений.')
+                    : ('Photos in "' . $catTitle . '" category. A curated gallery of works.')));
         $html = $this->container->get('renderer')->render(
             'gallery/list',
             [
@@ -372,7 +856,7 @@ class GalleryController
                 'openMode'          => $mode,
                 'display'           => $display,
                 'masterLikeState'   => $this->masterLikes->viewerState(),
-                'masterLikeToken'   => Csrf::token('gallery_master_like'),
+                'masterLikeToken'   => !empty($_SESSION['user_id']) ? Csrf::token('gallery_master_like') : '',
                 'enabledCategories' => $this->galleryCategories->enabled(),
                 'popularTags'       => !empty($display['show_tags']) ? $this->popularTags() : [],
                 'breadcrumbs'       => [
@@ -412,19 +896,27 @@ class GalleryController
             [$slug]
         );
         $total = (int)($totalRow['cnt'] ?? 0);
-        $items = $this->fetchItems($slug, '', $orderSql, $limitSql, $offsetSql);
-        $items = $this->decorateMasterLikeEligibility($items);
+        $items = $this->decorateMasterLikeEligibility($this->refreshItemCounters($this->fetchItems($slug, '', $orderSql, $limitSql, $offsetSql)));
         $canonical = $this->canonical($request);
         $display = $this->displaySettings();
         $mode = !empty($display['enable_lightbox']) ? $this->settings->get('gallery_open_mode', 'lightbox') : 'page';
         $locale = $this->container->get('lang')->current();
-        $tagTitle = $locale === 'ru' ? ('Тег галереи: ' . $slug) : ('Gallery tag: ' . $slug);
+        $tagDisplay = $this->resolveTagDisplayName($slug);
+        $tagTitle = $locale === 'ru' ? ('Тег галереи: ' . $tagDisplay) : ('Gallery tag: ' . $tagDisplay);
         if ($page > 1) {
             $tagTitle .= $locale === 'ru' ? (' | Страница ' . $page) : (' | Page ' . $page);
         }
         $tagDesc = $locale === 'ru'
-            ? ('Изображения и работы по тегу «' . $slug . '».')
-            : ('Images and works for tag "' . $slug . '".');
+            ? ('Изображения и работы по тегу «' . $tagDisplay . '».')
+            : ('Images and works for tag "' . $tagDisplay . '".');
+        $siteBase = $this->siteBaseUrl();
+        $jsonld = JsonLdRenderer::render(
+            CommonSchemas::breadcrumbList([
+                ['name' => $locale === 'ru' ? 'Галерея' : 'Gallery', 'url' => $siteBase . '/gallery'],
+                ['name' => $tagDisplay, 'url' => $siteBase . '/tags/' . rawurlencode($slug) . '/gallery'],
+            ])
+        );
+        $tagImage = $this->resolveTagOgImage($items, $slug, $orderSql);
         $html = $this->container->get('renderer')->render(
             'gallery/list',
             [
@@ -436,21 +928,86 @@ class GalleryController
                 'perPage' => $perPage,
                 'locale' => $locale,
                 'tag' => $slug,
+                'tagDisplayName' => $tagDisplay,
                 'sort' => $sort,
                 'openMode' => $mode,
                 'display' => $display,
                 'masterLikeState' => $this->masterLikes->viewerState(),
-                'masterLikeToken' => Csrf::token('gallery_master_like'),
+                'masterLikeToken' => !empty($_SESSION['user_id']) ? Csrf::token('gallery_master_like') : '',
                 'popularTags' => !empty($display['show_tags']) ? $this->popularTags() : [],
+                'enableLoadMore' => true,
+                'loadMoreApi' => '/api/v1/tags/' . rawurlencode($slug) . '/gallery',
             ],
             [
                 'title' => $tagTitle,
                 'description' => $tagDesc,
                 'canonical' => $canonical,
-                'image' => $this->defaultOgImage(),
+                'image' => $tagImage,
+                'jsonld' => $jsonld,
             ]
         );
         return new Response($html);
+    }
+
+    private function resolveTagOgImage(array $items, string $slug, string $orderSql): string
+    {
+        foreach ($items as $item) {
+            $image = trim((string)($item['image_url'] ?? ''));
+            if ($image !== '') {
+                return $image;
+            }
+        }
+
+        try {
+            $row = $this->db->fetch(
+                "SELECT gi.image_url
+                 FROM gallery_items gi
+                 JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image')
+                 JOIN tags t ON t.id = tg.tag_id
+                 WHERE t.slug = :slug{$this->approvedFilterSql('gi')}
+                   AND COALESCE(gi.image_url, '') <> ''
+                 ORDER BY {$orderSql}
+                 LIMIT 1",
+                [':slug' => $slug]
+            );
+            $image = trim((string)($row['image_url'] ?? ''));
+            if ($image !== '') {
+                return $image;
+            }
+        } catch (\Throwable $e) {
+        }
+
+        return '/icon/tags_og.jpg';
+    }
+
+    public function tagApi(Request $request): Response
+    {
+        $slug = $this->resolveTagSlug((string)($request->params['slug'] ?? ''));
+        if ($slug === '') {
+            return Response::json(['error' => 'not_found'], 404);
+        }
+
+        $page = max(1, (int)($request->query['page'] ?? 1));
+        $perPage = max(1, (int)($this->moduleSettings->get('gallery', 'per_page') ?? 9));
+        $sort = $this->sanitizeSort((string)($request->query['sort'] ?? 'new'));
+        $orderSql = $this->orderSql($sort, true);
+        $total = $this->countTagItems($slug);
+        $pages = max(1, (int)ceil($total / $perPage));
+        $page = min($page, $pages);
+        $offset = ($page - 1) * $perPage;
+        $items = $this->decorateMasterLikeEligibility($this->refreshItemCounters($this->fetchItems($slug, '', $orderSql, $perPage, $offset)));
+        $locale = $this->container->get('lang')->current();
+
+        return Response::json([
+            'items' => array_map(fn (array $item): array => $this->formatTagApiItem($item, $locale), $items),
+            'pagination' => [
+                'page' => $page,
+                'per_page' => $perPage,
+                'total' => $total,
+                'has_more' => $page < $pages,
+                'next_page' => $page < $pages ? ($page + 1) : null,
+            ],
+        ]);
     }
 
     private function resolveTagSlug(string $rawSlug): string
@@ -471,7 +1028,14 @@ class GalleryController
         }
 
         foreach ($candidates as $candidate) {
-            $tag = $this->db->fetch("SELECT slug FROM tags WHERE slug = ? LIMIT 1", [$candidate]);
+            $tag = $this->db->fetch(
+                "SELECT slug
+                 FROM tags
+                 WHERE slug = ? OR name = ?
+                 ORDER BY CASE WHEN slug = ? THEN 0 ELSE 1 END, id ASC
+                 LIMIT 1",
+                [$candidate, $candidate, $candidate]
+            );
             if ($tag && !empty($tag['slug'])) {
                 return (string)$tag['slug'];
             }
@@ -480,9 +1044,100 @@ class GalleryController
         return '';
     }
 
+    private function countTagItems(string $slug): int
+    {
+        $row = $this->db->fetch(
+            "SELECT COUNT(*) as cnt
+             FROM gallery_items gi
+             JOIN taggables tg ON tg.entity_id = gi.id AND tg.entity_type IN ('gallery','gallery_item','image')
+             JOIN tags t ON t.id = tg.tag_id
+             WHERE t.slug = ?{$this->approvedFilterSql('gi')}",
+            [$slug]
+        );
+
+        return (int)($row['cnt'] ?? 0);
+    }
+
+    private function resolveTagDisplayName(string $slug): string
+    {
+        $row = $this->db->fetch(
+            "SELECT name, slug
+             FROM tags
+             WHERE slug = ?
+             LIMIT 1",
+            [$slug]
+        );
+
+        $name = trim((string)($row['name'] ?? ''));
+        if ($name !== '') {
+            return ltrim($name, "# \t\n\r\0\x0B");
+        }
+
+        return $slug;
+    }
+
+    private function formatTagApiItem(array $item, string $locale): array
+    {
+        $titleKey = $locale === 'ru' ? 'title_ru' : 'title_en';
+        $title = trim((string)($item[$titleKey] ?? ''));
+        if ($title === '') {
+            $title = trim((string)($item['title_en'] ?? $item['title_ru'] ?? ''));
+        }
+
+        $slug = trim((string)($item['slug'] ?? ''));
+        $id = (int)($item['id'] ?? 0);
+
+        return [
+            'id' => $id,
+            'slug' => $slug,
+            'title' => $title,
+            'thumb' => (string)($item['path_thumb'] ?? $item['path'] ?? ''),
+            'full' => (string)($item['path_medium'] ?? $item['path'] ?? ''),
+            'views' => (int)($item['views'] ?? 0),
+            'likes' => (int)($item['likes'] ?? 0),
+            'master_likes' => (int)($item['master_likes_count'] ?? 0),
+            'can_master_like' => !empty($item['can_receive_master_like']),
+            'submitted_by_master' => !empty($item['submitted_by_master']),
+            'author_name' => (string)($item['author_name'] ?? ''),
+            'author_avatar' => (string)($item['author_avatar'] ?? ''),
+            'href' => $slug !== '' ? '/gallery/photo/' . rawurlencode($slug) : '/gallery/view?id=' . $id,
+        ];
+    }
+
+    private function galleryItemPublicUrl(array $item): string
+    {
+        $slug = trim((string)($item['slug'] ?? ''));
+        $id = (int)($item['id'] ?? 0);
+
+        if ($slug !== '') {
+            return '/gallery/photo/' . rawurlencode($slug);
+        }
+
+        return '/gallery/view?id=' . $id;
+    }
+
+    private function galleryItemSeoTitle(array $item, string $locale): string
+    {
+        $primaryKey = $locale === 'ru' ? 'title_ru' : 'title_en';
+        $fallbackKey = $locale === 'ru' ? 'title_en' : 'title_ru';
+        $title = trim((string)($item[$primaryKey] ?? ''));
+
+        if ($title !== '') {
+            return $title;
+        }
+
+        $title = trim((string)($item[$fallbackKey] ?? ''));
+        if ($title !== '') {
+            return $title;
+        }
+
+        $id = (int)($item['id'] ?? 0);
+        return $locale === 'ru' ? ('Фото #' . $id) : ('Photo #' . $id);
+    }
+
     private function sanitizeSort(string $sort): string
     {
-        $allowed = ['new', 'likes', 'views', 'master_likes'];
+        $allowed = ['new', 'likes', 'views', 'master_likes', 'comments'];
         return in_array($sort, $allowed, true) ? $sort : 'new';
     }
 
@@ -637,6 +1292,9 @@ class GalleryController
         if ($sort === 'views' && $hasViews) {
             return "{$prefix}views DESC, {$prefix}id DESC";
         }
+        if ($sort === 'comments' && $this->tableExists('comments')) {
+            return "(SELECT COUNT(*) FROM comments c WHERE c.entity_type = 'gallery' AND c.entity_id = {$prefix}id AND c.status = 'approved') DESC, {$prefix}id DESC";
+        }
         if ($hasCreated) {
             return "{$prefix}created_at DESC, {$prefix}id DESC";
         }
@@ -650,6 +1308,19 @@ class GalleryController
             try {
                 $row = $this->db->fetch("SHOW COLUMNS FROM gallery_items LIKE ?", [$name]);
                 $cache[$name] = $row ? true : false;
+            } catch (\Throwable $e) {
+                $cache[$name] = false;
+            }
+        }
+        return $cache[$name];
+    }
+
+    private function tableExists(string $name): bool
+    {
+        static $cache = [];
+        if (!array_key_exists($name, $cache)) {
+            try {
+                $cache[$name] = (bool)$this->db->fetch("SHOW TABLES LIKE ?", [$name]);
             } catch (\Throwable $e) {
                 $cache[$name] = false;
             }
@@ -762,6 +1433,26 @@ class GalleryController
         return $logo ?: null;
     }
 
+    private function galleryRootMenuImage(): ?string
+    {
+        try {
+            $row = $this->db->fetch(
+                "SELECT image_url
+                 FROM settings_menu
+                 WHERE url = ?
+                   AND COALESCE(image_url, '') <> ''
+                 ORDER BY enabled DESC, id ASC
+                 LIMIT 1",
+                ['/gallery']
+            );
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $image = trim((string)($row['image_url'] ?? ''));
+        return $image !== '' ? $image : null;
+    }
+
     private function canBypassPrivateProfile(int $ownerId): bool
     {
         if ($ownerId <= 0) {
@@ -798,7 +1489,8 @@ class GalleryController
                  JOIN taggables tg ON tg.tag_id = t.id
                  WHERE tg.entity_type IN ('gallery','gallery_item','image')
                  GROUP BY t.id, t.name, t.slug
-                 ORDER BY t.name ASC"
+                 ORDER BY uses DESC, t.name ASC
+                 LIMIT 100"
             );
         } catch (\Throwable $e) {
             return [];

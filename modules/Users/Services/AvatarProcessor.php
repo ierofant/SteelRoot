@@ -17,7 +17,7 @@ class AvatarProcessor
     /**
      * @param string $tmpFilePath path to uploaded tmp file
      * @param int    $userId      user identifier for filename
-     * @return string final relative path (/storage/uploads/avatars/{userId}.jpg) or empty string on failure
+     * @return string final relative path (/storage/uploads/avatars/{userId}.webp) or empty string on failure
      */
     public function processUploadedImage($tmpFilePath, $userId): string
     {
@@ -84,6 +84,16 @@ class AvatarProcessor
         $scaledY = (int)max(0, min($naturalH - $scaledH, round($cropY / $scale)));
 
         $dst = imagecreatetruecolor(256, 256);
+        if (!$dst) {
+            imagedestroy($src);
+            return '';
+        }
+
+        imagealphablending($dst, false);
+        imagesavealpha($dst, true);
+        $transparent = imagecolorallocatealpha($dst, 0, 0, 0, 127);
+        imagefill($dst, 0, 0, $transparent);
+
         imagecopyresampled(
             $dst,
             $src,
@@ -96,11 +106,25 @@ class AvatarProcessor
             $scaledW,
             $scaledH
         );
-        $filename = rtrim($this->dir, '/') . '/' . (int)$userId . '.jpg';
-        imagejpeg($dst, $filename, 85);
+
+        $base = rtrim($this->dir, '/') . '/' . (int)$userId;
+        foreach (['.jpg', '.jpeg', '.png', '.webp'] as $ext) {
+            $legacy = $base . $ext;
+            if (is_file($legacy)) {
+                @unlink($legacy);
+            }
+        }
+
+        $filename = $base . '.webp';
+        $saved = function_exists('imagewebp') ? @imagewebp($dst, $filename, 82) : false;
         imagedestroy($src);
         imagedestroy($dst);
-        return '/storage/uploads/avatars/' . (int)$userId . '.jpg';
+
+        if (!$saved) {
+            return '';
+        }
+
+        return '/storage/uploads/avatars/' . (int)$userId . '.webp';
     }
 
     /**

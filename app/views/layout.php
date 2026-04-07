@@ -102,5 +102,8 @@ window.showToast = (message, type = 'info') => {
 </script>
 <script src="/assets/js/popup.js"></script>
 <?php \Core\Slot::render('body_end'); ?>
+<?php if ((($settings['pwa_enabled'] ?? '1') === '1')): ?>
+<script src="/assets/js/pwa-init.js" defer></script>
+<?php endif; ?>
 </body>
 </html>

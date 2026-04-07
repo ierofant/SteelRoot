@@ -1,15 +1,15 @@
-# SteelRoot
+# SteelRoot v2
 Modular PHP CMS focused on clarity, security, and sane defaults.
 
 📘 Русская версия: [README.ru.md](README.ru.md)
 
 ---
 
-## SteelRoot CMS
+## SteelRoot CMS v2
 
 Modular PHP CMS for shared hosting (`public_html`).
 Ships with an admin panel, themes, i18n (en/ru), articles, gallery, popups,
-pages, forms, search, and PWA support.
+pages, news, forms, comments, search, menu SEO/OG, and PWA support.
 
 ---
 
@@ -52,7 +52,7 @@ Then open `http://your-domain/installer.php` in a browser to finish setup.
 ## Install (browser)
 1) Run `bash setup.sh` after cloning — it verifies requirements and creates all needed directories.
 2) Point vhost to `public_html/` with rewrites to `prefilter.php`.
-3) Open `installer.php` in browser, fill DB/admin, optional admin_secret for custom prefix. Installer writes configs and runs migrations (core + pages table).
+3) Open `installer.php` in browser, fill DB/admin, optional admin_secret for custom prefix. Installer writes configs, creates runtime directories, runs core migrations, and auto-discovers module migrations from `modules/*/migrations`.
 4) Delete `installer.php` after success.
 
 Config files `app/config/app.php` and `app/config/database.php` are generated; examples: `app/config/app.example.php`, `database.example.php`.
@@ -74,20 +74,22 @@ public_html/
 - **Gallery**: masonry list, lightbox, likes/views, tags; admin upload/edit/delete, module settings, sitemap provider; **categories** with cover images and subfolder organisation; **folder picker** on upload (existing folders + create new); locale_mode-aware upload form with file preview.
 - **File Manager** (`/admin/files`): filesystem browser for `storage/uploads/`; folder navigation with breadcrumbs; upload, create folder, delete file/empty-folder; path-traversal protected.
 - **Attachments** (`/admin/attachments`): article image popup picker; upload, delete, insert URL into editor; directories excluded from listing.
-- Pages: static pages with admin CRUD, menu integration, sitemap; embeds handled in content.
-- Menu: configurable RU/EN labels, SEO meta, OG image; supports one-level dropdowns (parent/child).
+- Pages: static pages with admin CRUD, menu integration, sitemap, comments mode; embeds handled in content.
+- News: dedicated `/news` module with own tables, categories, admin CRUD and homepage integration.
+- Menu: configurable RU/EN labels, SEO meta, OG image, icon; supports one-level dropdowns plus pointer/non-clickable parent items.
 - Embeddable forms: admin tab `/admin/forms/embeds`, JSON-defined fields, localized success, embed via `{{ form:slug }}`; CSRF/rate-limit/spam protections reused from contact form.
 - Users: auth/registration/profile with avatars; admin user management; registration settings `/admin/users/settings` (enable/disable, email verification, default role, username/password rules, domain allow/deny, IP/CIDR blocks, rate limit, optional auto-login).
+- Comments: dedicated moderation/settings module with global section toggles and per-entity policy support for Articles/News/Pages.
 - Error pages: admin `/admin/template/errors` per-code (403/404/500/503) custom content (title/message/description/CTA/icon/home button) with safe rendering.
 - Popups: cookie/adult popups with delays/targets; admin UI `/admin/popups`.
 - Redirects: `/admin/redirects` with cache; handled before 404.
 - Search: full-text articles/gallery with source filters; autocomplete tags; API v1.
-- PWA: admin-managed manifest/SW version/cache list; runtime cache with versioning.
+- PWA: admin-managed manifest/SW version/cache list; offline page, update banner and runtime cache versioning.
 - **SEO & Structured Data**: JSON-LD infrastructure (`core/Meta`); auto-generated Schema.org markup for articles; extensible for other modules; Google Rich Results compatible.
 - Themes: light/dark via tokens/variables; no inline colors.
 - i18n: lang files per app/module; helper `__()`; **locale_mode** setting (`en`/`ru`/`multi`) hides irrelevant language fields across all admin forms.
 - Cache: file cache; sitemap cached 10 min.
-- Module system: `core/ModuleManager`, per-module migrations (`ModuleMigrationRunner`), lang/views/routes providers.
+- Module system: `core/ModuleManager`, per-module migrations (`ModuleMigrationRunner`), lang/views/routes providers; installer also auto-discovers module migrations at bootstrap time.
 
 ## HTTP Prefilter
 
