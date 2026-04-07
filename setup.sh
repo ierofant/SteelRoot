@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-#  SteelRoot CMS — Setup Script
+#  SteelRoot v2 — Setup Script
 #  Run once after cloning: bash setup.sh
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -33,7 +33,7 @@ cat <<'LOGO'
   ╚══════╝   ╚═╝   ╚══════╝╚══════╝╚══════╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝   ╚═╝
 LOGO
 echo -e "${N}"
-echo -e "${B}  SteelRoot CMS — Environment Setup${N}"
+echo -e "${B}  SteelRoot v2 — Environment Setup${N}"
 echo -e "  ${C}https://github.com/SteelRoot${N}"
 echo ""
 sep
@@ -105,6 +105,9 @@ DIRS=(
     "storage/uploads/gallery/categories"
     "storage/uploads/articles"
     "storage/uploads/articles/categories"
+    "storage/uploads/news"
+    "storage/uploads/news/categories"
+    "storage/uploads/videos"
     "storage/uploads/users"
     "storage/uploads/menu"
     "storage/uploads/shop"
@@ -220,7 +223,8 @@ echo -e "  ${C}2.${N} Open in your browser:"
 echo -e "     ${Y}http://<your-domain>/installer.php${N}"
 echo ""
 echo -e "  ${C}3.${N} Fill in DB credentials, site name and admin account."
-echo -e "     Select modules to enable. Click ${B}Install SteelRoot${N}."
+echo -e "     Select modules to enable. Installer will run core migrations and auto-discover module migrations."
+echo -e "     Click ${B}Install SteelRoot v2${N}."
 echo ""
 echo -e "  ${C}4.${N} After install: ${R}delete installer.php${N}"
 echo ""
